@@ -1,0 +1,17 @@
+ignore_merge_commits = true
+
+[changelog]
+path = "CHANGELOG.md"
+
+[packages.agent-core]
+path = "packages/agent-core"
+public_api = true
+changelog_path = "packages/agent-core/CHANGELOG.md"
+pre_bump_hooks = [
+    "echo 'bumping agent-core from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm --filter agent-core version {{version|0.0.1}} --no-git-tag-version",
+]
+
+[post_bump_hooks]
+"git push" = []
+"git push origin {{version}}" = []
