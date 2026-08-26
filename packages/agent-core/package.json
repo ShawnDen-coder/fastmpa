@@ -19,12 +19,14 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test:openrouter": "pnpm build && node --env-file=../../.env scripts/openrouter-smoke.mjs"
+    "test:openrouter": "pnpm build && node --env-file=../../.env scripts/openrouter-smoke.mjs",
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "pino": "^10.3.1"
