@@ -7,12 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to build
+        description: Existing release tag to publish
         required: true
         type: string
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: release-${{ inputs.tag || github.ref_name }}
@@ -20,53 +21,15 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref_name }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Check formatting
-        run: pnpm format:check
-
-      - name: Type check
-        run: pnpm -r run typecheck
-
-      - name: Test
-        run: pnpm -r run test
-
-      - name: Build agent-core
-        run: pnpm --filter agent-core build
-
-      - name: Pack agent-core
-        run: pnpm --filter agent-core pack --pack-destination "${{ github.workspace }}/artifacts"
-
-      - name: Upload package artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: agent-core-${{ inputs.tag || github.ref_name }}
-          path: artifacts/*.tgz
-          if-no-files-found: error
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          name: Release ${{ inputs.tag || github.ref_name }}
-          files: artifacts/*.tgz
-          generate_release_notes: true
+    uses: ShawnDen-coder/repo-scaffold/.github/workflows/reusable-node-release.yaml@0.35.0
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+      build-command: >-
+        pnpm format:check &&
+        pnpm -r run typecheck &&
+        pnpm -r run test &&
+        pnpm --filter agent-core build &&
+        node -e "const fs=require('node:fs');fs.cpSync('packages/agent-core/dist','dist',{recursive:true});fs.copyFileSync('packages/agent-core/package.json','package.json')"
+      publish-npm: false
+      publish-gpr: true
+      github-package-name: '@shawnden-coder/agent-core'
