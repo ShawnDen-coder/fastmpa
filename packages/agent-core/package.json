@@ -20,6 +20,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test:openrouter": "pnpm build && node --env-file=../../.env scripts/openrouter-smoke.mjs",
+    "test:openrouter:turn": "pnpm build && node --env-file=../../.env scripts/openrouter-turn-smoke.mjs",
     "test": "vitest run"
   },
   "devDependencies": {
