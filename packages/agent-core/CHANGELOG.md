@@ -1,3 +1,4 @@
+---
 # Changelog
 
 All notable changes to `agent-core` are documented in this file.
