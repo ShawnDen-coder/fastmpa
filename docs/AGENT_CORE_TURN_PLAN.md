@@ -100,7 +100,7 @@ turn
 
 验收：未注册工具、非法参数和工具异常都能转换为明确的 `ToolResult`，不能伪装成成功。
 
-### 阶段 4：Context 与 Guards
+### 阶段 4：Context 与 Guards（已完成）
 
 实现上下文消息追加和两个保护器：
 
@@ -109,7 +109,7 @@ turn
 
 后续再考虑 Token、超时和费用预算，不在第一版引入模型供应商细节。
 
-### 阶段 5：Turn 主循环
+### 阶段 5：Turn 主循环（基础版已完成）
 
 实现 `runTurn`：
 
@@ -153,7 +153,7 @@ ToolResult 加入 Context
 
 - TypeScript 严格模式；
 - Node.js ESM；
-- `node:test`；
+- `Vitest`；
 - `tsc` 类型检查和构建；
 - Fake Model 和内存工具；
 - 不引入 OpenAI SDK、LangChain、数据库 ORM、HTTP 框架或 Electron。

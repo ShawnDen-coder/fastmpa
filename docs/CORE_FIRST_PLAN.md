@@ -49,7 +49,7 @@ TurnResult：done / waiting / blocked / failed
 3. 实现 Tool Registry：注册工具、按名称查找、校验参数、执行并包装结果。
 4. 实现 `runTurn`：支持有限步数的文本回复和工具调用循环。
 5. 增加取消、模型错误、工具错误和超限错误。
-6. 用 `node:test` 补齐正常路径、失败路径和重复调用测试。
+6. 用 `Vitest` 补齐正常路径、失败路径和重复调用测试。
 
 ### 第一阶段必须验证
 
@@ -116,7 +116,7 @@ Web / Electron / BYOA / 多角色
 
 ## 六、技术边界
 
-第一阶段使用 TypeScript、Node.js ESM、`node:test` 和 `tsc`。暂不引入 OpenAI SDK、LangChain、数据库 ORM、HTTP 框架、Redis 或 Electron 依赖。
+第一阶段使用 TypeScript、Node.js ESM、`Vitest` 和 `tsc`。暂不引入 OpenAI SDK、LangChain、数据库 ORM、HTTP 框架、Redis 或 Electron 依赖。
 
 ## 七、验收标准
 
