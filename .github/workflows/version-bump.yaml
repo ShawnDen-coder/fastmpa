@@ -2,44 +2,19 @@ name: Version Bump
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
   workflow_dispatch:
-    inputs:
-      release-version:
-        description: Explicit release version, for example 1.0.0
-        required: false
-        type: string
 
 permissions:
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: version-bump-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   version-bump:
-    runs-on: ubuntu-latest
-    if: "!startsWith(github.event.head_commit.message, 'chore(version):')"
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Cocogitto bump
-        uses: cocogitto/cocogitto-action@v3
-        with:
-          release: ${{ inputs.release-version == '' }}
+    uses: ShawnDen-coder/repo-scaffold/.github/workflows/reusable-version-bump.yaml@0.35.0
+    with:
+      node-version: '22'
+      pnpm-version: latest
