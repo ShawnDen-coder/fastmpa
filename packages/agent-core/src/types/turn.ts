@@ -31,14 +31,15 @@ export interface CancellationSignal {
 
 export interface TurnInput {
   readonly messages: readonly Message[]
-  readonly tools: readonly ToolDefinition[]
   readonly maxSteps?: number
   readonly signal?: CancellationSignal
   readonly metadata?: Readonly<Record<string, unknown>>
 }
 
 /** 发送给模型的 TurnInput 投影，不包含 Runtime 控制字段。 */
-export type ModelInput = Pick<TurnInput, 'messages' | 'tools'>
+export type ModelInput = Pick<TurnInput, 'messages'> & {
+  readonly tools: readonly ToolDefinition[]
+}
 
 /**
  * Turn 运行期间产生的可观察事件。
