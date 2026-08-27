@@ -1,10 +1,4 @@
-import { TurnContext } from './context/context'
-import { AgentCoreError } from './errors'
-import { logger, type Logger } from './logger'
-import type { ModelAdapter } from './model/adapter'
-import { ToolExecutor } from './tools/executor'
-import { ToolRegistry } from './tools/registry'
-import type { TurnEvent, TurnInput, TurnResult, TurnStatus } from './types/turn'
+
 /**
  * FastMPA Agent Turn 的实现入口。
  *
@@ -96,6 +90,17 @@ import type { TurnEvent, TurnInput, TurnResult, TurnStatus } from './types/turn'
 
 
 /** runTurn 的依赖注入。 */
+
+import { TurnContext } from './context/context'
+import { AgentCoreError } from './errors'
+import { logger, type Logger } from './logger'
+import type { ModelAdapter } from './model/adapter'
+import { ToolExecutor } from './tools/executor'
+import { ToolRegistry } from './tools/registry'
+import { CancellationGuard, checkGuards, StepLimitGuard } from './guards'
+import type { TurnEvent, TurnInput, TurnResult, TurnStatus } from './types/turn'
+
+
 export interface RunTurnOptions {
   readonly model: ModelAdapter
   readonly tools: ToolRegistry
@@ -118,11 +123,26 @@ export async function runTurn(
 
   log.info({ maxSteps, messageCount: input.messages.length }, 'turn started')
 
-  // 每一次循环代表一次模型请求；maxSteps 是防止模型无限调用工具的安全边界。
-  for (let step = 0; step < maxSteps; step += 1) {
-    if (input.signal?.aborted) {
-      log.warn({ step }, 'turn cancelled before model request')
-      return finishTurn(log, context, events, step, 'blocked')
+  const guards = [new CancellationGuard(), new StepLimitGuard()]
+
+  // 每一轮先通过 Guard，再请求模型。
+  for (let step = 0; ; step += 1) {
+    const guardResult = checkGuards(guards, {
+      step,
+      maxSteps,
+      signal: input.signal,
+    })
+
+    if (!guardResult.allowed) {
+      log.warn({ step, status: guardResult.status }, 'turn stopped by guard')
+      return finishTurn(
+        log,
+        context,
+        events,
+        step,
+        guardResult.status,
+        guardResult.error,
+      )
     }
 
     try {
@@ -188,14 +208,6 @@ export async function runTurn(
     }
   }
 
-  return finishTurn(
-        log,
-        context,
-    events,
-    maxSteps,
-    'failed',
-    new AgentCoreError('step_limit_exceeded', `Turn exceeded maximum steps: ${maxSteps}`),
-  )
 }
 
 function normalizeError(error: unknown): Error {
