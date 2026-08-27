@@ -14,6 +14,8 @@ export type TurnStatus =
   | 'waiting'
   /** 当前工作无法继续，存在明确的阻塞原因，需要人工或其他流程介入。 */
   | 'blocked'
+  /** 本次 Turn 被外部取消，不代表业务工作本身失败。 */
+  | 'cancelled'
   /** 输入信息不足，Agent 需要用户补充澄清后才能继续。 */
   | 'needs_clarification'
   /** 模型、工具、取消或预算限制导致本次 Turn 失败。 */

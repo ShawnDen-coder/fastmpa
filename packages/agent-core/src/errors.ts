@@ -1,6 +1,7 @@
 export type AgentErrorCode =
   | 'turn_failed'
   | 'step_limit_exceeded'
+  | 'turn_cancelled'
 
 /** agent-core 跨模块共享的基础错误。 */
 export class AgentCoreError extends Error {
