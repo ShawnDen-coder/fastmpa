@@ -12,6 +12,7 @@ Turn Engine → Agent Runtime → Policy/Audit → Domain Tools
 ## 文档索引
 
 - [Core 学习与实现计划](CORE_FIRST_PLAN.md) — 当前阶段的主要任务。
+- [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Tool、Context 和 Guard 的实现细则。
 - [项目 README](../README.md) — workspace、命令和子包入口。
 - [agent-core 包](../packages/agent-core/) — 当前正在学习和实现的核心包。
 
