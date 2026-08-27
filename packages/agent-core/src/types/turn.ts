@@ -53,9 +53,19 @@ export type TurnEvent =
   /** Turn 向模型发起了一次请求，step 表示当前循环轮次。 */
   | { readonly type: 'model_requested'; readonly step: number }
   /** 模型请求调用工具，记录工具调用 ID 和工具名称。 */
-  | { readonly type: 'tool_called'; readonly step: number; readonly toolCallId: string; readonly name: string }
+  | {
+      readonly type: 'tool_called'
+      readonly step: number
+      readonly toolCallId: string
+      readonly name: string
+    }
   /** 工具执行完成，isError 表示工具是否执行失败。 */
-  | { readonly type: 'tool_finished'; readonly step: number; readonly toolCallId: string; readonly isError: boolean }
+  | {
+      readonly type: 'tool_finished'
+      readonly step: number
+      readonly toolCallId: string
+      readonly isError: boolean
+    }
   /** Turn 进入终止状态，status 表示本次 Turn 的最终结果。 */
   | { readonly type: 'turn_finished'; readonly status: TurnStatus }
 
@@ -66,5 +76,3 @@ export interface TurnResult {
   readonly steps: number
   readonly error?: Error
 }
-
-

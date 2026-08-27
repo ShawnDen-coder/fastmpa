@@ -29,4 +29,3 @@ export type ModelResponse =
 export interface ModelAdapter {
   complete(input: ModelInput): Promise<ModelResponse>
 }
-

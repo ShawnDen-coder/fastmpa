@@ -32,4 +32,3 @@ console.log({
   content: response.type === 'text' ? response.content : undefined,
   toolCallCount: response.type === 'tool_calls' ? response.toolCalls.length : 0,
 })
-

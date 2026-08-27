@@ -21,10 +21,7 @@ export interface TurnGuard {
 }
 
 /** 按顺序执行 Guard，第一个拒绝继续的结果优先。 */
-export function checkGuards(
-  guards: readonly TurnGuard[],
-  context: GuardContext,
-): GuardResult {
+export function checkGuards(guards: readonly TurnGuard[], context: GuardContext): GuardResult {
   for (const guard of guards) {
     const result = guard.check(context)
     if (!result.allowed) return result

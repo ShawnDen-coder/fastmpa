@@ -46,19 +46,20 @@ describe('ToolRegistry', () => {
   it('拒绝空名称和重复工具', () => {
     const registry = new ToolRegistry()
 
-    expect(() => registry.register({
-      definition: {
-        name: ' ',
-        description: 'invalid',
-        parameters: {},
-      },
-      execute: () => null,
-    })).toThrow('Tool name is required')
+    expect(() =>
+      registry.register({
+        definition: {
+          name: ' ',
+          description: 'invalid',
+          parameters: {},
+        },
+        execute: () => null,
+      }),
+    ).toThrow('Tool name is required')
 
     registry.register(createEchoTool())
 
-    expect(() => registry.register(createEchoTool()))
-      .toThrow('Tool already registered: echo')
+    expect(() => registry.register(createEchoTool())).toThrow('Tool already registered: echo')
   })
 })
 
@@ -206,7 +207,6 @@ describe('TurnContext', () => {
 
     expect(context.messages).toHaveLength(3)
     expect(context.messages[2].role).toBe('tool')
-    expect(context.messages[2].content)
-      .toBe('[tool_error:invalid_arguments] value is required')
+    expect(context.messages[2].content).toBe('[tool_error:invalid_arguments] value is required')
   })
 })

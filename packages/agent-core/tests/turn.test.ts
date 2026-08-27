@@ -29,7 +29,11 @@ describe('runTurn', () => {
       execute: () => '工具结果',
     })
     const model = new FakeModel([
-      { type: 'tool_calls', content: '', toolCalls: [{ id: 'call-1', name: 'echo', arguments: '{}' }] },
+      {
+        type: 'tool_calls',
+        content: '',
+        toolCalls: [{ id: 'call-1', name: 'echo', arguments: '{}' }],
+      },
       { type: 'text', content: '最终回答' },
     ])
 
@@ -41,7 +45,10 @@ describe('runTurn', () => {
     expect(result.status).toBe('done')
     expect(result.steps).toBe(2)
     expect(result.messages.map((message) => message.role)).toEqual([
-      'user', 'assistant', 'tool', 'assistant',
+      'user',
+      'assistant',
+      'tool',
+      'assistant',
     ])
     expect(model.requests).toHaveLength(2)
     expect(model.requests[1].messages[1].toolCalls).toHaveLength(1)
@@ -74,14 +81,22 @@ describe('runTurn', () => {
 
     expect(result.status).toBe('done')
     expect(result.messages.map((message) => message.content)).toEqual([
-      '请求', '', '结果一', '结果二', '完成',
+      '请求',
+      '',
+      '结果一',
+      '结果二',
+      '完成',
     ])
     expect(result.events.filter((event) => event.type === 'tool_finished')).toHaveLength(2)
   })
 
   it('工具失败后仍把错误写入上下文并交给模型决定下一步', async () => {
     const model = new FakeModel([
-      { type: 'tool_calls', content: '', toolCalls: [{ id: 'missing-1', name: 'missing', arguments: '{}' }] },
+      {
+        type: 'tool_calls',
+        content: '',
+        toolCalls: [{ id: 'missing-1', name: 'missing', arguments: '{}' }],
+      },
       { type: 'text', content: '工具不可用' },
     ])
 
@@ -95,7 +110,8 @@ describe('runTurn', () => {
   })
 
   it.each(['waiting', 'blocked', 'needs_clarification'] as const)(
-    '模型返回 %s 状态时结束回合', async (status) => {
+    '模型返回 %s 状态时结束回合',
+    async (status) => {
       const result = await runTurn(input(), {
         model: new FakeModel([{ type: 'status', status, content: '需要后续处理' }]),
         tools: new ToolRegistry(),
@@ -108,10 +124,13 @@ describe('runTurn', () => {
 
   it('收到取消信号时不请求模型', async () => {
     const model = new FakeModel([{ type: 'text', content: '不应执行' }])
-    const result = await runTurn({ ...input(), signal: { aborted: true } }, {
-      model,
-      tools: new ToolRegistry(),
-    })
+    const result = await runTurn(
+      { ...input(), signal: { aborted: true } },
+      {
+        model,
+        tools: new ToolRegistry(),
+      },
+    )
 
     expect(result.status).toBe('cancelled')
     expect(result.steps).toBe(0)
@@ -136,10 +155,13 @@ describe('runTurn', () => {
 
   it('超过最大步数返回 step_limit_exceeded', async () => {
     const model = new FakeModel([{ type: 'tool_calls', content: '', toolCalls: [] }])
-    const result = await runTurn({ ...input(), maxSteps: 1 }, {
-      model,
-      tools: new ToolRegistry(),
-    })
+    const result = await runTurn(
+      { ...input(), maxSteps: 1 },
+      {
+        model,
+        tools: new ToolRegistry(),
+      },
+    )
 
     expect(result.status).toBe('failed')
     expect(result.error).toMatchObject({

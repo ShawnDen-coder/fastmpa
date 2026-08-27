@@ -39,7 +39,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-
       - name: Cocogitto bump
         uses: cocogitto/cocogitto-action@v3
         with:
