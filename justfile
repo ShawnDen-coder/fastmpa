@@ -26,12 +26,23 @@ build:
 typecheck:
     pnpm -r run typecheck
 
+# Run all workspace tests
+test:
+    pnpm -r run test
+
+# Reproduce the GitHub CI checks locally
+ci:
+    pnpm format:check
+    pnpm -r run typecheck
+    pnpm -r run build
+    pnpm -r run test
+
 # Pinned version used by all member-generation recipes.
-repo_scaffold_version := "1.0.0"
+repo_scaffold_version := "0.35.0"
 
 # Add a typed workspace member through the pinned repo-scaffold release.
 add-member name member_type="ts-lib":
-    uvx --from "repo-scaffold==1.0.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path .
+    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path .
 
 # Add a TypeScript library under packages/.
 add-lib name:
@@ -47,4 +58,4 @@ add-package name:
 
 # Preview a member generation without changing the workspace.
 plan-member name member_type="ts-lib":
-    uvx --from "repo-scaffold==1.0.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --dry-run
+    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --dry-run
