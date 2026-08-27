@@ -14,7 +14,7 @@ flowchart TD
     Registry --> Executor[ToolExecutor<br/>解析、校验、执行]
     Executor --> Result[ToolResult<br/>成功或结构化错误]
     Result --> Context
-    Done --> Output[TurnResult + TurnEvent[]]
+    Done --> Output["TurnResult + TurnEvent[]"]
     Status --> Output
     Cancel --> Output
     Limit --> Output
