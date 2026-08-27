@@ -12,6 +12,7 @@ pre_bump_hooks = [
     "pnpm --filter agent-core version {{version|0.0.1}} --no-git-tag-version",
 ]
 
-[post_bump_hooks]
-"git push" = []
-"git push origin {{version}}" = []
+post_bump_hooks = [
+    "git push",
+    "git push origin {{version}}",
+]
