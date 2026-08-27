@@ -1,7 +1,8 @@
 import type { Message, MessageRole } from '../types/message'
 import type { ToolCall, ToolDefinition } from '../types/tool'
-import type { ModelInput } from '../types/turn'
-import type { ModelAdapter, ModelResponse } from './adapter'
+import type { CancellationSignal, ModelInput } from '../types/turn'
+import type { ModelAdapter, ModelRequestOptions, ModelResponse } from './adapter'
+import { ModelExecutionError } from './errors'
 
 /** OpenRouter 返回结果的最小 HTTP 接口，避免绑定具体 HTTP 库。 */
 export interface OpenRouterHttpResponse {
@@ -15,6 +16,7 @@ export interface OpenRouterRequestInit {
   readonly method: 'POST'
   readonly headers: Readonly<Record<string, string>>
   readonly body: string
+  readonly signal?: CancellationSignal
 }
 
 export type OpenRouterFetcher = (
@@ -65,7 +67,10 @@ const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1'
 function defaultFetcher(url: string, init: OpenRouterRequestInit): Promise<OpenRouterHttpResponse> {
   const fetchFunction = (globalThis as { fetch?: OpenRouterFetcher }).fetch
   if (!fetchFunction) {
-    throw new Error('Global fetch is unavailable; provide an OpenRouter fetcher')
+    throw new ModelExecutionError(
+      'configuration_error',
+      'Global fetch is unavailable; provide an OpenRouter fetcher',
+    )
   }
   return fetchFunction(url, init)
 }
@@ -120,9 +125,32 @@ function isToolCall(value: unknown): value is OpenRouterToolCall {
 
 function readResponseBody(value: unknown): OpenRouterResponseBody {
   if (!value || typeof value !== 'object') {
-    throw new Error('OpenRouter returned an invalid JSON body')
+    throw new ModelExecutionError('invalid_response', 'OpenRouter returned an invalid JSON body')
   }
   return value as OpenRouterResponseBody
+}
+
+function httpError(status: number, detail: string): ModelExecutionError {
+  const message = `OpenRouter request failed with HTTP ${status}: ${detail.slice(0, 500)}`
+
+  if (status === 401 || status === 403) {
+    return new ModelExecutionError('authentication_failed', message, { status })
+  }
+  if (status === 408) {
+    return new ModelExecutionError('timeout', message, { status, retryable: true })
+  }
+  if (status === 429) {
+    return new ModelExecutionError('rate_limited', message, { status, retryable: true })
+  }
+
+  return new ModelExecutionError('request_failed', message, {
+    status,
+    retryable: status >= 500,
+  })
+}
+
+function requestError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**
@@ -137,10 +165,10 @@ export class OpenRouterModel implements ModelAdapter {
 
   public constructor(options: OpenRouterModelOptions) {
     if (!options.apiKey.trim()) {
-      throw new Error('OpenRouter API key is required')
+      throw new ModelExecutionError('configuration_error', 'OpenRouter API key is required')
     }
     if (!options.model.trim()) {
-      throw new Error('OpenRouter model is required')
+      throw new ModelExecutionError('configuration_error', 'OpenRouter model is required')
     }
 
     this.options = options
@@ -154,7 +182,10 @@ export class OpenRouterModel implements ModelAdapter {
    * 3. 将响应转换成 ModelResponse；
    * 4. 不在这里执行工具，工具由 Turn/ToolExecutor 负责。
    */
-  public async complete(input: ModelInput): Promise<ModelResponse> {
+  public async complete(
+    input: ModelInput,
+    requestOptions: ModelRequestOptions = {},
+  ): Promise<ModelResponse> {
     const messages = input.messages.map(toOpenRouterMessage)
     // 请求体仍然使用 OpenAI 风格的 Chat Completions 格式。
     const body = {
@@ -176,31 +207,64 @@ export class OpenRouterModel implements ModelAdapter {
       headers['X-Title'] = this.options.appTitle
     }
 
-    const response = await this.fetcher(
-      `${this.options.baseUrl ?? DEFAULT_BASE_URL}/chat/completions`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      },
-    )
+    let response: OpenRouterHttpResponse
+    try {
+      response = await this.fetcher(
+        `${this.options.baseUrl ?? DEFAULT_BASE_URL}/chat/completions`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          ...(requestOptions.signal ? { signal: requestOptions.signal } : {}),
+        },
+      )
+    } catch (error) {
+      if (error instanceof ModelExecutionError) throw error
+      if (requestOptions.signal?.aborted) {
+        throw new ModelExecutionError('cancelled', 'OpenRouter request was cancelled', {
+          cause: error,
+        })
+      }
+      throw new ModelExecutionError('request_failed', requestError(error), {
+        retryable: true,
+        cause: error,
+      })
+    }
 
     // HTTP 错误必须转成明确异常，不能让 Turn 误以为模型正常返回。
     if (!response.ok) {
       const detail = await response.text()
-      throw new Error(
-        `OpenRouter request failed with HTTP ${response.status}: ${detail.slice(0, 500)}`,
+      throw httpError(response.status, detail)
+    }
+
+    let json: unknown
+    try {
+      json = await response.json()
+    } catch (error) {
+      throw new ModelExecutionError('invalid_response', 'OpenRouter returned invalid JSON', {
+        cause: error,
+      })
+    }
+
+    const parsed = readResponseBody(json)
+    const message = parsed.choices?.[0]?.message
+    if (!message) {
+      throw new ModelExecutionError(
+        'invalid_response',
+        'OpenRouter response did not contain a choice message',
       )
     }
 
-    const parsed = readResponseBody(await response.json())
-    const message = parsed.choices?.[0]?.message
-    if (!message) {
-      throw new Error('OpenRouter response did not contain a choice message')
+    // 如果模型返回工具调用，转换后交给 Turn；这里不执行工具。
+    const rawToolCalls = message.tool_calls ?? []
+    if (rawToolCalls.some((toolCall) => !isToolCall(toolCall))) {
+      throw new ModelExecutionError(
+        'invalid_response',
+        'OpenRouter response contained an invalid tool call',
+      )
     }
 
-    // 如果模型返回工具调用，转换后交给 Turn；这里不执行工具。
-    const toolCalls = (message.tool_calls ?? []).filter(isToolCall).map((toolCall): ToolCall => ({
+    const toolCalls = rawToolCalls.map((toolCall): ToolCall => ({
       id: toolCall.id,
       name: toolCall.function.name,
       arguments: toolCall.function.arguments,
@@ -221,6 +285,9 @@ export class OpenRouterModel implements ModelAdapter {
       }
     }
 
-    throw new Error('OpenRouter response contained neither text nor tool calls')
+    throw new ModelExecutionError(
+      'invalid_response',
+      'OpenRouter response contained neither text nor tool calls',
+    )
   }
 }

@@ -1,5 +1,5 @@
 import type { ToolCall } from '../types/tool'
-import type { ModelInput, TurnStatus } from '../types/turn'
+import type { CancellationSignal, ModelInput, TurnStatus } from '../types/turn'
 
 /**
  * 模型适配器的统一返回值。
@@ -23,9 +23,14 @@ export type ModelResponse =
       readonly content?: string
     }
 
+/** Runtime control passed to a model request without polluting ModelInput. */
+export interface ModelRequestOptions {
+  readonly signal?: CancellationSignal
+}
+
 /**
  * Agent Core 调用模型的最小接口。
  */
 export interface ModelAdapter {
-  complete(input: ModelInput): Promise<ModelResponse>
+  complete(input: ModelInput, options?: ModelRequestOptions): Promise<ModelResponse>
 }

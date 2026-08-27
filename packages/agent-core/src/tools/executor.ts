@@ -1,5 +1,5 @@
 import type { ToolCall, ToolError, ToolResult } from '../types/tool'
-import type { ToolRegistry } from './registry'
+import type { ToolExecutionContext, ToolRegistry } from './registry'
 import { ToolExecutionError } from './errors'
 
 function errorMessage(error: unknown): string {
@@ -63,7 +63,15 @@ export class ToolExecutor {
     this.registry = registry
   }
 
-  public async execute(call: ToolCall): Promise<ToolResult> {
+  public async execute(call: ToolCall, context: ToolExecutionContext = {}): Promise<ToolResult> {
+    if (context.signal?.aborted) {
+      return failedResult(call, {
+        code: 'cancelled',
+        message: 'Tool execution was cancelled',
+        retryable: false,
+      })
+    }
+
     const tool = this.registry.get(call.name)
 
     if (!tool) {
@@ -82,13 +90,21 @@ export class ToolExecutor {
     }
 
     try {
-      await tool.validate?.(argumentsValue)
+      await tool.validate(argumentsValue, context)
     } catch (error) {
       return failedResult(call, toToolError(error, 'invalid_arguments'))
     }
 
+    if (context.signal?.aborted) {
+      return failedResult(call, {
+        code: 'cancelled',
+        message: 'Tool execution was cancelled',
+        retryable: false,
+      })
+    }
+
     try {
-      const result = await tool.execute(argumentsValue)
+      const result = await tool.execute(argumentsValue, context)
       return {
         ok: true,
         toolCallId: call.id,

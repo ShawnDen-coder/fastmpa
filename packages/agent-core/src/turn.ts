@@ -93,6 +93,7 @@ import { TurnContext } from './context/context'
 import { AgentCoreError } from './errors'
 import { logger, type Logger } from './logger'
 import type { ModelAdapter } from './model/adapter'
+import { ModelExecutionError } from './model/errors'
 import { ToolExecutor } from './tools/executor'
 import { ToolRegistry } from './tools/registry'
 import { CancellationGuard, checkGuards, StepLimitGuard } from './guards'
@@ -138,6 +139,7 @@ export async function runTurn(input: TurnInput, options: RunTurnOptions): Promis
       // ModelAdapter 只负责请求模型，不负责执行工具。
       const response = await options.model.complete(
         context.toModelInput(options.tools.definitions()),
+        { signal: input.signal },
       )
 
       // ModelResponse 是判别联合类型，按 type 分支处理三种响应。
@@ -158,6 +160,23 @@ export async function runTurn(input: TurnInput, options: RunTurnOptions): Promis
           context.addAssistantMessage(response.content, response.toolCalls)
 
           for (const toolCall of response.toolCalls) {
+            // 多工具响应执行期间也要重新检查取消，避免取消后继续产生副作用。
+            const toolGuardResult = checkGuards(guards, {
+              step,
+              maxSteps,
+              signal: input.signal,
+            })
+            if (!toolGuardResult.allowed) {
+              return finishTurn(
+                log,
+                context,
+                events,
+                step + 1,
+                toolGuardResult.status,
+                toolGuardResult.error,
+              )
+            }
+
             events.push({
               type: 'tool_called',
               step,
@@ -167,8 +186,19 @@ export async function runTurn(input: TurnInput, options: RunTurnOptions): Promis
             log.info({ step, toolCallId: toolCall.id, toolName: toolCall.name }, 'tool called')
 
             // 工具失败也会返回 ToolResult，不会因为单个工具失败而直接中断整个 Turn。
-            const result = await executor.execute(toolCall)
+            const result = await executor.execute(toolCall, { signal: input.signal })
             context.addToolResult(result)
+
+            if (!result.ok && result.error.code === 'cancelled') {
+              return finishTurn(
+                log,
+                context,
+                events,
+                step + 1,
+                'cancelled',
+                cancellationError(result.error),
+              )
+            }
 
             events.push({
               type: 'tool_finished',
@@ -185,6 +215,14 @@ export async function runTurn(input: TurnInput, options: RunTurnOptions): Promis
           break
       }
     } catch (error) {
+      if (
+        input.signal?.aborted ||
+        (error instanceof ModelExecutionError && error.code === 'cancelled')
+      ) {
+        log.warn({ step }, 'turn cancelled during operation')
+        return finishTurn(log, context, events, step + 1, 'cancelled', cancellationError(error))
+      }
+
       // 模型请求或流程异常统一转换为 AgentCoreError，供 Runtime 判断和统计。
       log.error({ step, err: normalizeError(error) }, 'turn failed')
       return finishTurn(log, context, events, step + 1, 'failed', toTurnError(error))
@@ -196,12 +234,16 @@ function normalizeError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
+function cancellationError(cause?: unknown): AgentCoreError {
+  return new AgentCoreError('turn_cancelled', 'Turn was cancelled', { cause })
+}
+
 function toTurnError(error: unknown): AgentCoreError {
   if (error instanceof AgentCoreError) return error
 
   const cause = normalizeError(error)
   return new AgentCoreError('turn_failed', cause.message, {
-    retryable: true,
+    retryable: error instanceof ModelExecutionError ? error.retryable : false,
     cause,
   })
 }
