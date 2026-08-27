@@ -57,6 +57,21 @@ describe('ToolRegistry', () => {
       }),
     ).toThrow('Tool name is required')
 
+    expect(() =>
+      registry.register({
+        definition: { name: ' echo ', description: 'invalid', parameters: {} },
+        validate() {},
+        execute() {},
+      }),
+    ).toThrow('Tool name must not have leading or trailing whitespace')
+
+    expect(() =>
+      registry.register({
+        definition: { name: 'missing-validator', description: 'invalid', parameters: {} },
+        execute() {},
+      } as never),
+    ).toThrow('Tool validator is required: missing-validator')
+
     registry.register(createEchoTool())
 
     expect(() => registry.register(createEchoTool())).toThrow('Tool already registered: echo')
@@ -137,6 +152,7 @@ describe('ToolExecutor', () => {
         description: '模拟远程工具',
         parameters: {},
       },
+      validate() {},
       execute() {
         throw new ToolExecutionError('timeout', '远程服务超时', true)
       },
@@ -163,6 +179,7 @@ describe('ToolExecutor', () => {
         description: '模拟失败工具',
         parameters: {},
       },
+      validate() {},
       execute() {
         throw new Error('unexpected failure')
       },

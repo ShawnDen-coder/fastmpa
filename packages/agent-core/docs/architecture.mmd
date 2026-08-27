@@ -1,23 +1,43 @@
-%% agent-core 的一次 Turn：从模型请求到最终结果
+%% agent-core 一次 Turn 的控制流、取消传播与错误边界
 flowchart TD
-    Input[TurnInput<br/>消息与运行参数] --> Run[runTurn<br/>Turn 主循环]
-    Run --> Guard{Guard 检查}
-    Guard -->|取消| Cancel[返回 cancelled]
-    Guard -->|超过步数| Limit[返回 failed<br/>step_limit_exceeded]
+    Input[TurnInput<br/>消息、步数与取消信号] --> Run[runTurn<br/>Turn 编排器]
+    Signal[CancellationSignal] --> Guard{Guard 检查}
+    Run --> Guard
+
+    Guard -->|已取消| Cancel[TurnResult<br/>cancelled]
+    Guard -->|超过步数| Limit[TurnResult<br/>failed / step_limit_exceeded]
     Guard -->|允许继续| Context[TurnContext<br/>维护消息历史]
+
     Context --> Model[ModelAdapter<br/>FakeModel / OpenRouterModel]
-    Model --> Response{模型响应}
+    Signal -.->|传递 signal| Model
+    Model --> Provider[OpenRouter fetch<br/>或 FakeModel]
+    Provider --> Parse{响应协议有效?}
+    Parse -->|否| ModelError[ModelExecutionError<br/>错误码与 retryable]
+    Parse -->|是| Response{ModelResponse 类型}
+
+    ModelError --> Retry{retryable?}
+    Retry -->|是| FailedRetry[TurnResult failed<br/>允许 Runtime 决定重试]
+    Retry -->|否| FailedStop[TurnResult failed<br/>不可重试]
+
     Response -->|最终文本| Done[追加 assistant 消息<br/>返回 done]
-    Response -->|状态| Status[返回 waiting / blocked / needs_clarification]
+    Response -->|状态| Status[返回 waiting / blocked /<br/>needs_clarification]
     Response -->|工具调用| Assistant[追加 assistant tool_calls]
-    Assistant --> Registry[ToolRegistry<br/>查找工具定义]
-    Registry --> Executor[ToolExecutor<br/>解析、校验、执行]
-    Executor --> Result[ToolResult<br/>成功或结构化错误]
-    Result --> Context
-    Done --> Output["TurnResult + TurnEvent[]"]
+
+    Assistant --> ToolGuard{工具执行前<br/>再次检查取消}
+    ToolGuard -->|已取消| Cancel
+    ToolGuard -->|继续| Registry[ToolRegistry<br/>名称检查 + 强制 validator]
+    Registry --> Executor[ToolExecutor<br/>JSON 解析 → validate → execute]
+    Signal -.->|传递 signal| Executor
+    Executor --> ToolResult{ToolResult}
+    ToolResult -->|cancelled| Cancel
+    ToolResult -->|成功或结构化错误| Context
+
+    Done --> Output[TurnResult + TurnEvent 列表]
     Status --> Output
     Cancel --> Output
     Limit --> Output
+    FailedRetry --> Output
+    FailedStop --> Output
 
-    %% Policy 不在当前 agent-core 内；未来由 Runtime 或 Policy 层包裹工具执行边界
-    Policy[未来：Policy<br/>允许 / 拒绝 / 需要审批] -.-> Executor
+    %% Policy 不属于 agent-core，未来由 Runtime 或 Policy 层包裹工具边界
+    Policy[未来 Policy<br/>允许 / 拒绝 / 需要审批] -.-> Executor

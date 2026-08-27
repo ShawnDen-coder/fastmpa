@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { FakeModel, ToolRegistry, runTurn } from '../src/index'
+import { FakeModel, ModelExecutionError, ToolRegistry, runTurn } from '../src/index'
+import type { ModelAdapter } from '../src/index'
 
 function input(content = '请求') {
   return { messages: [{ role: 'user' as const, content }] }
@@ -26,6 +27,7 @@ describe('runTurn', () => {
     const registry = new ToolRegistry()
     registry.register({
       definition: { name: 'echo', description: '返回输入内容', parameters: {} },
+      validate() {},
       execute: () => '工具结果',
     })
     const model = new FakeModel([
@@ -59,10 +61,12 @@ describe('runTurn', () => {
     const registry = new ToolRegistry()
     registry.register({
       definition: { name: 'one', description: '工具一', parameters: {} },
+      validate() {},
       execute: () => '结果一',
     })
     registry.register({
       definition: { name: 'two', description: '工具二', parameters: {} },
+      validate() {},
       execute: () => '结果二',
     })
     const model = new FakeModel([
@@ -148,9 +152,89 @@ describe('runTurn', () => {
     expect(result.error).toMatchObject({
       name: 'AgentCoreError',
       code: 'turn_failed',
-      retryable: true,
+      retryable: false,
       cause,
     })
+  })
+
+  it('保留结构化模型错误的可重试语义', async () => {
+    const error = new ModelExecutionError('rate_limited', 'too many requests', {
+      retryable: true,
+      status: 429,
+    })
+    const result = await runTurn(input(), {
+      model: new FakeModel([error]),
+      tools: new ToolRegistry(),
+    })
+
+    expect(result.status).toBe('failed')
+    expect(result.error).toMatchObject({
+      name: 'AgentCoreError',
+      code: 'turn_failed',
+      retryable: true,
+    })
+  })
+
+  it('模型请求期间取消时返回 cancelled', async () => {
+    const controller = new AbortController()
+    const model: ModelAdapter = {
+      complete(_input, options) {
+        return new Promise<never>((_resolve, reject) => {
+          options?.signal?.addEventListener?.('abort', () => reject(new Error('aborted')))
+          controller.abort()
+        })
+      },
+    }
+
+    const result = await runTurn(
+      { ...input(), signal: controller.signal },
+      { model, tools: new ToolRegistry() },
+    )
+
+    expect(result.status).toBe('cancelled')
+    expect(result.error).toMatchObject({ code: 'turn_cancelled' })
+  })
+
+  it('多个工具之间取消时不再执行后续工具', async () => {
+    const controller = new AbortController()
+    let secondToolCalls = 0
+    const registry = new ToolRegistry()
+    registry.register({
+      definition: { name: 'cancel', description: '取消 Turn', parameters: {} },
+      validate() {},
+      execute(_argumentsValue, context) {
+        expect(context.signal).toBe(controller.signal)
+        controller.abort()
+        return 'cancelled'
+      },
+    })
+    registry.register({
+      definition: { name: 'second', description: '不应执行', parameters: {} },
+      validate() {},
+      execute() {
+        secondToolCalls += 1
+      },
+    })
+
+    const result = await runTurn(
+      { ...input(), signal: controller.signal },
+      {
+        model: new FakeModel([
+          {
+            type: 'tool_calls',
+            content: '',
+            toolCalls: [
+              { id: 'call-1', name: 'cancel', arguments: '{}' },
+              { id: 'call-2', name: 'second', arguments: '{}' },
+            ],
+          },
+        ]),
+        tools: registry,
+      },
+    )
+
+    expect(result.status).toBe('cancelled')
+    expect(secondToolCalls).toBe(0)
   })
 
   it('超过最大步数返回 step_limit_exceeded', async () => {

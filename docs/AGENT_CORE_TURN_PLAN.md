@@ -1,51 +1,63 @@
 # Agent Core Turn 实现计划
 
-本计划只实现一个可测试的 Agent Turn，不实现 Runtime、数据库、API、Web、Electron 或真实平台连接器。原则是先理解一次 Turn 的完整生命周期，再向外扩展。
+本计划描述 `packages/agent-core` 当前已经落地的最小 Turn 闭环，以及进入 Runtime 前必须保持的边界。
 
-## 目标
-
-完成下面的最小闭环：
+## 目标与数据流
 
 ```text
 TurnInput
     ↓
+Guard / CancellationSignal
+    ↓
 ModelAdapter
     ↓
-文本回复或 ToolCall
+文本、状态或 ToolCall
     ↓
 ToolRegistry / ToolExecutor
     ↓
-ToolResult 加回上下文
+ToolResult 写回 TurnContext
     ↓
 TurnResult
 ```
 
-## 组件划分
+## 当前目录
 
 ```text
-packages/agent-core/src/
-├── index.ts                 # 公开导出
-├── types/
-│   ├── message.ts           # Message、Role
-│   ├── turn.ts              # TurnInput、TurnResult、TurnStatus
-│   └── tool.ts              # ToolCall、ToolResult、ToolDefinition
-├── model/
-│   ├── adapter.ts            # ModelAdapter 接口
-│   └── fake-model.ts         # 测试用 Fake Model
-├── tools/
-│   ├── definition.ts         # 工具定义
-│   ├── registry.ts           # 工具注册和查找
-│   └── executor.ts           # 参数校验、执行、异常包装
-├── context/
-│   └── context.ts            # Turn 消息上下文
-├── guards/
-│   ├── step-limit.ts         # 最大步数保护
-│   └── cancellation.ts       # 取消控制
-├── errors.ts                 # 可区分的错误类型
-└── turn.ts                   # Turn 主循环
+packages/agent-core/
+├── src/
+│   ├── index.ts                   # 稳定公共导出
+│   ├── turn.ts                    # runTurn 主循环
+│   ├── errors.ts                  # AgentCoreError
+│   ├── logger.ts                  # Pino 日志
+│   ├── types/
+│   │   ├── message.ts
+│   │   ├── tool.ts
+│   │   └── turn.ts
+│   ├── model/
+│   │   ├── adapter.ts             # ModelAdapter 与请求控制参数
+│   │   ├── errors.ts              # ModelExecutionError
+│   │   ├── fake-model.ts
+│   │   └── openrouter-model.ts
+│   ├── tools/
+│   │   ├── registry.ts            # 注册、名称检查、强制 validator
+│   │   ├── executor.ts            # 解析、校验、执行、取消
+│   │   └── errors.ts
+│   ├── context/context.ts
+│   └── guards/
+│       ├── guard.ts
+│       ├── step-limit.ts
+│       └── cancellation.ts
+├── tests/
+│   ├── model.test.ts
+│   ├── tools.test.ts
+│   └── turn.test.ts
+├── docs/architecture.mmd
+└── scripts/
+    ├── openrouter-smoke.mjs
+    └── openrouter-turn-smoke.mjs
 ```
 
-组件只允许向下依赖：
+依赖方向保持为：
 
 ```text
 types
@@ -55,108 +67,48 @@ model / tools / context / guards
 turn
 ```
 
-`turn.ts` 负责协调，不负责实现数据库、HTTP、APM 规则或外部平台操作。
+## 已完成阶段
 
-## 分阶段实施
+### 1. 类型与上下文
 
-### 阶段 0：阅读与设计
+已实现文本消息、assistant 工具调用消息、tool 结果消息，以及 `done`、`waiting`、`blocked`、`cancelled`、`needs_clarification`、`failed` 状态。
 
-阅读 Cumora：
+### 2. 模型边界
 
-1. `server/src/agents/turn.ts`；
-2. `server/src/agents/tools.ts`；
-3. `server/src/agents/turn-stream.ts`；
-4. `server/src/agents/runtime/inproc-client.ts`。
+`ModelAdapter` 隔离供应商实现。`FakeModel` 提供确定性测试；`OpenRouterModel` 实现非流式 Chat Completions，并把供应商错误转换为 `ModelExecutionError`：
 
-产出一张 Turn 时序图，并写下 Turn、Tool、Runtime 三者的职责边界。不要开始接入真实 LLM。
+- `authentication_failed`：不可重试；
+- `rate_limited`、`timeout`、服务端错误：可重试；
+- `invalid_response`、配置错误：不可重试；
+- 未知网络错误：由适配器显式标记是否可重试。
 
-### 阶段 1：定义类型
+畸形 `tool_calls` 不会被静默忽略。
 
-实现 `types/`：
+### 3. 工具边界
 
-- `Message`：角色、内容和可选元数据；
-- `ToolDefinition`：名称、描述和参数 schema；
-- `ToolCall`：工具名称和参数；
-- `ToolResult`：成功或失败结果；
-- `TurnStatus`：`done`、`waiting`、`blocked`、`needs_clarification`、`failed`；
-- `TurnInput`、`TurnEvent`、`TurnResult`。
+每个 `ToolImplementation` 必须提供：
 
-验收：类型可以表达文本回复、工具调用、工具失败和终止状态。
-
-### 阶段 2：ModelAdapter 与 Fake Model
-
-定义模型适配器接口，禁止 `turn.ts` 依赖具体 LLM SDK。Fake Model 用预设脚本返回：
-
-- 最终文本；
-- 一个 ToolCall；
-- 多个 ToolCall；
-- 模型错误。
-
-验收：同一个输入可以稳定地产生同一个模型响应，测试不依赖网络。
-
-### 阶段 3：ToolRegistry 与 ToolExecutor
-
-实现工具注册、名称查找、参数校验、执行和异常包装。第一版使用内存工具，例如 `echo` 或 `add`，不连接数据库。
-
-验收：未注册工具、非法参数和工具异常都能转换为明确的 `ToolResult`，不能伪装成成功。
-
-### 阶段 4：Context 与 Guards（已完成）
-
-实现上下文消息追加和两个保护器：
-
-- `StepLimitGuard`：达到最大步数后停止；
-- `CancellationGuard`：收到取消信号后停止。
-
-后续再考虑 Token、超时和费用预算，不在第一版引入模型供应商细节。
-
-### 阶段 5：Turn 主循环（基础版已完成）
-
-实现 `runTurn`：
-
-```text
-创建 Context
-    ↓
-请求 ModelAdapter
-    ↓
-返回 ToolCall？──否──→ 生成最终结果
-    │
-   是
-    ↓
-Registry 查找工具
-    ↓
-Executor 执行工具
-    ↓
-ToolResult 加入 Context
-    ↓
-检查 Guard 后继续下一轮
+```ts
+{
+  definition: { name, description, parameters },
+  validate(argumentsValue, context) {},
+  execute(argumentsValue, context) {},
+}
 ```
 
-每一轮都应该产生可观察的 `TurnEvent`，但第一版不需要做网络流式传输。
+`validate` 是运行时安全边界，即使工具没有参数也要显式写 `validate() {}`。工具名称禁止为空或带首尾空格。
 
-### 阶段 6：测试与公开导出
+### 4. Guard 与协作式取消
 
-补充 `src/__tests__/`：
+取消不只是在每轮开始检查：signal 还会传给模型、OpenRouter `fetch`、工具校验与执行，并在多个工具之间再次检查。耗时适配器和工具必须主动响应 signal。
 
-- 直接文本回复；
-- 单次和连续工具调用；
-- 未注册工具；
-- 参数校验失败；
-- 工具执行失败；
-- 模型错误；
-- 最大步数；
-- 取消；
-- 每种终止状态。
+### 5. Turn 主循环
 
-最后通过 `src/index.ts` 只导出稳定的公共接口，不暴露内部循环状态。
+`runTurn` 已支持文本结束、状态结束、单个/多个工具调用、工具错误回填、模型错误、取消和最大步数。每条结束路径都会生成 `turn_finished` 事件。
 
-## 技术要求
+### 6. 测试与导出
 
-- TypeScript 严格模式；
-- Node.js ESM；
-- `Vitest`；
-- `tsc` 类型检查和构建；
-- Fake Model 和内存工具；
-- 不引入 OpenAI SDK、LangChain、数据库 ORM、HTTP 框架或 Electron。
+测试覆盖模型错误分类、畸形响应、工具注册与执行、上下文顺序、连续工具调用、取消传播、重试语义和所有终止状态。公共接口从 `src/index.ts` 导出。
 
 ## 验证命令
 
@@ -166,15 +118,8 @@ pnpm --filter agent-core test
 pnpm --filter agent-core build
 ```
 
-## 完成标准
+当前验收：3 个测试文件、27 个测试、类型检查和构建全部通过。
 
-完成后，你应该能解释：
+## 下一步
 
-1. Turn 与 Runtime 的边界；
-2. 为什么模型不能直接执行任意函数；
-3. 为什么工具必须经过注册和参数校验；
-4. 为什么需要最大步数和取消机制；
-5. 为什么第一版不接真实模型；
-6. 如何让同一个 Turn 在测试中可重复运行。
-
-只有本计划完成后，才创建 `packages/agent-runtime`。
+Core 当前进入稳定阶段。下一步创建 `agent-runtime`，实现 Run 生命周期、内存 Store、取消控制、事件保存和基于 `retryable` 的重试策略；不要把这些职责继续加入 `turn.ts`。
