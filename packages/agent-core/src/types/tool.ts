@@ -46,4 +46,3 @@ export interface FailedToolResult {
 }
 
 export type ToolResult = SuccessfulToolResult | FailedToolResult
-

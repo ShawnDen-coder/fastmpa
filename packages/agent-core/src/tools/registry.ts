@@ -39,4 +39,3 @@ export class ToolRegistry {
     return [...this.tools.values()].map((tool) => tool.definition)
   }
 }
-

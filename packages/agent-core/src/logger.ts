@@ -7,12 +7,7 @@ const options: LoggerOptions = {
   base: {
     service: 'fastpma-agent-core',
   },
-  redact: [
-    'password',
-    'token',
-    'authorization',
-    'apiKey',
-  ],
+  redact: ['password', 'token', 'authorization', 'apiKey'],
 }
 
 /**
@@ -32,4 +27,3 @@ export function createLogger(bindings?: Record<string, unknown>): Logger {
  * Turn code should prefer an injected child logger once Runtime exists.
  */
 export const logger = createLogger()
-

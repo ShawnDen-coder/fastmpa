@@ -12,4 +12,3 @@ jobs:
     with:
       lint-command: pnpm format:check
       build-command: pnpm -r run build
-

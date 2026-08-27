@@ -11,4 +11,3 @@ export interface Message {
   readonly toolCallId?: string
   readonly toolCalls?: readonly ToolCall[]
 }
-

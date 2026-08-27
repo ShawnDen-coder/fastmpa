@@ -37,4 +37,3 @@ export class FakeModel implements ModelAdapter {
     return step
   }
 }
-

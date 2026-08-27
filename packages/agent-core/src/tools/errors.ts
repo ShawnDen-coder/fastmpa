@@ -9,12 +9,7 @@ export class ToolExecutionError extends Error {
   public readonly retryable: boolean
   public readonly details?: unknown
 
-  public constructor(
-    code: ToolErrorCode,
-    message: string,
-    retryable = false,
-    details?: unknown,
-  ) {
+  public constructor(code: ToolErrorCode, message: string, retryable = false, details?: unknown) {
     super(message)
     this.name = 'ToolExecutionError'
     this.code = code
@@ -22,4 +17,3 @@ export class ToolExecutionError extends Error {
     this.details = details
   }
 }
-

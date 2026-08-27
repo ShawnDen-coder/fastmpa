@@ -1,4 +1,3 @@
-
 /**
  * FastMPA Agent Turn 的实现入口。
  *
@@ -88,7 +87,6 @@
  * 这些能力会在 Turn 稳定后由其他包通过工具和适配器接入。
  */
 
-
 /** runTurn 的依赖注入。 */
 
 import { TurnContext } from './context/context'
@@ -100,7 +98,6 @@ import { ToolRegistry } from './tools/registry'
 import { CancellationGuard, checkGuards, StepLimitGuard } from './guards'
 import type { TurnEvent, TurnInput, TurnResult, TurnStatus } from './types/turn'
 
-
 export interface RunTurnOptions {
   readonly model: ModelAdapter
   readonly tools: ToolRegistry
@@ -109,10 +106,7 @@ export interface RunTurnOptions {
 }
 
 /** 执行一次有限的模型请求、工具执行循环。 */
-export async function runTurn(
-  input: TurnInput,
-  options: RunTurnOptions,
-): Promise<TurnResult> {
+export async function runTurn(input: TurnInput, options: RunTurnOptions): Promise<TurnResult> {
   // Context 保存本次 Turn 的完整消息历史；每次模型请求都从这里生成上下文。
   const context = new TurnContext(input.messages)
   const events: TurnEvent[] = []
@@ -135,14 +129,7 @@ export async function runTurn(
 
     if (!guardResult.allowed) {
       log.warn({ step, status: guardResult.status }, 'turn stopped by guard')
-      return finishTurn(
-        log,
-        context,
-        events,
-        step,
-        guardResult.status,
-        guardResult.error,
-      )
+      return finishTurn(log, context, events, step, guardResult.status, guardResult.error)
     }
 
     try {
@@ -189,7 +176,10 @@ export async function runTurn(
               toolCallId: toolCall.id,
               isError: !result.ok,
             })
-            log.info({ step, toolCallId: toolCall.id, toolName: toolCall.name, isError: !result.ok }, 'tool finished')
+            log.info(
+              { step, toolCallId: toolCall.id, toolName: toolCall.name, isError: !result.ok },
+              'tool finished',
+            )
           }
           // 工具结果已经写入 Context，下一轮循环会把结果交给模型继续推理。
           break
@@ -197,17 +187,9 @@ export async function runTurn(
     } catch (error) {
       // 模型请求或流程异常统一转换为 AgentCoreError，供 Runtime 判断和统计。
       log.error({ step, err: normalizeError(error) }, 'turn failed')
-      return finishTurn(
-        log,
-        context,
-        events,
-        step + 1,
-        'failed',
-        toTurnError(error),
-      )
+      return finishTurn(log, context, events, step + 1, 'failed', toTurnError(error))
     }
   }
-
 }
 
 function normalizeError(error: unknown): Error {

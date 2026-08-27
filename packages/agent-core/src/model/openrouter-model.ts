@@ -188,7 +188,9 @@ export class OpenRouterModel implements ModelAdapter {
     // HTTP 错误必须转成明确异常，不能让 Turn 误以为模型正常返回。
     if (!response.ok) {
       const detail = await response.text()
-      throw new Error(`OpenRouter request failed with HTTP ${response.status}: ${detail.slice(0, 500)}`)
+      throw new Error(
+        `OpenRouter request failed with HTTP ${response.status}: ${detail.slice(0, 500)}`,
+      )
     }
 
     const parsed = readResponseBody(await response.json())
@@ -198,13 +200,11 @@ export class OpenRouterModel implements ModelAdapter {
     }
 
     // 如果模型返回工具调用，转换后交给 Turn；这里不执行工具。
-    const toolCalls = (message.tool_calls ?? []).filter(isToolCall).map(
-      (toolCall): ToolCall => ({
-        id: toolCall.id,
-        name: toolCall.function.name,
-        arguments: toolCall.function.arguments,
-      }),
-    )
+    const toolCalls = (message.tool_calls ?? []).filter(isToolCall).map((toolCall): ToolCall => ({
+      id: toolCall.id,
+      name: toolCall.function.name,
+      arguments: toolCall.function.arguments,
+    }))
 
     if (toolCalls.length > 0) {
       return {
@@ -224,6 +224,3 @@ export class OpenRouterModel implements ModelAdapter {
     throw new Error('OpenRouter response contained neither text nor tool calls')
   }
 }
-
-
-
