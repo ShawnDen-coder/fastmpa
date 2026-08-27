@@ -1,0 +1,23 @@
+%% agent-core 的一次 Turn：从模型请求到最终结果
+flowchart TD
+    Input[TurnInput<br/>消息与运行参数] --> Run[runTurn<br/>Turn 主循环]
+    Run --> Guard{Guard 检查}
+    Guard -->|取消| Cancel[返回 cancelled]
+    Guard -->|超过步数| Limit[返回 failed<br/>step_limit_exceeded]
+    Guard -->|允许继续| Context[TurnContext<br/>维护消息历史]
+    Context --> Model[ModelAdapter<br/>FakeModel / OpenRouterModel]
+    Model --> Response{模型响应}
+    Response -->|最终文本| Done[追加 assistant 消息<br/>返回 done]
+    Response -->|状态| Status[返回 waiting / blocked / needs_clarification]
+    Response -->|工具调用| Assistant[追加 assistant tool_calls]
+    Assistant --> Registry[ToolRegistry<br/>查找工具定义]
+    Registry --> Executor[ToolExecutor<br/>解析、校验、执行]
+    Executor --> Result[ToolResult<br/>成功或结构化错误]
+    Result --> Context
+    Done --> Output[TurnResult + TurnEvent[]]
+    Status --> Output
+    Cancel --> Output
+    Limit --> Output
+
+    %% Policy 不在当前 agent-core 内；未来由 Runtime 或 Policy 层包裹工具执行边界
+    Policy[未来：Policy<br/>允许 / 拒绝 / 需要审批] -.-> Executor
