@@ -382,6 +382,11 @@ pnpm --filter agent-core test
 
 Runtime 第一版完成时，应能演示：启动一个 Run、观察状态和事件、取消运行、处理 Core 失败、从 waiting 显式恢复，并证明重复启动和非法状态转换会被拒绝。
 
+## Run 输入持久化（已完成）
+
+SQLite 的 `agent_runs` 增加可空 `input_json` 字段，保存不包含模型、工具和取消信号的可序列化输入。创建 Run 时写入 `turn` 与 `retryPolicy`，重启后可以读取这些数据。
+
+模型实例和工具注册表属于进程内运行时依赖，不能直接 JSON 化。下一步需要通过 `RuntimeDependencies` 增加模型/工具解析器，才能在重启后自动调用 `resumeRun`。
 ## Runtime 依赖注入（已完成）
 
 `AgentRuntime` 支持注入 `RuntimeDependencies`，当前先抽象 `Clock`：

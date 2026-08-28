@@ -35,6 +35,9 @@ describe("AgentRuntime with SQLite", () => {
 
       expect(completed.status).toBe("completed");
       expect(restored).toEqual(completed);
+      expect(restored?.input).toMatchObject({
+        turn: { messages: [{ role: "user", content: "hello" }] },
+      });
       expect(secondEvents).toEqual(firstEvents);
       expect(secondEvents.map((event) => event.type)).toEqual([
         "run_queued",

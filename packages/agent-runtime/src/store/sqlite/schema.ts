@@ -8,6 +8,7 @@ import {
 export const agentRuns = sqliteTable("agent_runs", {
   runId: text("run_id").primaryKey(),
   status: text("status").notNull(),
+  inputJson: text("input_json"),
   attempt: integer("attempt").notNull(),
   version: integer("version").notNull(),
   createdAt: text("created_at").notNull(),
