@@ -4,6 +4,7 @@ import { transition } from "./lifecycle";
 import { noRetry, shouldRetry } from "./retry";
 import type { ListEventsOptions, RunStore } from "./store";
 import { RunNotFoundError } from "./store";
+import { RunStoreError } from "./store/errors";
 import type {
   AgentRun,
   Clock,
@@ -73,7 +74,7 @@ export class AgentRuntime {
         executed.nextSequence,
       );
     } catch (error) {
-      if (!running) throw error;
+      if (!running || error instanceof RunStoreError) throw error;
       return this.failActiveRun(input.runId, error);
     } finally {
       this.cleanupExecution(input.runId, execution);
@@ -136,7 +137,7 @@ export class AgentRuntime {
         executed.nextSequence,
       );
     } catch (error) {
-      if (!running) throw error;
+      if (!running || error instanceof RunStoreError) throw error;
       return this.failActiveRun(runId, error);
     } finally {
       this.cleanupExecution(runId, execution);
