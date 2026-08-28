@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-core-0.2.0 - 2026-08-28
+#### Bug Fixes
+- fix logs - (394ffb5) - colyerdeng
+#### Features
+- update biome - (daf5aac) - colyerdeng
+#### Style
+- update lint tools - (b5d1275) - colyerdeng
+- format repository files - (1353eff) - colyerdeng
+
+- - -
+
 
 ## agent-core-0.1.1 - 2026-08-28
 

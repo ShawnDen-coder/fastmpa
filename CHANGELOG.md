@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.2.0 - 2026-08-28
+### Package updates
+- agent-core bumped to agent-core-0.2.0
+- agent-runtime bumped to agent-runtime-0.1.0
+### Global changes
+#### Bug Fixes
+- **(ci)** use personal token for release triggers - (6ebca19) - colyerdeng
+- **(release)** listen for agent core package tags - (c6c8cd3) - colyerdeng
+- **(release)** correct changelog separator - (b77fb40) - colyerdeng
+- update - (1cf56c0) - colyerdeng
+- fixdocs - (9803eea) - shawndeng
+- fix logs - (394ffb5) - colyerdeng
+#### Documentation
+- update docs - (816441f) - colyerdeng
+#### Features
+- init project - (e9e97a4) - colyerdeng
+- agent runtime lifecycle - (9be1aaa) - colyerdeng
+- add agent runtime - (1da0f1b) - colyerdeng
+- add agent runtime cancelRun - (0ee5f43) - colyerdeng
+- add new error - (963dca5) - colyerdeng
+- update retry - (4bfb3ab) - colyerdeng
+- add resume status - (8092fcc) - colyerdeng
+- add json file store for runtime - (b73c067) - colyerdeng
+- update store tests - (4ae7d75) - colyerdeng
+- add sqlite - (029b3b6) - colyerdeng
+- update just - (99f67cd) - colyerdeng
+- update biome - (daf5aac) - colyerdeng
+- update sqlite - (fe09dcc) - colyerdeng
+- update migrations - (b2ef08a) - colyerdeng
+- update migrations - (2b351ba) - colyerdeng
+- udpate store - (875ed88) - colyerdeng
+- update - (0eff7ef) - colyerdeng
+- add colck - (89870bd) - colyerdeng
+- update PersistedRunInput - (50fb566) - colyerdeng
+#### Miscellaneous Chores
+- **(deps)** add agent core depends - (3a547f4) - colyerdeng
+#### Style
+- format repository files - (1353eff) - colyerdeng
+- update lint tools - (b5d1275) - colyerdeng
+
+- - -
+
 
 ## 0.1.1 - 2026-08-28
 
