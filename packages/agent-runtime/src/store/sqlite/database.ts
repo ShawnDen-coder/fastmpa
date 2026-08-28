@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import type { SqliteStoreConfig } from "./config";
-import { agentRuns, runtimeEvents } from "./schema";
+import type { SqliteStoreConfig } from "./config.js";
+import { agentRuns, runtimeEvents } from "./schema.js";
 
 export interface SqliteDatabase {
   readonly client: Database.Database;

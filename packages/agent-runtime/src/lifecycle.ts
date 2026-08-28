@@ -1,4 +1,4 @@
-import type { RunStatus } from "./types/run";
+import type { RunStatus } from "./types/run.js";
 
 export class InvalidRunTransitionError extends Error {
   public readonly from: RunStatus;

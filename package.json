@@ -1,6 +1,7 @@
 {
   "name": "fastmpa-workspace",
   "private": true,
+  "packageManager": "pnpm@11.24.0",
   "description": "FastMPA monorepo",
   "scripts": {
     "check": "biome check .",

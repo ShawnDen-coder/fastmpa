@@ -3,7 +3,8 @@ name: Package Release
 on:
   push:
     tags:
-      - 'agent-*-*'
+      - '**-[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       tag:
@@ -20,10 +21,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  package-release:
+    if: contains(inputs.tag || github.ref_name, '-')
     uses: ./.github/workflows/reusable-node-release.yaml
     with:
       tag: ${{ inputs.tag || github.ref_name }}
       build-command: just release-check "${{ inputs.tag || github.ref_name }}"
+      pack-command: ''
       publish-npm: false
       publish-gpr: true
+
+  monorepo-release:
+    if: !contains(inputs.tag || github.ref_name, '-')
+    uses: ./.github/workflows/reusable-node-release.yaml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+      build-command: just release-monorepo "${{ inputs.tag || github.ref_name }}"
+      pack-command: ''
+      publish-npm: false
+      publish-gpr: false

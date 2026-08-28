@@ -1,5 +1,5 @@
 /** Runtime 层状态。它描述一次 AgentRun 的生命周期，不等同于 agent-core 的 TurnStatus。 */
-import type { PersistedRunInput } from "./persisted-input";
+import type { PersistedRunInput } from "./persisted-input.js";
 
 export type RunStatus =
   | "queued"

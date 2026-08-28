@@ -1,4 +1,4 @@
-import type { RunStore } from "./run-store";
+import type { RunStore } from "./run-store.js";
 
 /**
  * Store Provider 的统一创建协议。

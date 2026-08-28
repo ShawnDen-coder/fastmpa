@@ -1,5 +1,5 @@
-import type { AgentRun, RuntimeEvent } from "../types";
-import type { ListEventsOptions } from "./event-query";
+import type { AgentRun, RuntimeEvent } from "../types/index.js";
+import type { ListEventsOptions } from "./event-query.js";
 
 export interface RunStore {
   /** 创建一个新的 Run；runId 已存在时必须失败。 */

@@ -1,15 +1,15 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { canTransition } from "../lifecycle";
-import type { AgentRun, RuntimeEvent } from "../types";
+import { canTransition } from "../lifecycle.js";
+import type { AgentRun, RuntimeEvent } from "../types/index.js";
 import {
   DuplicateRunError,
   EventSequenceError,
   RunNotFoundError,
   RunVersionConflictError,
-} from "./errors";
-import { filterEvents, type ListEventsOptions } from "./event-query";
-import type { RunStore } from "./run-store";
+} from "./errors.js";
+import { filterEvents, type ListEventsOptions } from "./event-query.js";
+import type { RunStore } from "./run-store.js";
 
 interface PersistedRuntimeData {
   readonly runs: AgentRun[];

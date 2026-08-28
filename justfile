@@ -43,7 +43,7 @@ ci:
 
 # Prepare the package selected by a release tag, for example agent-core-0.2.0.
 package tag:
-    node scripts/prepare-release-package.mjs {{tag}}
+    node -e "const {mkdirSync,readFileSync}=require('node:fs');const {execSync:run}=require('node:child_process');const tag=process.argv[1];const match=/^(.+)-([0-9]+\.[0-9]+\.[0-9]+)/.exec(tag);if(!match||match[0]!==tag)throw new Error('Invalid package tag: '+tag);const manifest=JSON.parse(readFileSync('packages/'+match[1]+'/package.json','utf8'));if(manifest.version!==match[2])throw new Error('Tag '+tag+' does not match '+manifest.name+'@'+manifest.version);if(manifest.private===true)throw new Error(manifest.name+' is private');mkdirSync('release',{recursive:true});run('pnpm --filter '+manifest.name+' pack --pack-destination release',{stdio:'inherit',shell:true})" "{{tag}}"
 
 # Run the complete release validation and stage the selected package.
 release-check tag:
@@ -52,6 +52,15 @@ release-check tag:
     just typecheck
     just test
     just package {{tag}}
+
+# Build and archive the complete FastMPA monorepo release.
+release-monorepo tag:
+    just check
+    just build
+    just typecheck
+    just test
+    node -e "require('node:fs').mkdirSync('release',{recursive:true})"
+    git archive --format=tar.gz --prefix=fastmpa-{{tag}}/ HEAD -o release/fastmpa-{{tag}}.tar.gz
 
 # Pinned version used by all member-generation recipes.
 repo_scaffold_version := "0.35.0"
@@ -83,4 +92,3 @@ add-package name:
 plan-member name member_type="ts-lib":
     uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --no-install --no-verify
     pnpm install --dry-run
-

@@ -17,16 +17,16 @@ on:
         required: false
         type: boolean
         default: false
+      pack-command:
+        description: Optional command used to create the release artifact
+        required: false
+        type: string
+        default: "npm pack --pack-destination release"
       publish-gpr:
         description: Publish the package to GitHub Packages
         required: false
         type: boolean
         default: false
-      github-package-name:
-        description: Optional scoped name used for GitHub Packages
-        required: false
-        type: string
-        default: ""
     secrets:
       NPM_TOKEN:
         required: false
@@ -46,7 +46,10 @@ jobs:
           ref: ${{ inputs.tag }}
       - uses: pnpm/action-setup@v6
         with:
-          version: latest
+          version: 11.24.0
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -55,10 +58,14 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: ${{ inputs.build-command }}
+      - name: Pack release artifact
+        if: inputs.pack-command != ''
+        run: mkdir -p release && ${{ inputs.pack-command }}
       - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: |
+            release/
             dist/
             package.json
           if-no-files-found: error
@@ -77,7 +84,7 @@ jobs:
           node-version: "22"
           registry-url: https://registry.npmjs.org
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish release/*.tgz --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -94,16 +101,17 @@ jobs:
         with:
           node-version: "22"
           registry-url: https://npm.pkg.github.com
-      - name: Scope package name for GitHub Packages
-        if: inputs.github-package-name != ''
-        run: npm pkg set name="${{ inputs.github-package-name }}"
       - name: Publish to GitHub Packages
-        run: npm publish --access public --registry https://npm.pkg.github.com
+        run: npm publish release/*.tgz --access public --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
 
   release:
-    if: always() && needs.build.result == 'success'
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.publish-npm.result == 'success' || needs.publish-npm.result == 'skipped') &&
+      (needs.publish-gpr.result == 'success' || needs.publish-gpr.result == 'skipped')
     needs: [build, publish-npm, publish-gpr]
     runs-on: ubuntu-latest
     steps:
@@ -116,7 +124,7 @@ jobs:
         with:
           tag_name: ${{ inputs.tag }}
           name: Release ${{ inputs.tag }}
-          files: dist/**
+          files: release/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
