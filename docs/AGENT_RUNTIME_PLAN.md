@@ -207,7 +207,7 @@ interface RunStore {
 
 已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。
 
-验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（32 tests passed）。
+验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（35 tests passed）。
 
 ### 阶段 R4：取消与并发（已完成）
 
@@ -281,9 +281,9 @@ stateDiagram-v2
 
 恢复不是从 JavaScript 调用栈继续，而是根据持久化的输入、消息和结果启动新的 Turn。
 
-### 阶段 R7：持久化与 API（后续）
+### 阶段 R7：持久化与 API（JSON 文件版已完成）
 
-内存版本稳定后，再实现数据库 `RunStore` 和 API 适配器。此时借鉴 Cumora 的 InProc/HTTP 双实现：业务调用方只依赖 Runtime 接口，两种传输必须通过同一组契约测试。
+已实现 `JsonFileRunStore`，验证 Run 和事件可以写入 JSON 文件，并由新 Store 实例重新加载。下一步再实现 SQLite/数据库 `RunStore` 和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
 
 关键读失败应显式传播；心跳和观测写入可降级。HTTP 身份令牌必须包含 agent、tenant 和 scope，不能只依赖请求体中的 ID。
 
