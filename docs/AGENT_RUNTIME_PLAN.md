@@ -203,11 +203,66 @@ interface RunStore {
 
 `MemoryRunStore` 必须复制输入/输出，避免调用方通过对象引用绕过状态机；重复 Run ID 和版本冲突要明确失败。
 
-### 阶段 R3：最小 Runtime（已完成）`r`n`r`n已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。`r`n`r`n验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（28 tests passed）。
+### 阶段 R3：最小 Runtime（已完成）
 
-### 阶段 R4：取消与并发（取消部分已完成）`r`n`r`n实现 `cancelRun(runId)`，由 Runtime 持有每个活动 Run 的 `AbortController`。第一版采用同一 `runId` 只能有一个执行者的规则；重复启动必须返回冲突，不能悄悄并行。
+已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。
+
+验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（29 tests passed）。
+
+### 阶段 R4：取消与并发（取消部分已完成）
+
+实现 `cancelRun(runId)`，由 Runtime 持有每个活动 Run 的 `AbortController`。第一版采用同一 `runId` 只能有一个执行者的规则；重复启动必须返回冲突，不能悄悄并行。
 
 测试：运行前取消、模型执行中取消、多个工具之间取消、完成后取消、重复取消和并发启动。
+
+### 取消模型
+
+Runtime 通过内部 `AbortController` 统一接收两类取消请求：调用方传入的外部 signal，以及 `cancelRun(runId)`。模型和工具必须协作监听 signal；取消请求不是强制杀死线程。
+
+```mermaid
+sequenceDiagram
+    participant Caller as 调用方
+    participant Runtime as AgentRuntime
+    participant Controller as AbortController
+    participant Core as agent-core
+    participant Work as Model / Tool
+    participant Store as RunStore
+
+    Caller->>Runtime: startRun()
+    Runtime->>Controller: 创建并注册 signal
+    Runtime->>Core: runTurn(signal)
+    Core->>Work: complete / execute(signal)
+
+    alt Runtime 主动取消
+        Caller->>Runtime: cancelRun(runId)
+        Runtime->>Controller: abort()
+    else 外部 signal 取消
+        Caller->>Controller: external.abort()
+        Controller-->>Runtime: 转发 abort
+    end
+
+    Controller-->>Core: signal.aborted = true
+    Core-->>Runtime: TurnResult(cancelled)
+    Runtime->>Store: append run_cancelled
+    Runtime->>Store: running -> cancelled
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> running: 开始执行
+    queued --> cancelled: queued 取消（后续实现）
+    running --> cancelling: abort 请求
+    cancelling --> cancelled: Core / Model / Tool 协作结束
+    running --> completed: Turn 完成
+    running --> waiting: 等待外部输入
+    running --> failed: 不可恢复错误
+    completed --> [*]
+    cancelled --> [*]
+    failed --> [*]
+```
+
+当前已支持 `running` 阶段取消；`queued` 取消和取消/完成之间的竞态保护属于后续并发阶段。
 
 ### 阶段 R5：失败与重试策略
 
