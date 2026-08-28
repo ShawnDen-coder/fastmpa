@@ -22,7 +22,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "check": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",

@@ -10,15 +10,15 @@ default:
 init:
     pnpm install
 
-# Run Biome lint and format checks
+# Run Biome checks without modifying files
 check:
     pnpm check
 
-# Backward-compatible alias for check
+# Run Biome checks and apply safe automatic fixes
 lint:
-    pnpm check
+    pnpm exec biome check --write .
 
-# Run Biome with auto-fix
+# Format all supported files with Biome
 format:
     pnpm format
 
