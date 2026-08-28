@@ -8,6 +8,13 @@
       "when": 1787907634145,
       "tag": "0000_typical_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787907976525,
+      "tag": "0001_fast_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

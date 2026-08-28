@@ -283,8 +283,18 @@ stateDiagram-v2
 
 ### 阶段 R7：持久化与 API（SQLite 基础版已完成）
 
-已实现 `JsonFileRunStore`、`SqliteRunStore` 和共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。SQLite 当前使用 `better-sqlite3` 驱动与 Drizzle Schema/查询/事务，事务版 `transitionWithEvent` 已完成，下一步补充迁移和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
+已实现 `JsonFileRunStore`、`SqliteRunStore` 和共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。SQLite 当前使用 `better-sqlite3` 驱动与 Drizzle Schema/查询/事务/Migration，事务版 `transitionWithEvent` 已完成；API 适配器仍待实现。借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
 
+
+#### SQLite Migration 实施计划（已完成）
+
+- `schema.ts` 只声明 Drizzle 表结构，不在业务函数中直接建表；
+- `drizzle-kit generate` 生成版本化 SQL migration；
+- `database.ts` 通过 `migrate()` 启动时执行未应用的迁移；
+- 构建时复制 `.sql` 和 migration 元数据到 `dist`；
+- 测试新库初始化、重复启动和关闭后重新打开的数据持久化。
+
+后续新增字段或索引时，先修改 `schema.ts`，再执行 `db:generate`，提交生成的 migration，最后执行 `db:migrate`。
 #### SQLite Store 实施计划（基础版已完成）
 
 已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 `better-sqlite3` 驱动和 Drizzle Schema/查询/事务。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。
