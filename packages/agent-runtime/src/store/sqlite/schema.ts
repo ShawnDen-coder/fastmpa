@@ -18,7 +18,9 @@ export const agentRuns = sqliteTable("agent_runs", {
 export const runtimeEvents = sqliteTable(
   "runtime_events",
   {
-    runId: text("run_id").notNull(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => agentRuns.runId, { onDelete: "cascade" }),
     sequence: integer("sequence").notNull(),
     type: text("type").notNull(),
     occurredAt: text("occurred_at").notNull(),

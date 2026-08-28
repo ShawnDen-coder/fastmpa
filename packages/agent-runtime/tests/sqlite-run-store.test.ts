@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SqliteRunStore } from "../src/index.js";
 import type { AgentRun, RuntimeEvent } from "../src/types/index.js";
@@ -40,6 +43,33 @@ describe("SqliteRunStore transactions", () => {
       await expect(store.listEvents("run-1")).resolves.toHaveLength(0);
     } finally {
       store.close();
+    }
+  });
+
+  it("runs migrations once and preserves data across reopen", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "fastmpa-runtime-"));
+    const filePath = join(directory, "runtime.db");
+
+    try {
+      const first = await SqliteRunStore.open({ filePath });
+      await first.create(makeRun());
+      await first.appendEvent({
+        runId: "run-1",
+        sequence: 0,
+        type: "run_queued",
+        occurredAt: "2026-08-28T00:00:00.000Z",
+      });
+      first.close();
+
+      const second = await SqliteRunStore.open({ filePath });
+      await expect(second.get("run-1")).resolves.toMatchObject({
+        runId: "run-1",
+        status: "queued",
+      });
+      await expect(second.listEvents("run-1")).resolves.toHaveLength(1);
+      second.close();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
   });
 });
