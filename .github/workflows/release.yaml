@@ -26,9 +26,9 @@ jobs:
       tag: ${{ inputs.tag || github.ref_name }}
       build-command: >-
         pnpm check &&
-        pnpm -r run typecheck &&
-        pnpm -r run test &&
-        pnpm --filter agent-core build &&
+        pnpm -r --if-present run build &&
+        pnpm -r --if-present run typecheck &&
+        pnpm -r --if-present run test &&
         node -e "const fs=require('node:fs');fs.cpSync('packages/agent-core/dist','dist',{recursive:true});fs.copyFileSync('packages/agent-core/package.json','package.json')"
       publish-npm: false
       publish-gpr: true
