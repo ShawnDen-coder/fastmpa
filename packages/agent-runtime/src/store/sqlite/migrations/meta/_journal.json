@@ -15,6 +15,13 @@
       "when": 1787907976525,
       "tag": "0001_fast_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787909729009,
+      "tag": "0002_serious_harrier",
+      "breakpoints": true
     }
   ]
 }

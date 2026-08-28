@@ -180,6 +180,7 @@ function toRunRow(run: AgentRun) {
   return {
     runId: run.runId,
     status: run.status,
+    inputJson: run.input === undefined ? null : JSON.stringify(run.input),
     attempt: run.attempt,
     version: run.version,
     createdAt: run.createdAt,
@@ -202,6 +203,7 @@ function toRun(row: typeof agentRuns.$inferSelect): AgentRun {
     status: row.status as AgentRun["status"],
     attempt: row.attempt,
     version: row.version,
+    ...(row.inputJson === null ? {} : { input: JSON.parse(row.inputJson) }),
     createdAt: row.createdAt,
     ...(row.startedAt === null ? {} : { startedAt: row.startedAt }),
     ...(row.finishedAt === null ? {} : { finishedAt: row.finishedAt }),

@@ -7,6 +7,7 @@ import { RunNotFoundError } from "./store";
 import type {
   AgentRun,
   Clock,
+  PersistedRunInput,
   ResumeRunInput,
   RunSnapshot,
   RunStatus,
@@ -194,6 +195,7 @@ export class AgentRuntime {
       attempt: 1,
       version: 0,
       createdAt: now,
+      input: toPersistedRunInput(input),
     };
 
     await this.store.create(initial);
@@ -430,7 +432,16 @@ export class AgentRuntime {
 }
 
 /** 将 Core 的 TurnStatus 映射为 Runtime 的 RunStatus。 */
-export function mapTurnStatus(status: TurnStatus): RunStatus {
+function toPersistedRunInput(input: StartRunInput): PersistedRunInput {
+  const { signal: _signal, ...turn } = input.turn;
+  return {
+    turn,
+    ...(input.retryPolicy === undefined
+      ? {}
+      : { retryPolicy: input.retryPolicy }),
+  };
+}
+function mapTurnStatus(status: TurnStatus): RunStatus {
   switch (status) {
     case "done":
       return "completed";
