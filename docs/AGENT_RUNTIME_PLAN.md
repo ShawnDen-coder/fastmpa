@@ -203,11 +203,7 @@ interface RunStore {
 
 `MemoryRunStore` 必须复制输入/输出，避免调用方通过对象引用绕过状态机；重复 Run ID 和版本冲突要明确失败。
 
-### 阶段 R3：最小 Runtime
-
-实现 `startRun`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存事件。Runtime 应注入 Model、ToolRegistry、Store、Clock、ID Generator 和 Logger。
-
-测试使用 `FakeModel` 与内存工具，覆盖 `completed`、`waiting`、`blocked`、`cancelled`、`failed`，并断言 Core 的 TurnEvent 按顺序保存。
+### 阶段 R3：最小 Runtime（已完成）`r`n`r`n已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。`r`n`r`n验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（28 tests passed）。
 
 ### 阶段 R4：取消与并发
 
