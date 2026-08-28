@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/agent-core/tsconfig.build.json" },
-    { "path": "./packages/agent-runtime/tsconfig.build.json" }
+    { "path": "./packages/agent-runtime/tsconfig.build.json" },
+    { "path": "./apps/fastmpa/tsconfig.build.json" }
   ]
 }

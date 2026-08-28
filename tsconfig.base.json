@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@shawnden-coder/agent-core": ["packages/agent-core/src/index.ts"]
+      "@shawnden-coder/agent-core": ["packages/agent-core/src/index.ts"],
+      "@shawnden-coder/agent-runtime": ["packages/agent-runtime/src/index.ts"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,

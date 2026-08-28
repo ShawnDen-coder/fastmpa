@@ -21,14 +21,9 @@ concurrency:
 
 jobs:
   release:
-    uses: ShawnDen-coder/repo-scaffold/.github/workflows/reusable-node-release.yaml@0.35.0
+    uses: ./.github/workflows/reusable-node-release.yaml
     with:
       tag: ${{ inputs.tag || github.ref_name }}
-      build-command: >-
-        pnpm check &&
-        pnpm -r --if-present run build &&
-        pnpm -r --if-present run typecheck &&
-        pnpm -r --if-present run test &&
-        node scripts/prepare-release-package.mjs "${{ inputs.tag || github.ref_name }}"
+      build-command: just release-check "${{ inputs.tag || github.ref_name }}"
       publish-npm: false
       publish-gpr: true
