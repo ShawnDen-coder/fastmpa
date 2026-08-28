@@ -39,7 +39,7 @@ importers:
 
   packages/agent-runtime:
     dependencies:
-      agent-core:
+      '@shawnden-coder/agent-core':
         specifier: workspace:*
         version: link:../agent-core
       better-sqlite3:

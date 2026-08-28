@@ -1,4 +1,4 @@
-import { FakeModel, ToolRegistry } from "agent-core";
+import { FakeModel, ToolRegistry } from "@shawnden-coder/agent-core";
 import { describe, expect, it } from "vitest";
 import { AgentRuntime, MemoryRunStore } from "../src/index.js";
 

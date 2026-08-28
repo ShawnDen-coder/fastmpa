@@ -1,5 +1,5 @@
 /** Runtime 的失败重试策略。 */
-import type { TurnResult } from "agent-core";
+import type { TurnResult } from "@shawnden-coder/agent-core";
 
 export interface RetryPolicy {
   /** 允许的总尝试次数；1 表示不重试。 */

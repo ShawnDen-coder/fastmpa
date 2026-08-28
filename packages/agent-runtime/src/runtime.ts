@@ -1,4 +1,8 @@
-import { runTurn, type TurnResult, type TurnStatus } from "agent-core";
+import {
+  runTurn,
+  type TurnResult,
+  type TurnStatus,
+} from "@shawnden-coder/agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors";
 import { transition } from "./lifecycle";
 import { noRetry, shouldRetry } from "./retry";

@@ -1,4 +1,4 @@
-import type { RunTurnOptions, TurnInput } from "agent-core";
+import type { RunTurnOptions, TurnInput } from "@shawnden-coder/agent-core";
 import type { RetryPolicy } from "../retry";
 
 /** 恢复 waiting 或 blocked Run 所需的输入。 */
