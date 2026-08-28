@@ -10,11 +10,15 @@ default:
 init:
     pnpm install
 
-# Run Prettier format check
-lint:
-    pnpm format:check
+# Run Biome lint and format checks
+check:
+    pnpm check
 
-# Run Prettier with auto-fix
+# Backward-compatible alias for check
+lint:
+    pnpm check
+
+# Run Biome with auto-fix
 format:
     pnpm format
 
@@ -32,7 +36,7 @@ test:
 
 # Reproduce the GitHub CI checks locally
 ci:
-    pnpm format:check
+    pnpm check
     pnpm -r run typecheck
     pnpm -r run build
     pnpm -r run test
