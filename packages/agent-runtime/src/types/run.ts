@@ -7,6 +7,7 @@ export type RunStatus =
   | "retrying"
   | "waiting"
   | "blocked"
+  | "interrupted"
   | "completed"
   | "cancelled"
   | "failed";

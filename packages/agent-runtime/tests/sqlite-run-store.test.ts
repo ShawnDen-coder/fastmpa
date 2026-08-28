@@ -72,4 +72,45 @@ describe("SqliteRunStore transactions", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it("atomically claims a queued Run and rejects a second owner", async () => {
+    const store = await SqliteRunStore.open({ filePath: ":memory:" });
+    try {
+      await store.create(makeRun());
+      const now = "2026-08-28T00:00:00.000Z";
+      await expect(
+        store.claim?.("run-1", "worker-a", now, 30_000),
+      ).resolves.toMatchObject({
+        runId: "run-1",
+        ownerId: "worker-a",
+        leaseUntil: "2026-08-28T00:00:30.000Z",
+      });
+      await expect(
+        store.claim?.("run-1", "worker-b", now, 30_000),
+      ).resolves.toBeUndefined();
+      await expect(store.get("run-1")).resolves.toMatchObject({
+        status: "queued",
+      });
+    } finally {
+      store.close();
+    }
+  });
+
+  it("allows a second owner to claim after the lease expires", async () => {
+    const store = await SqliteRunStore.open({ filePath: ":memory:" });
+    try {
+      await store.create(makeRun());
+      await store.claim?.(
+        "run-1",
+        "worker-a",
+        "2026-08-28T00:00:00.000Z",
+        30_000,
+      );
+      await expect(
+        store.claim?.("run-1", "worker-b", "2026-08-28T00:00:31.000Z", 30_000),
+      ).resolves.toMatchObject({ ownerId: "worker-b" });
+    } finally {
+      store.close();
+    }
+  });
 });

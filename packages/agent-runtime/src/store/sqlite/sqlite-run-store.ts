@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
 import { canTransition } from "../../lifecycle";
 import type { AgentRun, RuntimeEvent } from "../../types";
 import {
@@ -11,7 +11,7 @@ import {
   type ListEventsOptions,
   validateListEventsOptions,
 } from "../event-query";
-import type { RunStore } from "../run-store";
+import type { RunLease, RunStore } from "../run-store";
 import type { SqliteStoreConfig } from "./config";
 import { openSqliteDatabase, type SqliteDatabase } from "./database";
 import { agentRuns, runtimeEvents } from "./schema";
@@ -25,7 +25,7 @@ export class SqliteRunStore implements RunStore {
 
   public async create(run: AgentRun): Promise<void> {
     try {
-      this.database.db.insert(agentRuns).values(toRunRow(run)).run();
+      this.database.db.insert(agentRuns).values(toRunRow(run, true)).run();
     } catch (error) {
       if (isConstraintError(error)) throw new DuplicateRunError(run.runId);
       throw error;
@@ -151,6 +151,31 @@ export class SqliteRunStore implements RunStore {
       .map(toEvent);
   }
 
+  /** Atomically claims a Run whose lease is absent or expired. */
+  public async claim(
+    runId: string,
+    ownerId: string,
+    now: string,
+    leaseMs: number,
+  ): Promise<RunLease | undefined> {
+    if (!Number.isFinite(leaseMs) || leaseMs <= 0)
+      throw new Error("leaseMs must be a positive finite number");
+    const leaseUntil = new Date(Date.parse(now) + leaseMs).toISOString();
+    const updated = this.database.db
+      .update(agentRuns)
+      .set({ ownerId, leaseUntil, heartbeatAt: now })
+      .where(
+        and(
+          eq(agentRuns.runId, runId),
+          eq(agentRuns.status, "queued"),
+          // SQLite compares ISO-8601 UTC strings lexicographically.
+          or(isNull(agentRuns.leaseUntil), lt(agentRuns.leaseUntil, now)),
+        ),
+      )
+      .run();
+    return updated.changes === 1 ? { runId, ownerId, leaseUntil } : undefined;
+  }
+
   /** 应用退出时关闭 SQLite 连接。 */
   public close(): void {
     this.database.client.close();
@@ -176,8 +201,8 @@ function validateTransition(
     throw new RunVersionConflictError(runId, current.version + 1, next.version);
 }
 
-function toRunRow(run: AgentRun) {
-  return {
+function toRunRow(run: AgentRun, includeLease = false) {
+  const row = {
     runId: run.runId,
     status: run.status,
     inputJson: run.input === undefined ? null : JSON.stringify(run.input),
@@ -187,6 +212,9 @@ function toRunRow(run: AgentRun) {
     startedAt: run.startedAt ?? null,
     finishedAt: run.finishedAt ?? null,
   };
+  return includeLease
+    ? { ...row, ownerId: null, leaseUntil: null, heartbeatAt: null }
+    : row;
 }
 function toEventRow(event: RuntimeEvent) {
   return {
