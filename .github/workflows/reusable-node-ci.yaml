@@ -34,7 +34,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: latest
+          version: 11.24.0
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:

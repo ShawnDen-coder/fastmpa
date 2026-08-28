@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "composite": true,
     "noEmit": false,
     "allowImportingTsExtensions": false,
@@ -8,7 +10,7 @@
     "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
+    "tsBuildInfoFile": "./.tsbuildinfo/tsconfig.tsbuildinfo"
   },
   "references": [{ "path": "../agent-core/tsconfig.build.json" }],
   "include": ["src"]

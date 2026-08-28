@@ -1,5 +1,5 @@
-export type { SqliteStoreConfig } from "./config";
-export { openSqliteDatabase } from "./database";
-export { SqliteStoreProvider } from "./provider";
-export { agentRuns, runtimeEvents } from "./schema";
-export { SqliteRunStore } from "./sqlite-run-store";
+export type { SqliteStoreConfig } from "./config.js";
+export { openSqliteDatabase } from "./database.js";
+export { SqliteStoreProvider } from "./provider.js";
+export { agentRuns, runtimeEvents } from "./schema.js";
+export { SqliteRunStore } from "./sqlite-run-store.js";

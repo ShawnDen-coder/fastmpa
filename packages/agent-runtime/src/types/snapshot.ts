@@ -1,4 +1,4 @@
-import type { AgentRun, RuntimeEvent } from "./index";
+import type { AgentRun, RuntimeEvent } from "./index.js";
 
 /** Runtime 对外提供的只读 Run 快照。 */
 export interface RunSnapshot {

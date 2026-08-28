@@ -1,5 +1,5 @@
 import type { TurnInput } from "@shawnden-coder/agent-core";
-import type { RetryPolicy } from "../retry";
+import type { RetryPolicy } from "../retry.js";
 
 /** 可以安全写入数据库的 Turn 输入，不包含模型、工具和取消信号。 */
 export type PersistedTurnInput = Omit<TurnInput, "signal">;

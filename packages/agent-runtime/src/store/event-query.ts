@@ -1,4 +1,4 @@
-import type { RuntimeEvent } from "../types";
+import type { RuntimeEvent } from "../types/index.js";
 
 /** 事件列表查询选项；未设置的字段不参与过滤。 */
 export interface ListEventsOptions {

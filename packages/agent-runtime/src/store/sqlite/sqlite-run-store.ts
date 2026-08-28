@@ -1,20 +1,20 @@
 import { and, asc, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
-import { canTransition } from "../../lifecycle";
-import type { AgentRun, RuntimeEvent } from "../../types";
+import { canTransition } from "../../lifecycle.js";
+import type { AgentRun, RuntimeEvent } from "../../types/index.js";
 import {
   DuplicateRunError,
   EventSequenceError,
   RunNotFoundError,
   RunVersionConflictError,
-} from "../errors";
+} from "../errors.js";
 import {
   type ListEventsOptions,
   validateListEventsOptions,
-} from "../event-query";
-import type { RunLease, RunStore } from "../run-store";
-import type { SqliteStoreConfig } from "./config";
-import { openSqliteDatabase, type SqliteDatabase } from "./database";
-import { agentRuns, runtimeEvents } from "./schema";
+} from "../event-query.js";
+import type { RunLease, RunStore } from "../run-store.js";
+import type { SqliteStoreConfig } from "./config.js";
+import { openSqliteDatabase, type SqliteDatabase } from "./database.js";
+import { agentRuns, runtimeEvents } from "./schema.js";
 
 /** SQLite 版 RunStore；查询、写入和事务均通过 Drizzle 完成。 */
 export class SqliteRunStore implements RunStore {
