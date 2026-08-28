@@ -25,4 +25,3 @@ export interface AgentRun {
   /** Run 进入 completed、cancelled 或 failed 后的结束时间。 */
   readonly finishedAt?: string;
 }
-

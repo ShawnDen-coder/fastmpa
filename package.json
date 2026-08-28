@@ -1,13 +1,14 @@
 {
   "name": "fastmpa-workspace",
   "private": true,
-  "description": "core",
+  "description": "FastMPA monorepo",
   "scripts": {
-    "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "check": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "devDependencies": {
-    "prettier": "^3.8.1"
+    "@biomejs/biome": "^2.4.5"
   },
   "repository": {
     "type": "git",

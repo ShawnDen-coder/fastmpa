@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { FakeModel, ModelExecutionError, ToolRegistry } from "agent-core";
 import type { ModelAdapter } from "agent-core";
-import { AgentRuntime, MemoryRunStore, RunAlreadyActiveError, RunNotResumableError } from "../src/index.js";
+import { FakeModel, ModelExecutionError, ToolRegistry } from "agent-core";
+import { describe, expect, it } from "vitest";
+import {
+  AgentRuntime,
+  MemoryRunStore,
+  RunAlreadyActiveError,
+  RunNotResumableError,
+} from "../src/index.js";
 
 function input(model: ModelAdapter, runId = "run-1") {
   return {
@@ -24,7 +29,9 @@ describe("AgentRuntime", () => {
     expect(run.version).toBe(2);
     expect(run.startedAt).toBeDefined();
     expect(run.finishedAt).toBeDefined();
-    expect((await store.listEvents("run-1")).map((event) => event.type)).toEqual([
+    expect(
+      (await store.listEvents("run-1")).map((event) => event.type),
+    ).toEqual([
       "run_queued",
       "run_started",
       "turn.model_requested",
@@ -64,7 +71,9 @@ describe("AgentRuntime", () => {
       complete: async (_input, options) => {
         markStarted();
         return new Promise((_resolve, reject) => {
-          options?.signal?.addEventListener?.("abort", () => reject(new Error("aborted")));
+          options?.signal?.addEventListener?.("abort", () =>
+            reject(new Error("aborted")),
+          );
         });
       },
     };
@@ -74,7 +83,9 @@ describe("AgentRuntime", () => {
     expect(runtime.cancelRun("cancel-me")).toBe(true);
     expect((await execution).status).toBe("cancelled");
     expect(runtime.cancelRun("cancel-me")).toBe(false);
-    expect((await store.listEvents("cancel-me")).at(-1)?.type).toBe("run_cancelled");
+    expect((await store.listEvents("cancel-me")).at(-1)?.type).toBe(
+      "run_cancelled",
+    );
   });
   it("rejects a second concurrent start for the same Run", async () => {
     const store = new MemoryRunStore();
@@ -87,16 +98,18 @@ describe("AgentRuntime", () => {
       complete: async (_input, options) => {
         markStarted();
         return new Promise((_resolve, reject) => {
-          options?.signal?.addEventListener?.("abort", () => reject(new Error("aborted")));
+          options?.signal?.addEventListener?.("abort", () =>
+            reject(new Error("aborted")),
+          );
         });
       },
     };
 
     const first = runtime.startRun(input(model, "same-run"));
     await started;
-    await expect(runtime.startRun(input(model, "same-run"))).rejects.toBeInstanceOf(
-      RunAlreadyActiveError,
-    );
+    await expect(
+      runtime.startRun(input(model, "same-run")),
+    ).rejects.toBeInstanceOf(RunAlreadyActiveError);
     expect(runtime.cancelRun("same-run")).toBe(true);
     expect((await first).status).toBe("cancelled");
   });
@@ -107,7 +120,9 @@ describe("AgentRuntime", () => {
     const run = await runtime.startRun({
       ...input(
         new FakeModel([
-          new ModelExecutionError("timeout", "temporary outage", { retryable: true }),
+          new ModelExecutionError("timeout", "temporary outage", {
+            retryable: true,
+          }),
           { type: "text", content: "recovered" },
         ]),
         "retry-me",
@@ -117,12 +132,12 @@ describe("AgentRuntime", () => {
 
     expect(run.status).toBe("completed");
     expect(run.attempt).toBe(2);
-    expect((await store.listEvents("retry-me")).map((event) => event.type)).toContain(
-      "run_retrying",
-    );
-    expect((await store.listEvents("retry-me")).map((event) => event.type)).toContain(
-      "run_restarted",
-    );
+    expect(
+      (await store.listEvents("retry-me")).map((event) => event.type),
+    ).toContain("run_retrying");
+    expect(
+      (await store.listEvents("retry-me")).map((event) => event.type),
+    ).toContain("run_restarted");
   });
 
   it("does not retry a non-retryable failure", async () => {
@@ -143,7 +158,10 @@ describe("AgentRuntime", () => {
     const store = new MemoryRunStore();
     const runtime = new AgentRuntime(store);
     const waiting = await runtime.startRun({
-      ...input(new FakeModel([{ type: "status", status: "waiting" }]), "resume-me"),
+      ...input(
+        new FakeModel([{ type: "status", status: "waiting" }]),
+        "resume-me",
+      ),
     });
 
     const resumed = await runtime.resumeRun(

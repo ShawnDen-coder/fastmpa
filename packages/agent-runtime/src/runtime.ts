@@ -1,14 +1,14 @@
 import { runTurn, type TurnResult, type TurnStatus } from "agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors";
-import { noRetry, shouldRetry } from "./retry";
 import { transition } from "./lifecycle";
+import { noRetry, shouldRetry } from "./retry";
 import type { RunStore } from "./store";
 import { RunNotFoundError } from "./store";
 import type {
   AgentRun,
+  ResumeRunInput,
   RunStatus,
   RuntimeEvent,
-  ResumeRunInput,
   StartRunInput,
 } from "./types";
 
@@ -45,8 +45,18 @@ export class AgentRuntime {
 
     try {
       running = await this.createAndStartRun(input);
-      const executed = await this.executeWithRetry(input, input.runId, running, execution.controller);
-      return this.finishRun(executed.run, input.runId, executed.result, executed.nextSequence);
+      const executed = await this.executeWithRetry(
+        input,
+        input.runId,
+        running,
+        execution.controller,
+      );
+      return this.finishRun(
+        executed.run,
+        input.runId,
+        executed.result,
+        executed.nextSequence,
+      );
     } catch (error) {
       if (!running) throw error;
       return this.failRun(running, input.runId, error, 2);
@@ -56,7 +66,10 @@ export class AgentRuntime {
   }
 
   /** 从 waiting 或 blocked Run 创建新的执行尝试。 */
-  public async resumeRun(runId: string, input: ResumeRunInput): Promise<AgentRun> {
+  public async resumeRun(
+    runId: string,
+    input: ResumeRunInput,
+  ): Promise<AgentRun> {
     this.ensureRunAvailable(runId);
     const execution = this.prepareExecution(runId, input);
     let running: AgentRun | undefined;
@@ -86,13 +99,27 @@ export class AgentRuntime {
         sequence,
         "run_started",
         { attempt: queued.run.attempt + 1 },
-        { attempt: queued.run.attempt + 1, startedAt: new Date().toISOString() },
+        {
+          attempt: queued.run.attempt + 1,
+          startedAt: new Date().toISOString(),
+        },
       );
       running = started.run;
       sequence = started.nextSequence;
 
-      const executed = await this.executeWithRetry(input, runId, running, execution.controller, sequence);
-      return this.finishRun(executed.run, runId, executed.result, executed.nextSequence);
+      const executed = await this.executeWithRetry(
+        input,
+        runId,
+        running,
+        execution.controller,
+        sequence,
+      );
+      return this.finishRun(
+        executed.run,
+        runId,
+        executed.result,
+        executed.nextSequence,
+      );
     } catch (error) {
       if (!running) throw error;
       return this.failRun(running, runId, error, sequence);
@@ -118,9 +145,15 @@ export class AgentRuntime {
     if (this.activeRuns.has(runId)) throw new RunAlreadyActiveError(runId);
   }
 
-  private prepareExecution(runId: string, input: RunExecutionInput): ExecutionContext {
+  private prepareExecution(
+    runId: string,
+    input: RunExecutionInput,
+  ): ExecutionContext {
     const controller = new AbortController();
-    const removeExternalCancellation = this.linkExternalCancellation(input, controller);
+    const removeExternalCancellation = this.linkExternalCancellation(
+      input,
+      controller,
+    );
     this.activeRuns.set(runId, controller);
     return { controller, removeExternalCancellation };
   }
@@ -137,18 +170,23 @@ export class AgentRuntime {
 
     await this.store.create(initial);
     await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
-    return (await this.transitionAndRecord(
-      initial,
-      "running",
-      input.runId,
-      1,
-      "run_started",
-      { startedAt: now },
-      { startedAt: now },
-    )).run;
+    return (
+      await this.transitionAndRecord(
+        initial,
+        "running",
+        input.runId,
+        1,
+        "run_started",
+        { startedAt: now },
+        { startedAt: now },
+      )
+    ).run;
   }
 
-  private executeTurn(input: RunExecutionInput, controller: AbortController): Promise<TurnResult> {
+  private executeTurn(
+    input: RunExecutionInput,
+    controller: AbortController,
+  ): Promise<TurnResult> {
     return runTurn({ ...input.turn, signal: controller.signal }, input);
   }
 
@@ -168,7 +206,10 @@ export class AgentRuntime {
       const result = await this.executeTurn(input, controller);
       nextSequence = await this.appendTurnEvents(runId, result, nextSequence);
 
-      if (result.status !== "failed" || !shouldRetry(result.error, running.attempt, retryPolicy)) {
+      if (
+        result.status !== "failed" ||
+        !shouldRetry(result.error, running.attempt, retryPolicy)
+      ) {
         return { run: running, result, nextSequence };
       }
 
@@ -204,7 +245,13 @@ export class AgentRuntime {
     const occurredAt = new Date().toISOString();
     for (const turnEvent of result.events) {
       await this.store.appendEvent(
-        this.event(runId, sequence++, `turn.${turnEvent.type}`, occurredAt, turnEvent),
+        this.event(
+          runId,
+          sequence++,
+          `turn.${turnEvent.type}`,
+          occurredAt,
+          turnEvent,
+        ),
       );
     }
     return sequence;
@@ -218,36 +265,42 @@ export class AgentRuntime {
   ): Promise<AgentRun> {
     const status = mapTurnStatus(result.status);
     if (status === "failed") {
-      return (await this.transitionAndRecord(
-        running,
-        status,
-        runId,
-        sequence,
-        "run_failed",
-        { message: result.error?.message ?? "Turn failed" },
-        { finishedAt: new Date().toISOString() },
-      )).run;
+      return (
+        await this.transitionAndRecord(
+          running,
+          status,
+          runId,
+          sequence,
+          "run_failed",
+          { message: result.error?.message ?? "Turn failed" },
+          { finishedAt: new Date().toISOString() },
+        )
+      ).run;
     }
     if (status === "cancelled") {
-      return (await this.transitionAndRecord(
+      return (
+        await this.transitionAndRecord(
+          running,
+          status,
+          runId,
+          sequence,
+          "run_cancelled",
+          undefined,
+          { finishedAt: new Date().toISOString() },
+        )
+      ).run;
+    }
+    return (
+      await this.transitionAndRecord(
         running,
         status,
         runId,
         sequence,
-        "run_cancelled",
+        undefined,
         undefined,
         { finishedAt: new Date().toISOString() },
-      )).run;
-    }
-    return (await this.transitionAndRecord(
-      running,
-      status,
-      runId,
-      sequence,
-      undefined,
-      undefined,
-      { finishedAt: new Date().toISOString() },
-    )).run;
+      )
+    ).run;
   }
 
   private async failRun(
@@ -256,15 +309,17 @@ export class AgentRuntime {
     error: unknown,
     sequence: number,
   ): Promise<AgentRun> {
-    return (await this.transitionAndRecord(
-      running,
-      "failed",
-      runId,
-      sequence,
-      "run_failed",
-      { message: error instanceof Error ? error.message : String(error) },
-      { finishedAt: new Date().toISOString() },
-    )).run;
+    return (
+      await this.transitionAndRecord(
+        running,
+        "failed",
+        runId,
+        sequence,
+        "run_failed",
+        { message: error instanceof Error ? error.message : String(error) },
+        { finishedAt: new Date().toISOString() },
+      )
+    ).run;
   }
 
   /** 统一处理“状态转换 + 生命周期事件”；当前仍使用两个 Store 操作。 */
@@ -285,9 +340,20 @@ export class AgentRuntime {
       version: current.version + 1,
     };
     if (eventType) {
-      const event = this.event(runId, sequence, eventType, occurredAt, eventData);
+      const event = this.event(
+        runId,
+        sequence,
+        eventType,
+        occurredAt,
+        eventData,
+      );
       const updated = this.store.transitionWithEvent
-        ? await this.store.transitionWithEvent(runId, current.version, next, event)
+        ? await this.store.transitionWithEvent(
+            runId,
+            current.version,
+            next,
+            event,
+          )
         : await this.store.transition(runId, current.version, next);
       if (!this.store.transitionWithEvent) await this.store.appendEvent(event);
       return { run: updated, nextSequence: sequence + 1 };
@@ -325,18 +391,29 @@ export class AgentRuntime {
     occurredAt: string,
     data?: Readonly<Record<string, unknown>>,
   ): RuntimeEvent {
-    return { runId, sequence, type, occurredAt, ...(data === undefined ? {} : { data }) };
+    return {
+      runId,
+      sequence,
+      type,
+      occurredAt,
+      ...(data === undefined ? {} : { data }),
+    };
   }
 }
 
 /** 将 Core 的 TurnStatus 映射为 Runtime 的 RunStatus。 */
 export function mapTurnStatus(status: TurnStatus): RunStatus {
   switch (status) {
-    case "done": return "completed";
+    case "done":
+      return "completed";
     case "waiting":
-    case "needs_clarification": return "waiting";
-    case "blocked": return "blocked";
-    case "cancelled": return "cancelled";
-    case "failed": return "failed";
+    case "needs_clarification":
+      return "waiting";
+    case "blocked":
+      return "blocked";
+    case "cancelled":
+      return "cancelled";
+    case "failed":
+      return "failed";
   }
 }

@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describeRunStore } from "./run-store.contract";
 import { JsonFileRunStore } from "../src/index.js";
+import { describeRunStore } from "./run-store.contract";
 
 describeRunStore("JsonFileRunStore", async () => {
   const directory = await mkdtemp(join(tmpdir(), "fastmpa-contract-"));

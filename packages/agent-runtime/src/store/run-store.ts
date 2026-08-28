@@ -23,4 +23,3 @@ export interface RunStore {
   /** 按追加顺序读取指定 Run 的全部事件。 */
   listEvents(runId: string): Promise<readonly RuntimeEvent[]>;
 }
-
