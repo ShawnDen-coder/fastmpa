@@ -207,11 +207,11 @@ interface RunStore {
 
 已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。
 
-验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（29 tests passed）。
+验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（30 tests passed）。
 
-### 阶段 R4：取消与并发（取消部分已完成）
+### 阶段 R4：取消与并发（已完成）
 
-实现 `cancelRun(runId)`，由 Runtime 持有每个活动 Run 的 `AbortController`。第一版采用同一 `runId` 只能有一个执行者的规则；重复启动必须返回冲突，不能悄悄并行。
+已实现 `cancelRun(runId)` 和同一 `runId` 的并发占用保护：Runtime 持有每个活动 Run 的 `AbortController`，重复启动会返回 `RunAlreadyActiveError`，不会悄悄并行。
 
 测试：运行前取消、模型执行中取消、多个工具之间取消、完成后取消、重复取消和并发启动。
 

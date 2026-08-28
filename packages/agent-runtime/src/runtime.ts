@@ -1,4 +1,5 @@
 import { runTurn, type TurnStatus } from "agent-core";
+import { RunAlreadyActiveError } from "./errors";
 import { transition } from "./lifecycle";
 import type { RunStore } from "./store";
 import type { AgentRun, RunStatus, RuntimeEvent, StartRunInput } from "./types";
@@ -8,40 +9,50 @@ import type { AgentRun, RunStatus, RuntimeEvent, StartRunInput } from "./types";
  * 模型、工具和持久化实现都通过依赖注入提供。
  */
 export class AgentRuntime {
+  /** 正在启动或执行的 Run；同一 runId 同时只能有一个执行者。 */
   private readonly activeRuns = new Map<string, AbortController>();
 
   public constructor(private readonly store: RunStore) {}
 
   /** 创建并执行一次 Run；当前版本会等待 Turn 完成后返回最终快照。 */
   public async startRun(input: StartRunInput): Promise<AgentRun> {
-    const now = new Date().toISOString();
-    const initial: AgentRun = {
-      runId: input.runId,
-      status: "queued",
-      attempt: 1,
-      version: 0,
-      createdAt: now,
-    };
-
-    // 创建失败直接向上抛出，因此不会误调用 Core。
-    await this.store.create(initial);
-    await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
-
-    const running = await this.store.transition(input.runId, initial.version, {
-      ...initial,
-      status: transition(initial.status, "running"),
-      version: 1,
-      startedAt: now,
-    });
-    await this.store.appendEvent(this.event(input.runId, 1, "run_started", now));
+    if (this.activeRuns.has(input.runId)) {
+      throw new RunAlreadyActiveError(input.runId);
+    }
 
     const controller = new AbortController();
     const removeExternalCancellation = this.linkExternalCancellation(input, controller);
+    // 必须在第一次 await 前登记，避免两个 startRun 同时通过检查。
     this.activeRuns.set(input.runId, controller);
 
+    let running: AgentRun | undefined;
     try {
+      const now = new Date().toISOString();
+      const initial: AgentRun = {
+        runId: input.runId,
+        status: "queued",
+        attempt: 1,
+        version: 0,
+        createdAt: now,
+      };
+
+      // 创建失败直接向上抛出，因此不会误调用 Core。
+      await this.store.create(initial);
+      await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
+
+      running = await this.store.transition(input.runId, initial.version, {
+        ...initial,
+        status: transition(initial.status, "running"),
+        version: 1,
+        startedAt: now,
+      });
+      await this.store.appendEvent(this.event(input.runId, 1, "run_started", now));
+
       // 用 Runtime 自己的信号覆盖输入信号，才能支持 cancelRun()。
-      const result = await runTurn({ ...input.turn, signal: controller.signal }, input);
+      const result = await runTurn(
+        { ...input.turn, signal: controller.signal },
+        input,
+      );
       let sequence = 2;
       for (const turnEvent of result.events) {
         await this.store.appendEvent(
@@ -71,6 +82,9 @@ export class AgentRuntime {
         finishedAt,
       });
     } catch (error) {
+      // Run 尚未进入 running 时（例如 create 失败）不伪造 failed 状态。
+      if (!running) throw error;
+
       const failedAt = new Date().toISOString();
       const failed: AgentRun = {
         ...running,
@@ -95,7 +109,7 @@ export class AgentRuntime {
     return this.store.get(runId);
   }
 
-  /** 请求取消正在执行的 Run；没有活跃执行时返回 false。 */
+  /** 请求取消正在启动或执行的 Run；没有活跃执行时返回 false。 */
   public cancelRun(runId: string): boolean {
     const controller = this.activeRuns.get(runId);
     if (!controller) return false;
@@ -147,4 +161,3 @@ export function mapTurnStatus(status: TurnStatus): RunStatus {
       return "failed";
   }
 }
-

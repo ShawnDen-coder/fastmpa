@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeModel, ToolRegistry } from "agent-core";
 import type { ModelAdapter } from "agent-core";
-import { AgentRuntime, MemoryRunStore } from "../src/index.js";
+import { AgentRuntime, MemoryRunStore, RunAlreadyActiveError } from "../src/index.js";
 
 function input(model: ModelAdapter, runId = "run-1") {
   return {
@@ -75,5 +75,29 @@ describe("AgentRuntime", () => {
     expect((await execution).status).toBe("cancelled");
     expect(runtime.cancelRun("cancel-me")).toBe(false);
     expect((await store.listEvents("cancel-me")).at(-1)?.type).toBe("run_cancelled");
+  });
+  it("rejects a second concurrent start for the same Run", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const model: ModelAdapter = {
+      complete: async (_input, options) => {
+        markStarted();
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener?.("abort", () => reject(new Error("aborted")));
+        });
+      },
+    };
+
+    const first = runtime.startRun(input(model, "same-run"));
+    await started;
+    await expect(runtime.startRun(input(model, "same-run"))).rejects.toBeInstanceOf(
+      RunAlreadyActiveError,
+    );
+    expect(runtime.cancelRun("same-run")).toBe(true);
+    expect((await first).status).toBe("cancelled");
   });
 });

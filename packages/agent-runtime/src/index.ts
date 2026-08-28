@@ -1,3 +1,4 @@
+export * from "./errors";
 /** Public exports for agent-runtime. */
 
 export * from "./lifecycle";
