@@ -1,4 +1,6 @@
-import { describeRunStore } from "./run-store.contract";
 import { MemoryRunStore } from "../src/index.js";
+import { describeRunStore } from "./run-store.contract";
 
-describeRunStore("MemoryRunStore", async () => ({ store: new MemoryRunStore() }));
+describeRunStore("MemoryRunStore", async () => ({
+  store: new MemoryRunStore(),
+}));

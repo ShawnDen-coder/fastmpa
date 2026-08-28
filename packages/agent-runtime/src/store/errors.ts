@@ -83,6 +83,3 @@ export class EventSequenceError extends RunStoreError {
     this.lastSequence = lastSequence;
   }
 }
-
-
-

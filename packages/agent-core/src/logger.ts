@@ -1,14 +1,14 @@
-import pino, { type Logger, type LoggerOptions } from 'pino'
+import pino, { type Logger, type LoggerOptions } from "pino";
 
-export type { Logger }
+export type { Logger };
 
 const options: LoggerOptions = {
-  level: 'info',
+  level: "info",
   base: {
-    service: 'fastpma-agent-core',
+    service: "fastpma-agent-core",
   },
-  redact: ['password', 'token', 'authorization', 'apiKey'],
-}
+  redact: ["password", "token", "authorization", "apiKey"],
+};
 
 /**
  * Create a logger with stable service metadata.
@@ -17,8 +17,8 @@ const options: LoggerOptions = {
  * agentId, runId, and turnId without coupling Agent Core to a transport.
  */
 export function createLogger(bindings?: Record<string, unknown>): Logger {
-  const instance = pino(options)
-  return bindings ? instance.child(bindings) : instance
+  const instance = pino(options);
+  return bindings ? instance.child(bindings) : instance;
 }
 
 /**
@@ -26,4 +26,4 @@ export function createLogger(bindings?: Record<string, unknown>): Logger {
  *
  * Turn code should prefer an injected child logger once Runtime exists.
  */
-export const logger = createLogger()
+export const logger = createLogger();

@@ -42,13 +42,25 @@ export function describeRunStore(
       try {
         await fixture.store.create(makeRun());
         await expect(
-          fixture.store.transition("run-1", 1, makeRun({ status: "running", version: 2 })),
+          fixture.store.transition(
+            "run-1",
+            1,
+            makeRun({ status: "running", version: 2 }),
+          ),
         ).rejects.toThrow();
         await expect(
-          fixture.store.transition("run-1", 0, makeRun({ status: "completed", version: 1 })),
+          fixture.store.transition(
+            "run-1",
+            0,
+            makeRun({ status: "completed", version: 1 }),
+          ),
         ).rejects.toThrow();
         await expect(
-          fixture.store.transition("run-1", 0, makeRun({ status: "running", version: 1 })),
+          fixture.store.transition(
+            "run-1",
+            0,
+            makeRun({ status: "running", version: 1 }),
+          ),
         ).resolves.toMatchObject({ status: "running", version: 1 });
       } finally {
         await fixture.cleanup?.();
@@ -62,7 +74,9 @@ export function describeRunStore(
         await fixture.store.appendEvent(makeEvent(0));
         await fixture.store.appendEvent(makeEvent(1));
         await expect(fixture.store.appendEvent(makeEvent(1))).rejects.toThrow();
-        await expect(fixture.store.listEvents("run-1")).resolves.toHaveLength(2);
+        await expect(fixture.store.listEvents("run-1")).resolves.toHaveLength(
+          2,
+        );
       } finally {
         await fixture.cleanup?.();
       }

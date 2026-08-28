@@ -11,4 +11,3 @@ export interface RuntimeEvent {
   /** 事件附加数据；必须保持 JSON-friendly，不能放 Error 或数据库对象。 */
   readonly data?: Readonly<Record<string, unknown>>;
 }
-

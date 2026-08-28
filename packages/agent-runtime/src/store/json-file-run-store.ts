@@ -56,14 +56,25 @@ export class JsonFileRunStore implements RunStore {
     return this.exclusive(async () => {
       const current = this.requireRun(runId);
       if (current.version !== expectedVersion) {
-        throw new RunVersionConflictError(runId, expectedVersion, current.version);
+        throw new RunVersionConflictError(
+          runId,
+          expectedVersion,
+          current.version,
+        );
       }
-      if (next.runId !== runId) throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
+      if (next.runId !== runId)
+        throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
       if (!canTransition(current.status, next.status)) {
-        throw new Error(`Invalid AgentRun transition: ${current.status} -> ${next.status}`);
+        throw new Error(
+          `Invalid AgentRun transition: ${current.status} -> ${next.status}`,
+        );
       }
       if (next.version !== current.version + 1) {
-        throw new RunVersionConflictError(runId, current.version + 1, next.version);
+        throw new RunVersionConflictError(
+          runId,
+          current.version + 1,
+          next.version,
+        );
       }
       this.runs.set(runId, clone(next));
       await this.persist();
@@ -121,7 +132,11 @@ export class JsonFileRunStore implements RunStore {
       events: [...this.events.values()].flat().map(clone),
     };
     const temporaryPath = `${this.filePath}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(data, null, 2)}\n`,
+      "utf8",
+    );
     await rename(temporaryPath, this.filePath);
   }
 
@@ -142,5 +157,10 @@ export class JsonFileRunStore implements RunStore {
 }
 
 function isFileMissing(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "ENOENT"
+  );
 }
