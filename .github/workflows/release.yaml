@@ -32,7 +32,7 @@ jobs:
       publish-gpr: true
 
   monorepo-release:
-    if: !contains(inputs.tag || github.ref_name, '-')
+    if: "!contains(inputs.tag || github.ref_name, '-')"
     uses: ./.github/workflows/reusable-node-release.yaml
     with:
       tag: ${{ inputs.tag || github.ref_name }}
