@@ -22,6 +22,13 @@
       "when": 1787909729009,
       "tag": "0002_serious_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787912083416,
+      "tag": "0003_sleepy_warhawk",
+      "breakpoints": true
     }
   ]
 }

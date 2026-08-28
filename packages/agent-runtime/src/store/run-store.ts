@@ -26,4 +26,17 @@ export interface RunStore {
     runId: string,
     options?: ListEventsOptions,
   ): Promise<readonly RuntimeEvent[]>;
+  /** Atomically claims an executable Run for one process owner. */
+  claim?(
+    runId: string,
+    ownerId: string,
+    now: string,
+    leaseMs: number,
+  ): Promise<RunLease | undefined>;
+}
+
+export interface RunLease {
+  readonly runId: string;
+  readonly ownerId: string;
+  readonly leaseUntil: string;
 }

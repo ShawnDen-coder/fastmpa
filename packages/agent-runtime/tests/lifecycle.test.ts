@@ -10,11 +10,13 @@ const validTransitions: ReadonlyArray<readonly [RunStatus, RunStatus]> = [
   ["queued", "running"],
   ["running", "waiting"],
   ["running", "blocked"],
+  ["running", "interrupted"],
   ["running", "completed"],
   ["running", "cancelled"],
   ["running", "failed"],
   ["waiting", "queued"],
   ["blocked", "queued"],
+  ["interrupted", "queued"],
 ];
 
 describe("AgentRun lifecycle", () => {
@@ -43,5 +45,10 @@ describe("AgentRun lifecycle", () => {
       expect(canTransition(status, "running")).toBe(false);
       expect(canTransition(status, "queued")).toBe(false);
     }
+  });
+
+  it("treats interrupted as recoverable but not terminal", () => {
+    expect(canTransition("interrupted", "queued")).toBe(true);
+    expect(canTransition("interrupted", "running")).toBe(false);
   });
 });
