@@ -4,12 +4,12 @@ import type { RunStore } from "./store";
 import type { AgentRun, RunStatus, RuntimeEvent, StartRunInput } from "./types";
 
 /**
- * 最小 Runtime 编排器。
- *
- * 它负责把一次 Turn 放进 AgentRun 生命周期，并把 Core 事件转换成
- * RuntimeEvent 写入 Store。模型、工具和持久化实现都通过依赖注入提供。
+ * Runtime 的最小编排器：管理 Run 生命周期，并把 Core 事件写入 Store。
+ * 模型、工具和持久化实现都通过依赖注入提供。
  */
 export class AgentRuntime {
+  private readonly activeRuns = new Map<string, AbortController>();
+
   public constructor(private readonly store: RunStore) {}
 
   /** 创建并执行一次 Run；当前版本会等待 Turn 完成后返回最终快照。 */
@@ -23,7 +23,7 @@ export class AgentRuntime {
       createdAt: now,
     };
 
-    // create 失败时直接向上抛出，因此不会误调用 Core。
+    // 创建失败直接向上抛出，因此不会误调用 Core。
     await this.store.create(initial);
     await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
 
@@ -35,8 +35,13 @@ export class AgentRuntime {
     });
     await this.store.appendEvent(this.event(input.runId, 1, "run_started", now));
 
+    const controller = new AbortController();
+    const removeExternalCancellation = this.linkExternalCancellation(input, controller);
+    this.activeRuns.set(input.runId, controller);
+
     try {
-      const result = await runTurn(input.turn, input);
+      // 用 Runtime 自己的信号覆盖输入信号，才能支持 cancelRun()。
+      const result = await runTurn({ ...input.turn, signal: controller.signal }, input);
       let sequence = 2;
       for (const turnEvent of result.events) {
         await this.store.appendEvent(
@@ -45,7 +50,7 @@ export class AgentRuntime {
       }
 
       const status = mapTurnStatus(result.status);
-      const finishedAt = new Date().toISOString();      
+      const finishedAt = new Date().toISOString();
       if (status === "failed") {
         await this.store.appendEvent(
           this.event(input.runId, sequence, "run_failed", finishedAt, {
@@ -53,6 +58,12 @@ export class AgentRuntime {
           }),
         );
       }
+      if (status === "cancelled") {
+        await this.store.appendEvent(
+          this.event(input.runId, sequence, "run_cancelled", finishedAt),
+        );
+      }
+
       return this.store.transition(input.runId, running.version, {
         ...running,
         status: transition(running.status, status),
@@ -73,12 +84,40 @@ export class AgentRuntime {
         }),
       );
       return this.store.transition(input.runId, running.version, failed);
+    } finally {
+      removeExternalCancellation();
+      this.activeRuns.delete(input.runId);
     }
   }
 
-  /** 查询 Run 当前快照；后续恢复、取消和 API 都会复用这个入口。 */
+  /** 查询 Run 当前快照。 */
   public getRun(runId: string): Promise<AgentRun | undefined> {
     return this.store.get(runId);
+  }
+
+  /** 请求取消正在执行的 Run；没有活跃执行时返回 false。 */
+  public cancelRun(runId: string): boolean {
+    const controller = this.activeRuns.get(runId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
+  }
+
+  private linkExternalCancellation(
+    input: StartRunInput,
+    controller: AbortController,
+  ): () => void {
+    const signal = input.turn.signal;
+    if (!signal) return () => undefined;
+
+    const onAbort = () => controller.abort();
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener?.("abort", onAbort);
+    }
+
+    return () => signal.removeEventListener?.("abort", onAbort);
   }
 
   private event(
@@ -108,5 +147,4 @@ export function mapTurnStatus(status: TurnStatus): RunStatus {
       return "failed";
   }
 }
-
 

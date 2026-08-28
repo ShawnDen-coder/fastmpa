@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FakeModel, ToolRegistry } from "agent-core";
+import type { ModelAdapter } from "agent-core";
 import { AgentRuntime, MemoryRunStore } from "../src/index.js";
 
-function input(model: FakeModel, runId = "run-1") {
+function input(model: ModelAdapter, runId = "run-1") {
   return {
     runId,
     model,
@@ -50,5 +51,29 @@ describe("AgentRuntime", () => {
 
     expect(run.status).toBe("failed");
     expect((await store.listEvents("run-1")).at(-1)?.type).toBe("run_failed");
+  });
+
+  it("cancels an active Run through its AbortController", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const model: ModelAdapter = {
+      complete: async (_input, options) => {
+        markStarted();
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener?.("abort", () => reject(new Error("aborted")));
+        });
+      },
+    };
+
+    const execution = runtime.startRun(input(model, "cancel-me"));
+    await started;
+    expect(runtime.cancelRun("cancel-me")).toBe(true);
+    expect((await execution).status).toBe("cancelled");
+    expect(runtime.cancelRun("cancel-me")).toBe(false);
+    expect((await store.listEvents("cancel-me")).at(-1)?.type).toBe("run_cancelled");
   });
 });
