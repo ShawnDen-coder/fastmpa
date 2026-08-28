@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-runtime-0.2.0 - 2026-08-28
+#### Bug Fixes
+- update ci workflow - (05fa853) - colyerdeng
+#### Build system
+- adopt typescript project references - (d7f1ab3) - colyerdeng
+#### Features
+- **(release)** publish all workspace packages - (7894b56) - colyerdeng
+#### Style
+- format workspace files - (95943a9) - colyerdeng
+
+- - -
+
 ## agent-runtime-0.1.0 - 2026-08-28
 #### Bug Fixes
 - update - (329a274) - colyerdeng

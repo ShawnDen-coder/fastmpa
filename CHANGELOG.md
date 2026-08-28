@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.3.0 - 2026-08-28
+### Package updates
+- agent-core bumped to agent-core-0.3.0
+- agent-runtime bumped to agent-runtime-0.2.0
+### Global changes
+#### Bug Fixes
+- update ci workflow - (05fa853) - colyerdeng
+#### Build system
+- adopt typescript project references - (d7f1ab3) - colyerdeng
+- add FastMPA app and local CI workflows - (ecd8ff3) - colyerdeng
+#### Continuous Integration
+- derive release checks from workspace graph - (9370d2d) - colyerdeng
+#### Features
+- **(release)** publish all workspace packages - (7894b56) - colyerdeng
+
+- - -
+
 ## 0.2.0 - 2026-08-28
 ### Package updates
 - agent-core bumped to agent-core-0.2.0

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-core-0.3.0 - 2026-08-28
+#### Build system
+- adopt typescript project references - (d7f1ab3) - colyerdeng
+#### Features
+- **(release)** publish all workspace packages - (7894b56) - colyerdeng
+
+- - -
+
 ## agent-core-0.2.0 - 2026-08-28
 #### Bug Fixes
 - fix logs - (394ffb5) - colyerdeng
