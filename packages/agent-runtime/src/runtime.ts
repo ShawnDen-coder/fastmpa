@@ -284,11 +284,15 @@ export class AgentRuntime {
       status: transition(current.status, nextStatus),
       version: current.version + 1,
     };
-    const updated = await this.store.transition(runId, current.version, next);
     if (eventType) {
-      await this.store.appendEvent(this.event(runId, sequence, eventType, occurredAt, eventData));
+      const event = this.event(runId, sequence, eventType, occurredAt, eventData);
+      const updated = this.store.transitionWithEvent
+        ? await this.store.transitionWithEvent(runId, current.version, next, event)
+        : await this.store.transition(runId, current.version, next);
+      if (!this.store.transitionWithEvent) await this.store.appendEvent(event);
       return { run: updated, nextSequence: sequence + 1 };
     }
+    const updated = await this.store.transition(runId, current.version, next);
     return { run: updated, nextSequence: sequence };
   }
 

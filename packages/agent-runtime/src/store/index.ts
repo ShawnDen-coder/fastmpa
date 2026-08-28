@@ -9,3 +9,4 @@ export { MemoryRunStore } from "./memory-run-store";
 export type { RunStore } from "./run-store";
 
 export { JsonFileRunStore } from "./json-file-run-store";
+export * from "./sqlite";

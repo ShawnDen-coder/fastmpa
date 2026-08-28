@@ -11,6 +11,13 @@ export interface RunStore {
     expectedVersion: number,
     next: AgentRun,
   ): Promise<AgentRun>;
+  /** 可选的原子状态+事件更新；数据库 Store 应在事务中实现。 */
+  transitionWithEvent?(
+    runId: string,
+    expectedVersion: number,
+    next: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<AgentRun>;
   /** 追加一个事件；Store 必须拒绝重复或倒退的 sequence。 */
   appendEvent(event: RuntimeEvent): Promise<void>;
   /** 按追加顺序读取指定 Run 的全部事件。 */

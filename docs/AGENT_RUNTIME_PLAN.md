@@ -207,7 +207,7 @@ interface RunStore {
 
 已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。
 
-验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（43 tests passed）。
+验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（48 tests passed）。
 
 ### 阶段 R4：取消与并发（已完成）
 
@@ -281,10 +281,45 @@ stateDiagram-v2
 
 恢复不是从 JavaScript 调用栈继续，而是根据持久化的输入、消息和结果启动新的 Turn。
 
-### 阶段 R7：持久化与 API（JSON 文件版已完成）
+### 阶段 R7：持久化与 API（SQLite 基础版已完成）
 
-已实现 `JsonFileRunStore`，并新增共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。下一步再实现 SQLite/数据库 `RunStore` 和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
+已实现 `JsonFileRunStore`、`SqliteRunStore` 和共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。SQLite 当前使用 `node:sqlite` 与 Drizzle Schema，事务版 `transitionWithEvent` 已完成，下一步补充迁移和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
 
+#### SQLite Store 实施计划（基础版已完成）
+
+已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 Node.js `node:sqlite` 的 `DatabaseSync`，并通过 Drizzle Schema 描述表结构。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。
+
+建议表结构：
+
+```sql
+CREATE TABLE agent_runs (
+  run_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  attempt INTEGER NOT NULL,
+  version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  started_at TEXT,
+  finished_at TEXT
+);
+
+CREATE TABLE runtime_events (
+  run_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  data_json TEXT,
+  PRIMARY KEY (run_id, sequence),
+  FOREIGN KEY (run_id) REFERENCES agent_runs(run_id)
+);
+```
+
+实施顺序：
+
+1. 建立 schema 初始化和预编译 SQL；
+2. 实现 `create/get/transition/appendEvent/listEvents`；
+3. 复用 Store 契约测试；
+4. 增加数据库事务版 `transitionWithEvent`（已完成）；
+5. 测试重启恢复、版本冲突、事件唯一性和事务回滚。
 关键读失败应显式传播；心跳和观测写入可降级。HTTP 身份令牌必须包含 agent、tenant 和 scope，不能只依赖请求体中的 ID。
 
 ### 阶段 R8：Wake Bus（后续）
