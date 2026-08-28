@@ -1,9 +1,9 @@
-name: Agent Core Release
+name: Package Release
 
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - 'agent-*-*'
   workflow_dispatch:
     inputs:
       tag:
@@ -29,7 +29,6 @@ jobs:
         pnpm -r --if-present run build &&
         pnpm -r --if-present run typecheck &&
         pnpm -r --if-present run test &&
-        node -e "const fs=require('node:fs');fs.cpSync('packages/agent-core/dist','dist',{recursive:true});fs.copyFileSync('packages/agent-core/package.json','package.json')"
+        node scripts/prepare-release-package.mjs "${{ inputs.tag || github.ref_name }}"
       publish-npm: false
       publish-gpr: true
-      github-package-name: '@shawnden-coder/agent-core'

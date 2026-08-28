@@ -1,5 +1,9 @@
-import type { ModelAdapter } from "agent-core";
-import { FakeModel, ModelExecutionError, ToolRegistry } from "agent-core";
+import type { ModelAdapter } from "@shawnden-coder/agent-core";
+import {
+  FakeModel,
+  ModelExecutionError,
+  ToolRegistry,
+} from "@shawnden-coder/agent-core";
 import { describe, expect, it } from "vitest";
 import {
   AgentRuntime,
