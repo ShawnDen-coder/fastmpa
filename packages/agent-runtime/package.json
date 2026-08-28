@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.4.0",
     "drizzle-kit": "^0.31.10",
     "typescript": "~5.9.3",
@@ -33,6 +34,7 @@
   },
   "dependencies": {
     "agent-core": "workspace:*",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2"
   }
 }

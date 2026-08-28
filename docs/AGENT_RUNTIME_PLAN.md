@@ -283,11 +283,11 @@ stateDiagram-v2
 
 ### 阶段 R7：持久化与 API（SQLite 基础版已完成）
 
-已实现 `JsonFileRunStore`、`SqliteRunStore` 和共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。SQLite 当前使用 `node:sqlite` 与 Drizzle Schema，事务版 `transitionWithEvent` 已完成，下一步补充迁移和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
+已实现 `JsonFileRunStore`、`SqliteRunStore` 和共享 Store 契约测试，验证 Run、事件、版本和状态转换行为一致。SQLite 当前使用 `better-sqlite3` 驱动与 Drizzle Schema/查询/事务，事务版 `transitionWithEvent` 已完成，下一步补充迁移和 API 适配器；借鉴 Cumora 的 InProc/HTTP 双实现，业务调用方只依赖 Runtime 接口。
 
 #### SQLite Store 实施计划（基础版已完成）
 
-已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 Node.js `node:sqlite` 的 `DatabaseSync`，并通过 Drizzle Schema 描述表结构。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。
+已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 `better-sqlite3` 驱动和 Drizzle Schema/查询/事务。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。
 
 建议表结构：
 
