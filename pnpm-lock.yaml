@@ -32,6 +32,10 @@ importers:
         version: 4.1.11(vite@7.3.6)
 
   packages/agent-runtime:
+    dependencies:
+      agent-core:
+        specifier: workspace:*
+        version: link:../agent-core
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.5
