@@ -42,7 +42,8 @@ repo_scaffold_version := "0.35.0"
 
 # Add a typed workspace member through the pinned repo-scaffold release.
 add-member name member_type="ts-lib":
-    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path .
+    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --no-install --no-verify
+    pnpm install
 
 # Add a TypeScript library under packages/.
 add-lib name:
@@ -58,4 +59,8 @@ add-package name:
 
 # Preview a member generation without changing the workspace.
 plan-member name member_type="ts-lib":
-    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --dry-run
+    uvx --from "repo-scaffold==0.35.0" repo-scaffold add-member {{name}} --type {{member_type}} --project-path . --no-install --no-verify
+    pnpm install --dry-run
+
+
+

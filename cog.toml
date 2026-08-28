@@ -16,3 +16,11 @@ post_bump_hooks = [
     "git push",
     "git push origin --tags",
 ]
+
+[packages.agent-runtime]
+path = "packages/agent-runtime"
+public_api = false
+changelog_path = "packages/agent-runtime/CHANGELOG.md"
+pre_bump_hooks = [
+    "pnpm --filter agent-runtime version {{version}} --no-git-tag-version",
+]
