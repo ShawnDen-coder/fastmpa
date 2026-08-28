@@ -1,3 +1,4 @@
 /** Public exports for agent-runtime. */
 
-export {}
+export * from "./lifecycle";
+export * from "./types";

@@ -22,5 +22,11 @@ path = "packages/agent-runtime"
 public_api = false
 changelog_path = "packages/agent-runtime/CHANGELOG.md"
 pre_bump_hooks = [
-    "pnpm --filter agent-runtime version {{version}} --no-git-tag-version",
+    "echo 'bumping agent-runtime from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
 ]
