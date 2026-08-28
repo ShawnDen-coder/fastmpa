@@ -2,7 +2,7 @@ import { runTurn, type TurnResult, type TurnStatus } from "agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors";
 import { transition } from "./lifecycle";
 import { noRetry, shouldRetry } from "./retry";
-import type { RunStore } from "./store";
+import type { ListEventsOptions, RunStore } from "./store";
 import { RunNotFoundError } from "./store";
 import type {
   AgentRun,
@@ -135,8 +135,11 @@ export class AgentRuntime {
   }
 
   /** 查询指定 Run 的全部事件。 */
-  public listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
-    return this.store.listEvents(runId);
+  public listEvents(
+    runId: string,
+    options: ListEventsOptions = {},
+  ): Promise<readonly RuntimeEvent[]> {
+    return this.store.listEvents(runId, options);
   }
 
   /** 查询 Run 和事件历史组成的只读快照。 */

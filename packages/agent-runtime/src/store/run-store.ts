@@ -1,4 +1,5 @@
 import type { AgentRun, RuntimeEvent } from "../types";
+import type { ListEventsOptions } from "./event-query";
 
 export interface RunStore {
   /** 创建一个新的 Run；runId 已存在时必须失败。 */
@@ -21,5 +22,8 @@ export interface RunStore {
   /** 追加一个事件；Store 必须拒绝重复或倒退的 sequence。 */
   appendEvent(event: RuntimeEvent): Promise<void>;
   /** 按追加顺序读取指定 Run 的全部事件。 */
-  listEvents(runId: string): Promise<readonly RuntimeEvent[]>;
+  listEvents(
+    runId: string,
+    options?: ListEventsOptions,
+  ): Promise<readonly RuntimeEvent[]>;
 }

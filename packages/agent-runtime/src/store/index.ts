@@ -5,6 +5,7 @@ export {
   RunStoreError,
   RunVersionConflictError,
 } from "./errors";
+export type { ListEventsOptions } from "./event-query";
 export { JsonFileRunStore } from "./json-file-run-store";
 export { MemoryRunStore } from "./memory-run-store";
 export type { StoreProvider } from "./provider";
