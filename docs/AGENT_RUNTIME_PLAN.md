@@ -295,6 +295,21 @@ stateDiagram-v2
 - 测试新库初始化、重复启动和关闭后重新打开的数据持久化。
 
 后续新增字段或索引时，先修改 `schema.ts`，再执行 `db:generate`，提交生成的 migration，最后执行 `db:migrate`。
+#### Runtime + SQLite 集成（已完成）
+
+- 增加通用 `StoreProvider<TConfig, TStore>` 创建协议；
+- `SqliteStoreProvider` 保留具体 `SqliteRunStore` 类型，支持显式 `close()`；
+- 端到端验证 Runtime 创建 Run、写入事件、关闭进程后重新读取；
+- 业务调用方通过 `AgentRuntime` 和 `RunStore` 工作，不直接依赖 SQLite 查询细节。
+Runtime 查询 API：
+
+```ts
+runtime.getRun(runId);                 // 查询当前 Run
+runtime.listEvents(runId);             // 查询事件历史
+runtime.getRunSnapshot(runId);         // 同时返回 Run 和事件
+```
+
+查询 API 只读，不改变 Run 状态；找不到 Run 时，`getRun` 和 `getRunSnapshot` 返回 `undefined`，`listEvents` 由 Store 抛出 `RunNotFoundError`。
 #### SQLite Store 实施计划（基础版已完成）
 
 已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 `better-sqlite3` 驱动和 Drizzle Schema/查询/事务。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。

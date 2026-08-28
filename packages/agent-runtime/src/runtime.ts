@@ -7,6 +7,7 @@ import { RunNotFoundError } from "./store";
 import type {
   AgentRun,
   ResumeRunInput,
+  RunSnapshot,
   RunStatus,
   RuntimeEvent,
   StartRunInput,
@@ -133,6 +134,17 @@ export class AgentRuntime {
     return this.store.get(runId);
   }
 
+  /** 查询指定 Run 的全部事件。 */
+  public listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
+    return this.store.listEvents(runId);
+  }
+
+  /** 查询 Run 和事件历史组成的只读快照。 */
+  public async getRunSnapshot(runId: string): Promise<RunSnapshot | undefined> {
+    const run = await this.store.get(runId);
+    if (!run) return undefined;
+    return { run, events: await this.store.listEvents(runId) };
+  }
   /** 请求取消正在启动或执行的 Run；没有活跃执行时返回 false。 */
   public cancelRun(runId: string): boolean {
     const controller = this.activeRuns.get(runId);
