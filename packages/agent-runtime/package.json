@@ -27,7 +27,7 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.5",
+    "@biomejs/biome": "^2.5.10",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.4.0",
     "drizzle-kit": "^0.31.10",

@@ -140,6 +140,71 @@ describe("AgentRuntime", () => {
     ).toContain("run_restarted");
   });
 
+  it("does not retry after a successful tool call in the failed Turn", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    let executions = 0;
+    const tools = new ToolRegistry();
+    tools.register({
+      definition: {
+        name: "side_effect",
+        description: "performs a side effect",
+        parameters: {},
+      },
+      validate: () => undefined,
+      execute: () => {
+        executions += 1;
+        return "done";
+      },
+    });
+    const model = new FakeModel([
+      {
+        type: "tool_calls",
+        content: "",
+        toolCalls: [{ id: "call-1", name: "side_effect", arguments: "{}" }],
+      },
+      new ModelExecutionError("timeout", "temporary outage", {
+        retryable: true,
+      }),
+      { type: "text", content: "must not retry" },
+    ]);
+
+    const run = await runtime.startRun({
+      ...input(model, "side-effect-no-retry"),
+      tools,
+      retryPolicy: { maxAttempts: 2 },
+    });
+
+    expect(run.status).toBe("failed");
+    expect(model.requests).toHaveLength(2);
+    expect(executions).toBe(1);
+    expect(
+      (await store.listEvents("side-effect-no-retry")).map(
+        (event) => event.type,
+      ),
+    ).not.toContain("run_retrying");
+  });
+
+  it("cancels while waiting between retry attempts", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    const execution = runtime.startRun({
+      ...input(
+        new FakeModel([
+          new ModelExecutionError("timeout", "temporary outage", {
+            retryable: true,
+          }),
+          { type: "text", content: "must not run" },
+        ]),
+        "cancel-retry-delay",
+      ),
+      retryPolicy: { maxAttempts: 2, delayMs: 5_000 },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(runtime.cancelRun("cancel-retry-delay")).toBe(true);
+    expect((await execution).status).toBe("cancelled");
+  });
   it("does not retry a non-retryable failure", async () => {
     const model = new FakeModel([
       new ModelExecutionError("invalid_response", "bad response"),
