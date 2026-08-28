@@ -207,7 +207,7 @@ interface RunStore {
 
 已实现 `packages/agent-runtime/src/runtime.ts` 的 `AgentRuntime.startRun()`：创建 `queued` Run，转换为 `running`，调用 `agent-core.runTurn()`，映射结果并保存 RuntimeEvent。当前通过 `MemoryRunStore` 注入 Store，模型与工具仍由调用方注入；Clock、ID Generator 和 Logger 留到后续阶段。
 
-验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（30 tests passed）。
+验证：`pnpm --filter agent-runtime typecheck`、`pnpm --filter agent-runtime test`（32 tests passed）。
 
 ### 阶段 R4：取消与并发（已完成）
 
@@ -264,7 +264,7 @@ stateDiagram-v2
 
 当前已支持 `running` 阶段取消；`queued` 取消和取消/完成之间的竞态保护属于后续并发阶段。
 
-### 阶段 R5：失败与重试策略
+### 阶段 R5：失败与重试策略（基础版已完成）
 
 区分：
 
@@ -273,7 +273,7 @@ stateDiagram-v2
 - 可重试模型失败：只有 `ModelExecutionError.retryable === true` 才可能重试；
 - 工具已经产生副作用后，禁止自动重跑整个 Turn，否则可能重复评论、改状态或创建任务。
 
-第一版可以只记录 `retryable`，不实现自动重试。等 Policy、Audit 和幂等键完成后，再增加受控重试。
+当前已实现 `RetryPolicy`、`shouldRetry()` 和 `running → retrying → running` 流程：只有错误明确标记 `retryable` 且未超过 `maxAttempts` 时才重试，并递增 `attempt`。指数退避、幂等键和带副作用工具的安全重试留到 Policy/Audit 阶段。
 
 ### 阶段 R6：恢复协议
 

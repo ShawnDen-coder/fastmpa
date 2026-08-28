@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FakeModel, ToolRegistry } from "agent-core";
+import { FakeModel, ModelExecutionError, ToolRegistry } from "agent-core";
 import type { ModelAdapter } from "agent-core";
 import { AgentRuntime, MemoryRunStore, RunAlreadyActiveError } from "../src/index.js";
 
@@ -99,5 +99,43 @@ describe("AgentRuntime", () => {
     );
     expect(runtime.cancelRun("same-run")).toBe(true);
     expect((await first).status).toBe("cancelled");
+  });
+
+  it("retries a retryable failure and increments attempt", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    const run = await runtime.startRun({
+      ...input(
+        new FakeModel([
+          new ModelExecutionError("timeout", "temporary outage", { retryable: true }),
+          { type: "text", content: "recovered" },
+        ]),
+        "retry-me",
+      ),
+      retryPolicy: { maxAttempts: 2 },
+    });
+
+    expect(run.status).toBe("completed");
+    expect(run.attempt).toBe(2);
+    expect((await store.listEvents("retry-me")).map((event) => event.type)).toContain(
+      "run_retrying",
+    );
+    expect((await store.listEvents("retry-me")).map((event) => event.type)).toContain(
+      "run_restarted",
+    );
+  });
+
+  it("does not retry a non-retryable failure", async () => {
+    const model = new FakeModel([
+      new ModelExecutionError("invalid_response", "bad response"),
+      { type: "text", content: "must not run" },
+    ]);
+    const run = await new AgentRuntime(new MemoryRunStore()).startRun({
+      ...input(model, "no-retry"),
+      retryPolicy: { maxAttempts: 3 },
+    });
+
+    expect(run.status).toBe("failed");
+    expect(model.requests).toHaveLength(1);
   });
 });
