@@ -1,16 +1,23 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import type { AgentRun, RuntimeEvent } from "../../types";
 import { canTransition } from "../../lifecycle";
-import { DuplicateRunError, EventSequenceError, RunNotFoundError, RunVersionConflictError } from "../errors";
+import type { AgentRun, RuntimeEvent } from "../../types";
+import {
+  DuplicateRunError,
+  EventSequenceError,
+  RunNotFoundError,
+  RunVersionConflictError,
+} from "../errors";
 import type { RunStore } from "../run-store";
+import type { SqliteStoreConfig } from "./config";
 import { openSqliteDatabase, type SqliteDatabase } from "./database";
 import { agentRuns, runtimeEvents } from "./schema";
-import type { SqliteStoreConfig } from "./config";
 
 /** SQLite 版 RunStore；查询、写入和事务均通过 Drizzle 完成。 */
 export class SqliteRunStore implements RunStore {
   private constructor(private readonly database: SqliteDatabase) {}
-  public static async open(config: SqliteStoreConfig): Promise<SqliteRunStore> { return new SqliteRunStore(await openSqliteDatabase(config)); }
+  public static async open(config: SqliteStoreConfig): Promise<SqliteRunStore> {
+    return new SqliteRunStore(await openSqliteDatabase(config));
+  }
 
   public async create(run: AgentRun): Promise<void> {
     try {
@@ -22,29 +29,78 @@ export class SqliteRunStore implements RunStore {
   }
 
   public async get(runId: string): Promise<AgentRun | undefined> {
-    const row = this.database.db.select().from(agentRuns).where(eq(agentRuns.runId, runId)).get();
+    const row = this.database.db
+      .select()
+      .from(agentRuns)
+      .where(eq(agentRuns.runId, runId))
+      .get();
     return row ? toRun(row) : undefined;
   }
 
-  public async transition(runId: string, expectedVersion: number, next: AgentRun): Promise<AgentRun> {
+  public async transition(
+    runId: string,
+    expectedVersion: number,
+    next: AgentRun,
+  ): Promise<AgentRun> {
     const current = await this.get(runId);
     validateTransition(current, runId, expectedVersion, next);
-    const result = this.database.db.update(agentRuns).set(toRunRow(next)).where(and(eq(agentRuns.runId, runId), eq(agentRuns.version, expectedVersion))).run();
-    if (result.changes !== 1) throw new RunVersionConflictError(runId, expectedVersion, current!.version);
+    const result = this.database.db
+      .update(agentRuns)
+      .set(toRunRow(next))
+      .where(
+        and(eq(agentRuns.runId, runId), eq(agentRuns.version, expectedVersion)),
+      )
+      .run();
+    if (result.changes !== 1)
+      throw new RunVersionConflictError(
+        runId,
+        expectedVersion,
+        current?.version ?? expectedVersion,
+      );
     return next;
   }
 
-  public async transitionWithEvent(runId: string, expectedVersion: number, next: AgentRun, event: RuntimeEvent): Promise<AgentRun> {
+  public async transitionWithEvent(
+    runId: string,
+    expectedVersion: number,
+    next: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<AgentRun> {
     return this.database.db.transaction((tx) => {
-      const currentRow = tx.select().from(agentRuns).where(eq(agentRuns.runId, runId)).get();
+      const currentRow = tx
+        .select()
+        .from(agentRuns)
+        .where(eq(agentRuns.runId, runId))
+        .get();
       const current = currentRow ? toRun(currentRow) : undefined;
       validateTransition(current, runId, expectedVersion, next);
-      if (event.runId !== runId) throw new Error(`RuntimeEvent id mismatch: ${runId} -> ${event.runId}`);
-      const last = tx.select({ sequence: runtimeEvents.sequence }).from(runtimeEvents).where(eq(runtimeEvents.runId, runId)).orderBy(desc(runtimeEvents.sequence)).get();
+      if (event.runId !== runId)
+        throw new Error(`RuntimeEvent id mismatch: ${runId} -> ${event.runId}`);
+      const last = tx
+        .select({ sequence: runtimeEvents.sequence })
+        .from(runtimeEvents)
+        .where(eq(runtimeEvents.runId, runId))
+        .orderBy(desc(runtimeEvents.sequence))
+        .get();
       const lastSequence = last?.sequence ?? -1;
-      if (event.sequence <= lastSequence) throw new EventSequenceError(runId, event.sequence, lastSequence);
-      const updated = tx.update(agentRuns).set(toRunRow(next)).where(and(eq(agentRuns.runId, runId), eq(agentRuns.version, expectedVersion))).run();
-      if (updated.changes !== 1) throw new RunVersionConflictError(runId, expectedVersion, current!.version);
+      if (event.sequence <= lastSequence)
+        throw new EventSequenceError(runId, event.sequence, lastSequence);
+      const updated = tx
+        .update(agentRuns)
+        .set(toRunRow(next))
+        .where(
+          and(
+            eq(agentRuns.runId, runId),
+            eq(agentRuns.version, expectedVersion),
+          ),
+        )
+        .run();
+      if (updated.changes !== 1)
+        throw new RunVersionConflictError(
+          runId,
+          expectedVersion,
+          current?.version ?? expectedVersion,
+        );
       tx.insert(runtimeEvents).values(toEventRow(event)).run();
       return next;
     });
@@ -52,32 +108,107 @@ export class SqliteRunStore implements RunStore {
 
   public async appendEvent(event: RuntimeEvent): Promise<void> {
     if (!(await this.get(event.runId))) throw new RunNotFoundError(event.runId);
-    const last = this.database.db.select({ sequence: runtimeEvents.sequence }).from(runtimeEvents).where(eq(runtimeEvents.runId, event.runId)).orderBy(desc(runtimeEvents.sequence)).get();
+    const last = this.database.db
+      .select({ sequence: runtimeEvents.sequence })
+      .from(runtimeEvents)
+      .where(eq(runtimeEvents.runId, event.runId))
+      .orderBy(desc(runtimeEvents.sequence))
+      .get();
     const lastSequence = last?.sequence ?? -1;
-    if (event.sequence <= lastSequence) throw new EventSequenceError(event.runId, event.sequence, lastSequence);
-    try { this.database.db.insert(runtimeEvents).values(toEventRow(event)).run(); }
-    catch (error) { if (isConstraintError(error)) throw new EventSequenceError(event.runId, event.sequence, lastSequence); throw error; }
+    if (event.sequence <= lastSequence)
+      throw new EventSequenceError(event.runId, event.sequence, lastSequence);
+    try {
+      this.database.db.insert(runtimeEvents).values(toEventRow(event)).run();
+    } catch (error) {
+      if (isConstraintError(error))
+        throw new EventSequenceError(event.runId, event.sequence, lastSequence);
+      throw error;
+    }
   }
 
   public async listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
     if (!(await this.get(runId))) throw new RunNotFoundError(runId);
-    return this.database.db.select().from(runtimeEvents).where(eq(runtimeEvents.runId, runId)).orderBy(asc(runtimeEvents.sequence)).all().map(toEvent);
+    return this.database.db
+      .select()
+      .from(runtimeEvents)
+      .where(eq(runtimeEvents.runId, runId))
+      .orderBy(asc(runtimeEvents.sequence))
+      .all()
+      .map(toEvent);
   }
 
   /** 应用退出时关闭 SQLite 连接。 */
-  public close(): void { this.database.client.close(); }
+  public close(): void {
+    this.database.client.close();
+  }
 }
 
-function validateTransition(current: AgentRun | undefined, runId: string, expectedVersion: number, next: AgentRun): void {
+function validateTransition(
+  current: AgentRun | undefined,
+  runId: string,
+  expectedVersion: number,
+  next: AgentRun,
+): void {
   if (!current) throw new RunNotFoundError(runId);
-  if (current.version !== expectedVersion) throw new RunVersionConflictError(runId, expectedVersion, current.version);
-  if (next.runId !== runId) throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
-  if (!canTransition(current.status, next.status)) throw new Error(`Invalid AgentRun transition: ${current.status} -> ${next.status}`);
-  if (next.version !== current.version + 1) throw new RunVersionConflictError(runId, current.version + 1, next.version);
+  if (current.version !== expectedVersion)
+    throw new RunVersionConflictError(runId, expectedVersion, current.version);
+  if (next.runId !== runId)
+    throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
+  if (!canTransition(current.status, next.status))
+    throw new Error(
+      `Invalid AgentRun transition: ${current.status} -> ${next.status}`,
+    );
+  if (next.version !== current.version + 1)
+    throw new RunVersionConflictError(runId, current.version + 1, next.version);
 }
 
-function toRunRow(run: AgentRun) { return { runId: run.runId, status: run.status, attempt: run.attempt, version: run.version, createdAt: run.createdAt, startedAt: run.startedAt ?? null, finishedAt: run.finishedAt ?? null }; }
-function toEventRow(event: RuntimeEvent) { return { runId: event.runId, sequence: event.sequence, type: event.type, occurredAt: event.occurredAt, dataJson: event.data === undefined ? null : JSON.stringify(event.data) }; }
-function toRun(row: typeof agentRuns.$inferSelect): AgentRun { return { runId: row.runId, status: row.status as AgentRun["status"], attempt: row.attempt, version: row.version, createdAt: row.createdAt, ...(row.startedAt === null ? {} : { startedAt: row.startedAt }), ...(row.finishedAt === null ? {} : { finishedAt: row.finishedAt }) }; }
-function toEvent(row: typeof runtimeEvents.$inferSelect): RuntimeEvent { return { runId: row.runId, sequence: row.sequence, type: row.type, occurredAt: row.occurredAt, ...(row.dataJson === null ? {} : { data: JSON.parse(row.dataJson) as Record<string, unknown> }) }; }
-function isConstraintError(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && String(error.code).startsWith("SQLITE_CONSTRAINT"); }
+function toRunRow(run: AgentRun) {
+  return {
+    runId: run.runId,
+    status: run.status,
+    attempt: run.attempt,
+    version: run.version,
+    createdAt: run.createdAt,
+    startedAt: run.startedAt ?? null,
+    finishedAt: run.finishedAt ?? null,
+  };
+}
+function toEventRow(event: RuntimeEvent) {
+  return {
+    runId: event.runId,
+    sequence: event.sequence,
+    type: event.type,
+    occurredAt: event.occurredAt,
+    dataJson: event.data === undefined ? null : JSON.stringify(event.data),
+  };
+}
+function toRun(row: typeof agentRuns.$inferSelect): AgentRun {
+  return {
+    runId: row.runId,
+    status: row.status as AgentRun["status"],
+    attempt: row.attempt,
+    version: row.version,
+    createdAt: row.createdAt,
+    ...(row.startedAt === null ? {} : { startedAt: row.startedAt }),
+    ...(row.finishedAt === null ? {} : { finishedAt: row.finishedAt }),
+  };
+}
+function toEvent(row: typeof runtimeEvents.$inferSelect): RuntimeEvent {
+  return {
+    runId: row.runId,
+    sequence: row.sequence,
+    type: row.type,
+    occurredAt: row.occurredAt,
+    ...(row.dataJson === null
+      ? {}
+      : { data: JSON.parse(row.dataJson) as Record<string, unknown> }),
+  };
+}
+function isConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    String(error.code).startsWith("SQLITE_CONSTRAINT")
+  );
+}
