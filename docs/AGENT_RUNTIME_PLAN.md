@@ -275,9 +275,9 @@ stateDiagram-v2
 
 当前已实现 `RetryPolicy`、`shouldRetry()` 和 `running → retrying → running` 流程：只有错误明确标记 `retryable` 且未超过 `maxAttempts` 时才重试，并递增 `attempt`。指数退避、幂等键和带副作用工具的安全重试留到 Policy/Audit 阶段。
 
-### 阶段 R6：恢复协议
+### 阶段 R6：恢复协议（基础版已完成）
 
-先定义 `resumeRun(runId, input)` 的语义，不接数据库。只能从 `waiting` 或 `blocked` 显式恢复为新的 attempt；保留旧事件，新的事件携带递增序号和 attempt。
+已实现 `resumeRun(runId, input)`：只能从 `waiting` 或 `blocked` 显式恢复，先回到 `queued` 再进入 `running`，递增 `attempt`，保留旧事件并继续递增 sequence。当前仍使用内存 Store，数据库恢复和完整输入持久化留到 R7。
 
 恢复不是从 JavaScript 调用栈继续，而是根据持久化的输入、消息和结果启动新的 Turn。
 

@@ -9,3 +9,18 @@ export class RunAlreadyActiveError extends Error {
     this.runId = runId;
   }
 }
+
+/** Run 当前状态不允许恢复。 */
+export class RunNotResumableError extends Error {
+  /** 尝试恢复的 Run 标识。 */
+  public readonly runId: string;
+  /** 恢复请求发生时 Run 的状态。 */
+  public readonly status: string;
+
+  public constructor(runId: string, status: string) {
+    super(`AgentRun cannot be resumed from status: ${runId} (${status})`);
+    this.name = "RunNotResumableError";
+    this.runId = runId;
+    this.status = status;
+  }
+}

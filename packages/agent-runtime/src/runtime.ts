@@ -1,9 +1,18 @@
 import { runTurn, type TurnResult, type TurnStatus } from "agent-core";
-import { RunAlreadyActiveError } from "./errors";
+import { RunAlreadyActiveError, RunNotResumableError } from "./errors";
 import { noRetry, shouldRetry } from "./retry";
 import { transition } from "./lifecycle";
 import type { RunStore } from "./store";
-import type { AgentRun, RunStatus, RuntimeEvent, StartRunInput } from "./types";
+import { RunNotFoundError } from "./store";
+import type {
+  AgentRun,
+  RunStatus,
+  RuntimeEvent,
+  ResumeRunInput,
+  StartRunInput,
+} from "./types";
+
+type RunExecutionInput = StartRunInput | ResumeRunInput;
 
 interface ExecutionContext {
   readonly controller: AbortController;
@@ -21,7 +30,7 @@ interface TransitionRecordResult {
   readonly nextSequence: number;
 }
 
-/** Runtime 编排器：管理 Run 生命周期、取消、重试，并把 Core 事件写入 Store。 */
+/** Runtime 编排器：管理 Run 生命周期、取消、重试、恢复，并把 Core 事件写入 Store。 */
 export class AgentRuntime {
   /** 正在启动或执行的 Run；同一 runId 同时只能有一个执行者。 */
   private readonly activeRuns = new Map<string, AbortController>();
@@ -31,24 +40,64 @@ export class AgentRuntime {
   /** 创建并执行一次 Run；当前版本会等待 Turn 完成后返回最终快照。 */
   public async startRun(input: StartRunInput): Promise<AgentRun> {
     this.ensureRunAvailable(input.runId);
-    const execution = this.prepareExecution(input);
+    const execution = this.prepareExecution(input.runId, input);
     let running: AgentRun | undefined;
 
     try {
       running = await this.createAndStartRun(input);
-      const executed = await this.executeWithRetry(input, running, execution.controller);
-      return this.finishRun(
-        executed.run,
-        input.runId,
-        executed.result,
-        executed.nextSequence,
-      );
+      const executed = await this.executeWithRetry(input, input.runId, running, execution.controller);
+      return this.finishRun(executed.run, input.runId, executed.result, executed.nextSequence);
     } catch (error) {
-      // Run 尚未进入 running 时（例如 create 失败）不伪造 failed 状态。
       if (!running) throw error;
       return this.failRun(running, input.runId, error, 2);
     } finally {
       this.cleanupExecution(input.runId, execution);
+    }
+  }
+
+  /** 从 waiting 或 blocked Run 创建新的执行尝试。 */
+  public async resumeRun(runId: string, input: ResumeRunInput): Promise<AgentRun> {
+    this.ensureRunAvailable(runId);
+    const execution = this.prepareExecution(runId, input);
+    let running: AgentRun | undefined;
+    let sequence = 0;
+
+    try {
+      const current = await this.store.get(runId);
+      if (!current) throw new RunNotFoundError(runId);
+      if (current.status !== "waiting" && current.status !== "blocked") {
+        throw new RunNotResumableError(runId, current.status);
+      }
+
+      const events = await this.store.listEvents(runId);
+      sequence = (events.at(-1)?.sequence ?? -1) + 1;
+      const queued = await this.transitionAndRecord(
+        current,
+        "queued",
+        runId,
+        sequence,
+        "run_resumed",
+      );
+      sequence = queued.nextSequence;
+      const started = await this.transitionAndRecord(
+        queued.run,
+        "running",
+        runId,
+        sequence,
+        "run_started",
+        { attempt: queued.run.attempt + 1 },
+        { attempt: queued.run.attempt + 1, startedAt: new Date().toISOString() },
+      );
+      running = started.run;
+      sequence = started.nextSequence;
+
+      const executed = await this.executeWithRetry(input, runId, running, execution.controller, sequence);
+      return this.finishRun(executed.run, runId, executed.result, executed.nextSequence);
+    } catch (error) {
+      if (!running) throw error;
+      return this.failRun(running, runId, error, sequence);
+    } finally {
+      this.cleanupExecution(runId, execution);
     }
   }
 
@@ -69,11 +118,10 @@ export class AgentRuntime {
     if (this.activeRuns.has(runId)) throw new RunAlreadyActiveError(runId);
   }
 
-  private prepareExecution(input: StartRunInput): ExecutionContext {
+  private prepareExecution(runId: string, input: RunExecutionInput): ExecutionContext {
     const controller = new AbortController();
     const removeExternalCancellation = this.linkExternalCancellation(input, controller);
-    // 必须在第一次 await 前登记，避免两个 startRun 同时通过检查。
-    this.activeRuns.set(input.runId, controller);
+    this.activeRuns.set(runId, controller);
     return { controller, removeExternalCancellation };
   }
 
@@ -89,7 +137,7 @@ export class AgentRuntime {
 
     await this.store.create(initial);
     await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
-    const result = await this.transitionAndRecord(
+    return (await this.transitionAndRecord(
       initial,
       "running",
       input.runId,
@@ -97,27 +145,28 @@ export class AgentRuntime {
       "run_started",
       { startedAt: now },
       { startedAt: now },
-    );
-    return result.run;
+    )).run;
   }
 
-  private executeTurn(input: StartRunInput, controller: AbortController): Promise<TurnResult> {
+  private executeTurn(input: RunExecutionInput, controller: AbortController): Promise<TurnResult> {
     return runTurn({ ...input.turn, signal: controller.signal }, input);
   }
 
   /** 执行 Turn，并在满足策略时重试，直到得到最终结果。 */
   private async executeWithRetry(
-    input: StartRunInput,
+    input: RunExecutionInput,
+    runId: string,
     initialRun: AgentRun,
     controller: AbortController,
+    initialSequence = 2,
   ): Promise<RetryExecutionResult> {
     const retryPolicy = input.retryPolicy ?? noRetry;
     let running = initialRun;
-    let nextSequence = 2;
+    let nextSequence = initialSequence;
 
     while (true) {
       const result = await this.executeTurn(input, controller);
-      nextSequence = await this.appendTurnEvents(input.runId, result, nextSequence);
+      nextSequence = await this.appendTurnEvents(runId, result, nextSequence);
 
       if (result.status !== "failed" || !shouldRetry(result.error, running.attempt, retryPolicy)) {
         return { run: running, result, nextSequence };
@@ -126,18 +175,17 @@ export class AgentRuntime {
       const retrying = await this.transitionAndRecord(
         running,
         "retrying",
-        input.runId,
+        runId,
         nextSequence,
         "run_retrying",
         { attempt: running.attempt },
       );
-      
       nextSequence = retrying.nextSequence;
       await this.delay(retryPolicy.delayMs ?? 0);
       const restarted = await this.transitionAndRecord(
         retrying.run,
         "running",
-        input.runId,
+        runId,
         nextSequence,
         "run_restarted",
         { attempt: retrying.run.attempt + 1 },
@@ -219,7 +267,7 @@ export class AgentRuntime {
     )).run;
   }
 
-  /** 统一处理 Runtime 内部重复的“状态转换 + 生命周期事件”流程。 */
+  /** 统一处理“状态转换 + 生命周期事件”；当前仍使用两个 Store 操作。 */
   private async transitionAndRecord(
     current: AgentRun,
     nextStatus: RunStatus,
@@ -236,7 +284,6 @@ export class AgentRuntime {
       status: transition(current.status, nextStatus),
       version: current.version + 1,
     };
-
     const updated = await this.store.transition(runId, current.version, next);
     if (eventType) {
       await this.store.appendEvent(this.event(runId, sequence, eventType, occurredAt, eventData));
@@ -256,7 +303,7 @@ export class AgentRuntime {
   }
 
   private linkExternalCancellation(
-    input: StartRunInput,
+    input: RunExecutionInput,
     controller: AbortController,
   ): () => void {
     const signal = input.turn.signal;

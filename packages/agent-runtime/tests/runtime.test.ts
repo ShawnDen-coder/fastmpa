@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeModel, ModelExecutionError, ToolRegistry } from "agent-core";
 import type { ModelAdapter } from "agent-core";
-import { AgentRuntime, MemoryRunStore, RunAlreadyActiveError } from "../src/index.js";
+import { AgentRuntime, MemoryRunStore, RunAlreadyActiveError, RunNotResumableError } from "../src/index.js";
 
 function input(model: ModelAdapter, runId = "run-1") {
   return {
@@ -137,5 +137,38 @@ describe("AgentRuntime", () => {
 
     expect(run.status).toBe("failed");
     expect(model.requests).toHaveLength(1);
+  });
+
+  it("resumes a waiting Run with a new attempt", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    const waiting = await runtime.startRun({
+      ...input(new FakeModel([{ type: "status", status: "waiting" }]), "resume-me"),
+    });
+
+    const resumed = await runtime.resumeRun(
+      "resume-me",
+      input(new FakeModel([{ type: "text", content: "continued" }])),
+    );
+    const events = await store.listEvents("resume-me");
+
+    expect(waiting.status).toBe("waiting");
+    expect(resumed.status).toBe("completed");
+    expect(resumed.attempt).toBe(2);
+    expect(events.map((event) => event.sequence)).toEqual(
+      [...events].map((_, index) => index),
+    );
+    expect(events.map((event) => event.type)).toContain("run_resumed");
+  });
+
+  it("rejects resuming a terminal Run", async () => {
+    const runtime = new AgentRuntime(new MemoryRunStore());
+    await runtime.startRun(
+      input(new FakeModel([{ type: "text", content: "done" }]), "terminal"),
+    );
+
+    await expect(
+      runtime.resumeRun("terminal", input(new FakeModel([]))),
+    ).rejects.toBeInstanceOf(RunNotResumableError);
   });
 });
