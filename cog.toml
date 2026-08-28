@@ -30,3 +30,11 @@ post_bump_hooks = [
     "git push",
     "git push origin --tags",
 ]
+
+[packages.fastmpa]
+path = "apps/fastmpa"
+public_api = false
+changelog_path = "apps/fastmpa/CHANGELOG.md"
+pre_bump_hooks = [
+    "pnpm --filter fastmpa version {{version}} --no-git-tag-version",
+]
