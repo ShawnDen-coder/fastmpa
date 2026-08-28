@@ -9,7 +9,7 @@ public_api = true
 changelog_path = "packages/agent-core/CHANGELOG.md"
 pre_bump_hooks = [
     "echo 'bumping agent-core from {{latest|0.0.0}} to {{version|0.0.1}}'",
-    "pnpm --filter agent-core pkg set version={{version|0.0.1}}",
+    "pnpm pkg set version={{version|0.0.1}}",
 ]
 
 post_bump_hooks = [
