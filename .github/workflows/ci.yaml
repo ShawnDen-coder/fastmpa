@@ -18,6 +18,6 @@ jobs:
     uses: ShawnDen-coder/repo-scaffold/.github/workflows/reusable-node-ci.yaml@0.35.0
     with:
       node-version: '22'
-      lint-command: pnpm format:check
+      lint-command: pnpm check
       build-command: pnpm -r run build
       test-command: pnpm -r run test

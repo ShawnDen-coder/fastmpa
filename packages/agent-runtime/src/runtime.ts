@@ -74,7 +74,7 @@ export class AgentRuntime {
       );
     } catch (error) {
       if (!running) throw error;
-      return this.failRun(running, input.runId, error, 2);
+      return this.failActiveRun(input.runId, error);
     } finally {
       this.cleanupExecution(input.runId, execution);
     }
@@ -137,7 +137,7 @@ export class AgentRuntime {
       );
     } catch (error) {
       if (!running) throw error;
-      return this.failRun(running, runId, error, sequence);
+      return this.failActiveRun(runId, error);
     } finally {
       this.cleanupExecution(runId, execution);
     }
@@ -238,7 +238,7 @@ export class AgentRuntime {
 
       if (
         result.status !== "failed" ||
-        !shouldRetry(result.error, running.attempt, retryPolicy)
+        !shouldRetry(result.error, running.attempt, retryPolicy, result)
       ) {
         return { run: running, result, nextSequence };
       }
@@ -252,7 +252,17 @@ export class AgentRuntime {
         { attempt: running.attempt },
       );
       nextSequence = retrying.nextSequence;
-      await this.delay(retryPolicy.delayMs ?? 0);
+      const delayCompleted = await this.delay(
+        retryPolicy.delayMs ?? 0,
+        controller.signal,
+      );
+      if (!delayCompleted) {
+        return {
+          run: running,
+          result: { status: "cancelled", messages: [], events: [], steps: 0 },
+          nextSequence,
+        };
+      }
       const restarted = await this.transitionAndRecord(
         retrying.run,
         "running",
@@ -293,6 +303,21 @@ export class AgentRuntime {
     result: TurnResult,
     sequence: number,
   ): Promise<AgentRun> {
+    const current = await this.store.get(runId);
+    if (!current) {
+      throw new RunNotFoundError(runId);
+    }
+    if (
+      current.status === "completed" ||
+      current.status === "cancelled" ||
+      current.status === "failed"
+    ) {
+      return current;
+    }
+    const events = await this.store.listEvents(runId);
+    running = current;
+    sequence = Math.max(sequence, (events.at(-1)?.sequence ?? -1) + 1);
+
     const status = mapTurnStatus(result.status);
     if (status === "failed") {
       return (
@@ -352,6 +377,24 @@ export class AgentRuntime {
     ).run;
   }
 
+  /** Use the latest Store snapshot so cleanup cannot mask the original error. */
+  private async failActiveRun(
+    runId: string,
+    error: unknown,
+  ): Promise<AgentRun> {
+    const current = await this.store.get(runId);
+    if (!current) throw error;
+    if (
+      current.status === "completed" ||
+      current.status === "cancelled" ||
+      current.status === "failed"
+    ) {
+      return current;
+    }
+    const events = await this.store.listEvents(runId);
+    const nextSequence = (events.at(-1)?.sequence ?? -1) + 1;
+    return this.failRun(current, runId, error, nextSequence);
+  }
   /** 统一处理“状态转换 + 生命周期事件”；当前仍使用两个 Store 操作。 */
   private async transitionAndRecord(
     current: AgentRun,
@@ -392,9 +435,21 @@ export class AgentRuntime {
     return { run: updated, nextSequence: sequence };
   }
 
-  private async delay(delayMs: number): Promise<void> {
-    if (delayMs <= 0) return;
-    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+  private async delay(delayMs: number, signal: AbortSignal): Promise<boolean> {
+    if (delayMs <= 0) return !signal.aborted;
+    if (signal.aborted) return false;
+    return new Promise<boolean>((resolve) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", onAbort);
+        resolve(false);
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(true);
+      }, delayMs);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
   }
 
   private cleanupExecution(runId: string, execution: ExecutionContext): void {

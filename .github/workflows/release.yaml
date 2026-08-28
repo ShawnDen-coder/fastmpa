@@ -25,7 +25,7 @@ jobs:
     with:
       tag: ${{ inputs.tag || github.ref_name }}
       build-command: >-
-        pnpm format:check &&
+        pnpm check &&
         pnpm -r run typecheck &&
         pnpm -r run test &&
         pnpm --filter agent-core build &&

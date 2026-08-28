@@ -13,7 +13,7 @@ export class InvalidRunTransitionError extends Error {
 }
 
 const transitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
-  queued: ["running"],
+  queued: ["running", "cancelled", "failed"],
   running: [
     "retrying",
     "waiting",
@@ -22,7 +22,7 @@ const transitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
     "cancelled",
     "failed",
   ],
-  retrying: ["running"],
+  retrying: ["running", "cancelled", "failed"],
   waiting: ["queued"],
   blocked: ["queued"],
   completed: [],
