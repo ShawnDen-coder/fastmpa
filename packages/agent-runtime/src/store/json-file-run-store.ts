@@ -8,6 +8,7 @@ import {
   RunNotFoundError,
   RunVersionConflictError,
 } from "./errors";
+import { filterEvents, type ListEventsOptions } from "./event-query";
 import type { RunStore } from "./run-store";
 
 interface PersistedRuntimeData {
@@ -95,11 +96,14 @@ export class JsonFileRunStore implements RunStore {
     });
   }
 
-  public async listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
+  public async listEvents(
+    runId: string,
+    options: ListEventsOptions = {},
+  ): Promise<readonly RuntimeEvent[]> {
     await this.loaded;
     const runEvents = this.events.get(runId);
     if (!runEvents) throw new RunNotFoundError(runId);
-    return clone(runEvents);
+    return clone(filterEvents(runEvents, options));
   }
 
   private requireRun(runId: string): AgentRun {

@@ -18,6 +18,13 @@ describe("AgentRuntime query API", () => {
 
     await expect(runtime.getRun("query-run")).resolves.toEqual(completed);
     await expect(runtime.listEvents("query-run")).resolves.toHaveLength(4);
+    await expect(
+      runtime.listEvents("query-run", {
+        type: "turn.model_requested",
+        afterSequence: 1,
+        limit: 1,
+      }),
+    ).resolves.toMatchObject([{ type: "turn.model_requested" }]);
     await expect(runtime.getRunSnapshot("query-run")).resolves.toMatchObject({
       run: completed,
       events: expect.arrayContaining([

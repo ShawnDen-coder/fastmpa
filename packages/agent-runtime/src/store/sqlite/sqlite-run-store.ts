@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt } from "drizzle-orm";
 import { canTransition } from "../../lifecycle";
 import type { AgentRun, RuntimeEvent } from "../../types";
 import {
@@ -7,6 +7,10 @@ import {
   RunNotFoundError,
   RunVersionConflictError,
 } from "../errors";
+import {
+  type ListEventsOptions,
+  validateListEventsOptions,
+} from "../event-query";
 import type { RunStore } from "../run-store";
 import type { SqliteStoreConfig } from "./config";
 import { openSqliteDatabase, type SqliteDatabase } from "./database";
@@ -126,13 +130,23 @@ export class SqliteRunStore implements RunStore {
     }
   }
 
-  public async listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
+  public async listEvents(
+    runId: string,
+    options: ListEventsOptions = {},
+  ): Promise<readonly RuntimeEvent[]> {
     if (!(await this.get(runId))) throw new RunNotFoundError(runId);
-    return this.database.db
+    validateListEventsOptions(options);
+    const conditions = [eq(runtimeEvents.runId, runId)];
+    if (options.type !== undefined)
+      conditions.push(eq(runtimeEvents.type, options.type));
+    if (options.afterSequence !== undefined)
+      conditions.push(gt(runtimeEvents.sequence, options.afterSequence));
+    const query = this.database.db
       .select()
       .from(runtimeEvents)
-      .where(eq(runtimeEvents.runId, runId))
-      .orderBy(asc(runtimeEvents.sequence))
+      .where(and(...conditions))
+      .orderBy(asc(runtimeEvents.sequence));
+    return (options.limit === undefined ? query : query.limit(options.limit))
       .all()
       .map(toEvent);
   }

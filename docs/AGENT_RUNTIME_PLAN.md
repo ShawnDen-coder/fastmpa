@@ -305,11 +305,15 @@ Runtime 查询 API：
 
 ```ts
 runtime.getRun(runId);                 // 查询当前 Run
-runtime.listEvents(runId);             // 查询事件历史
+runtime.listEvents(runId, {         // 查询事件历史
+  type: "turn.model_requested",
+  afterSequence: 1,
+  limit: 50,
+});
 runtime.getRunSnapshot(runId);         // 同时返回 Run 和事件
 ```
 
-查询 API 只读，不改变 Run 状态；找不到 Run 时，`getRun` 和 `getRunSnapshot` 返回 `undefined`，`listEvents` 由 Store 抛出 `RunNotFoundError`。
+事件查询支持按 `type`、`afterSequence` 和 `limit` 过滤。查询 API 只读，不改变 Run 状态；找不到 Run 时，`getRun` 和 `getRunSnapshot` 返回 `undefined`，`listEvents` 由 Store 抛出 `RunNotFoundError`。
 #### SQLite Store 实施计划（基础版已完成）
 
 已实现 `packages/agent-runtime/src/store/sqlite/sqlite-run-store.ts`，使用 `better-sqlite3` 驱动和 Drizzle Schema/查询/事务。Runtime 不直接依赖 SQL，驱动被封装在 Store 内。

@@ -6,6 +6,7 @@ import {
   RunNotFoundError,
   RunVersionConflictError,
 } from "./errors";
+import { filterEvents, type ListEventsOptions } from "./event-query";
 import type { RunStore } from "./run-store";
 
 /* 使用结构化复制隔离调用方对象，避免外部引用修改 Store 内部状态。 */
@@ -87,9 +88,12 @@ export class MemoryRunStore implements RunStore {
   }
 
   /** 按追加顺序返回事件副本，不暴露内部数组。 */
-  public async listEvents(runId: string): Promise<readonly RuntimeEvent[]> {
+  public async listEvents(
+    runId: string,
+    options: ListEventsOptions = {},
+  ): Promise<readonly RuntimeEvent[]> {
     const events = this.events.get(runId);
     if (events === undefined) throw new RunNotFoundError(runId);
-    return clone(events);
+    return clone(filterEvents(events, options));
   }
 }
