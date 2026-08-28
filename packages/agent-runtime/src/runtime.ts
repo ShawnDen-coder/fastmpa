@@ -6,14 +6,21 @@ import type { ListEventsOptions, RunStore } from "./store";
 import { RunNotFoundError } from "./store";
 import type {
   AgentRun,
+  Clock,
   ResumeRunInput,
   RunSnapshot,
   RunStatus,
   RuntimeEvent,
   StartRunInput,
 } from "./types";
+import { systemClock } from "./types";
 
 type RunExecutionInput = StartRunInput | ResumeRunInput;
+
+export interface RuntimeDependencies {
+  /** 可注入的时间来源；默认使用系统时钟。 */
+  readonly clock?: Clock;
+}
 
 interface ExecutionContext {
   readonly controller: AbortController;
@@ -35,8 +42,14 @@ interface TransitionRecordResult {
 export class AgentRuntime {
   /** 正在启动或执行的 Run；同一 runId 同时只能有一个执行者。 */
   private readonly activeRuns = new Map<string, AbortController>();
+  private readonly clock: Clock;
 
-  public constructor(private readonly store: RunStore) {}
+  public constructor(
+    private readonly store: RunStore,
+    dependencies: RuntimeDependencies = {},
+  ) {
+    this.clock = dependencies.clock ?? systemClock;
+  }
 
   /** 创建并执行一次 Run；当前版本会等待 Turn 完成后返回最终快照。 */
   public async startRun(input: StartRunInput): Promise<AgentRun> {
@@ -102,7 +115,7 @@ export class AgentRuntime {
         { attempt: queued.run.attempt + 1 },
         {
           attempt: queued.run.attempt + 1,
-          startedAt: new Date().toISOString(),
+          startedAt: this.clock.now(),
         },
       );
       running = started.run;
@@ -174,7 +187,7 @@ export class AgentRuntime {
   }
 
   private async createAndStartRun(input: StartRunInput): Promise<AgentRun> {
-    const now = new Date().toISOString();
+    const now = this.clock.now();
     const initial: AgentRun = {
       runId: input.runId,
       status: "queued",
@@ -257,7 +270,7 @@ export class AgentRuntime {
     result: TurnResult,
     sequence: number,
   ): Promise<number> {
-    const occurredAt = new Date().toISOString();
+    const occurredAt = this.clock.now();
     for (const turnEvent of result.events) {
       await this.store.appendEvent(
         this.event(
@@ -288,7 +301,7 @@ export class AgentRuntime {
           sequence,
           "run_failed",
           { message: result.error?.message ?? "Turn failed" },
-          { finishedAt: new Date().toISOString() },
+          { finishedAt: this.clock.now() },
         )
       ).run;
     }
@@ -301,7 +314,7 @@ export class AgentRuntime {
           sequence,
           "run_cancelled",
           undefined,
-          { finishedAt: new Date().toISOString() },
+          { finishedAt: this.clock.now() },
         )
       ).run;
     }
@@ -313,7 +326,7 @@ export class AgentRuntime {
         sequence,
         undefined,
         undefined,
-        { finishedAt: new Date().toISOString() },
+        { finishedAt: this.clock.now() },
       )
     ).run;
   }
@@ -332,7 +345,7 @@ export class AgentRuntime {
         sequence,
         "run_failed",
         { message: error instanceof Error ? error.message : String(error) },
-        { finishedAt: new Date().toISOString() },
+        { finishedAt: this.clock.now() },
       )
     ).run;
   }
@@ -347,7 +360,7 @@ export class AgentRuntime {
     eventData?: Readonly<Record<string, unknown>>,
     patch: Partial<AgentRun> = {},
   ): Promise<TransitionRecordResult> {
-    const occurredAt = new Date().toISOString();
+    const occurredAt = this.clock.now();
     const next: AgentRun = {
       ...current,
       ...patch,

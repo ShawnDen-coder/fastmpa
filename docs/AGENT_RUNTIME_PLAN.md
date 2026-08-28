@@ -382,6 +382,17 @@ pnpm --filter agent-core test
 
 Runtime 第一版完成时，应能演示：启动一个 Run、观察状态和事件、取消运行、处理 Core 失败、从 waiting 显式恢复，并证明重复启动和非法状态转换会被拒绝。
 
+## Runtime 依赖注入（已完成）
+
+`AgentRuntime` 支持注入 `RuntimeDependencies`，当前先抽象 `Clock`：
+
+```ts
+const runtime = new AgentRuntime(store, {
+  clock: { now: () => "2026-08-28T00:00:00.000Z" },
+});
+```
+
+生产环境默认使用系统时钟；测试环境使用固定时钟，避免真实时间导致断言不稳定。`runId` 仍由调用方提供，因此暂不增加 ID Generator。
 ## 八、完成后的下一步
 
 Runtime 稳定后进入 `policy` 与 `audit`：让工具副作用具备风险分级、审批、幂等键和审计回执。之后才实现 APM `domain` 与真实 `agent-tools`。这时 Runtime 只负责“何时运行、运行到哪里”，不会承担“业务动作是否允许”的职责。
