@@ -1,6 +1,8 @@
 export * from "./errors.js";
+
 /** Public exports for agent-runtime. */
 
+export * from "./lease-worker.js";
 export * from "./lifecycle.js";
 export * from "./retry.js";
 export * from "./runtime.js";

@@ -31,13 +31,43 @@ export interface RunStore {
   ): Promise<readonly RuntimeEvent[]>;
   /** 按 `(createdAt, runId)` 稳定排序分页查询 Run。 */
   listRuns(options?: ListRunsOptions): Promise<RunPage>;
-  /** Atomically claims an executable Run for one process owner. */
-  claim?(
+}
+
+/** 支持跨进程 lease 的 Store 扩展；当前由 SQLite 实现。 */
+export interface RunLeaseStore extends RunStore {
+  /** 原子领取 queued Run、启动执行并记录 run_started 事件。 */
+  claimAndStart(
     runId: string,
     ownerId: string,
     now: string,
     leaseMs: number,
   ): Promise<RunLease | undefined>;
+  /** 仅当前 owner 可为未过期的执行 lease 续租。 */
+  renewLease(
+    runId: string,
+    ownerId: string,
+    now: string,
+    leaseMs: number,
+  ): Promise<RunLease | undefined>;
+  /** 仅当前 owner 可原子转换 Run 并写入事件；可选择在暂停或终态释放 lease。 */
+  transitionAsOwnerWithEvent(
+    runId: string,
+    ownerId: string,
+    now: string,
+    expectedVersion: number,
+    next: AgentRun,
+    event: RuntimeEvent,
+    options?: { readonly releaseLease?: boolean },
+  ): Promise<AgentRun | undefined>;
+  /** 仅当前 owner 可追加一批 Turn 观测事件，避免失去 lease 后继续写入。 */
+  appendEventsAsOwner(
+    runId: string,
+    ownerId: string,
+    now: string,
+    events: readonly RuntimeEvent[],
+  ): Promise<boolean>;
+  /** 将 lease 已过期的执行 Run 原子标记为 interrupted 后重新排队。 */
+  recoverExpiredRuns(now: string, limit: number): Promise<readonly string[]>;
 }
 
 export interface RunLease {

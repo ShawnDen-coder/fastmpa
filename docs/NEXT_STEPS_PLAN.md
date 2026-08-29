@@ -54,6 +54,17 @@ queued -- 原子 claim + start --> running (ownerId + leaseUntil)
 
 重点测试两个 Worker 原子争抢、错误 owner 续租/释放、lease 过期、心跳续租、崩溃后恢复，以及含成功工具副作用的 Run 不被整轮重放。后者需要幂等键或明确的人工恢复边界，不能仅依赖重新执行 Turn。
 
+### 实施任务
+
+- [x] 将 lease 协议从通用 `RunStore` 拆为 SQLite 的 `RunLeaseStore` 扩展。
+- [x] 实现原子 `claimAndStart`：领取、`queued → running`、`run_started` 事件和 lease 元数据一次事务完成。
+- [x] 实现 `renewLease`：只允许当前 owner 在 lease 未过期时续租。
+- [x] 实现受 owner 约束的 release/终态或暂停转换，防止失去 lease 的 Worker 继续写入。
+- [x] 实现过期扫描：`running/retrying → interrupted → queued`，并记录生命周期事件。
+- [x] 持久化 `modelKey/toolsetKey`，通过 Resolver 重建执行依赖；`waiting/blocked` 保持显式恢复。
+- [x] 基于 Resolver 接入 lease-aware Worker：claim、定期 renew、owner 约束的状态提交与失败释放；重启后只执行已持久化描述的 queued Run。
+- [x] 为争抢、错误 owner、续租、过期恢复和副作用边界增加 SQLite 集成测试。
+
 ## 阶段三：第一个 APM 垂直切片
 
 Runtime 达到上述验收标准后，再新增业务包：

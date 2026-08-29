@@ -11,6 +11,7 @@ const validTransitions: ReadonlyArray<readonly [RunStatus, RunStatus]> = [
   ["running", "waiting"],
   ["running", "blocked"],
   ["running", "interrupted"],
+  ["retrying", "interrupted"],
   ["running", "completed"],
   ["running", "cancelled"],
   ["running", "failed"],
