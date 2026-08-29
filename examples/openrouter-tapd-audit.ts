@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
-import { OpenRouterModel, runTurn } from "@shawnden-coder/agent-core"
+import {
+  createLogger,
+  OpenRouterModel,
+  runTurn,
+} from "@shawnden-coder/agent-core"
 import {
   createTapdReadonlyTools,
   type TapdReadonlyClient,
@@ -90,6 +94,13 @@ const model = new OpenRouterModel({
   model: modelName,
   appTitle: "FastMPA review example",
 })
+const log = createLogger(
+  { agentId },
+  {
+    service: "fastmpa-example",
+    logPath: process.env.FASTMPA_LOG_PATH ?? "logs/openrouter-tapd-audit.log",
+  },
+)
 const result = await runTurn(
   {
     messages: [
@@ -102,7 +113,7 @@ const result = await runTurn(
     ],
     maxSteps: 5,
   },
-  { model, tools },
+  { model, tools, logger: log },
 )
 
 const finalMessage = [...result.messages]

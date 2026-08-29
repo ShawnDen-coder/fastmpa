@@ -63,6 +63,15 @@ importers:
       '@shawnden-coder/agent-core':
         specifier: workspace:*
         version: link:../packages/agent-core
+      '@shawnden-coder/agent-runtime':
+        specifier: workspace:*
+        version: link:../packages/agent-runtime
+      agent-scheduler:
+        specifier: workspace:*
+        version: link:../packages/agent-scheduler
+      apm:
+        specifier: workspace:*
+        version: link:../packages/apm
       integrations:
         specifier: workspace:*
         version: link:../packages/integrations
