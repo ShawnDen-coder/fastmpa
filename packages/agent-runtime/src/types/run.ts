@@ -2,6 +2,7 @@
 
 import type { Message, TurnStatus } from "@shawnden-coder/agent-core";
 import type { PersistedRunInput } from "./persisted-input.js";
+import type { RunContext } from "./run-context.js";
 
 export type RunStatus =
   | "queued"
@@ -17,6 +18,8 @@ export type RunStatus =
 export interface AgentRun {
   /** 一次运行的唯一标识；后续用于查询、取消、恢复和关联事件。 */
   readonly runId: string;
+  /** 上层工作来源关联；不承载业务状态，只用于追踪和恢复。 */
+  readonly context?: RunContext;
   /** 当前生命周期状态，所有变化必须经过 lifecycle.ts 的转换规则。 */
   readonly status: RunStatus;
   /** 当前运行尝试次数；重试或恢复时递增。 */
@@ -50,4 +53,5 @@ export interface SerializedRunError {
   readonly message: string;
   readonly code?: string;
   readonly retryable?: boolean;
+  readonly details?: unknown;
 }

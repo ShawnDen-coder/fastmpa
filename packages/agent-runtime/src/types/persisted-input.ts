@@ -1,6 +1,7 @@
 import type { TurnInput } from "@shawnden-coder/agent-core";
 import type { RetryPolicy } from "../retry.js";
 import type { RunDependencyKeys } from "./dependencies.js";
+import type { RunContext } from "./run-context.js";
 
 /** 可以安全写入数据库的 Turn 输入，不包含模型、工具和取消信号。 */
 export type PersistedTurnInput = Omit<TurnInput, "signal">;
@@ -13,4 +14,5 @@ export interface PersistedRunInput {
   readonly dependencies?: RunDependencyKeys;
   /** 本次 Run 使用的重试策略。 */
   readonly retryPolicy?: RetryPolicy;
+  readonly context?: RunContext;
 }

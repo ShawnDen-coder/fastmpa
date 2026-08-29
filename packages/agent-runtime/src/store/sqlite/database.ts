@@ -23,9 +23,50 @@ export async function openSqliteDatabase(
   client.pragma("foreign_keys = ON");
 
   const db = drizzle(client, { schema: { agentRuns, runtimeEvents } });
-  await migrate(db, {
-    migrationsFolder: fileURLToPath(new URL("./migrations", import.meta.url)),
-  });
+  const migrationsFolder =
+    config.migrationsFolder === false
+      ? undefined
+      : (config.migrationsFolder ?? resolveMigrationsFolder());
+  if (migrationsFolder) {
+    await migrate(db, { migrationsFolder });
+  } else {
+    // CommonJS bundles cannot reliably resolve import.meta.url. Keep the
+    // bundled Host usable with an idempotent schema fallback.
+    client.exec(`
+      CREATE TABLE IF NOT EXISTS agent_runs (
+        run_id TEXT PRIMARY KEY NOT NULL,
+        status TEXT NOT NULL,
+        input_json TEXT,
+        attempt INTEGER NOT NULL,
+        version INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        started_at TEXT,
+        finished_at TEXT,
+        result_json TEXT,
+        error_json TEXT,
+        owner_id TEXT,
+        lease_until TEXT,
+        heartbeat_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS runtime_events (
+        run_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        data_json TEXT,
+        PRIMARY KEY (run_id, sequence),
+        FOREIGN KEY (run_id) REFERENCES agent_runs(run_id) ON DELETE CASCADE
+      );
+    `);
+  }
 
   return { client, db };
+}
+
+function resolveMigrationsFolder(): string | undefined {
+  try {
+    return fileURLToPath(new URL("./migrations", import.meta.url));
+  } catch {
+    return undefined;
+  }
 }

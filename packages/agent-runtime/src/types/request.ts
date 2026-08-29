@@ -1,5 +1,6 @@
 import type { RunTurnOptions, TurnInput } from "@shawnden-coder/agent-core";
 import type { RetryPolicy } from "../retry.js";
+import type { RunContext } from "./run-context.js";
 
 /** 启动一次 AgentRun 所需的输入。 */
 export interface StartRunInput extends RunTurnOptions {
@@ -9,4 +10,5 @@ export interface StartRunInput extends RunTurnOptions {
   readonly turn: TurnInput;
   /** 可选重试策略；省略时不重试。 */
   readonly retryPolicy?: RetryPolicy;
+  readonly context?: RunContext;
 }

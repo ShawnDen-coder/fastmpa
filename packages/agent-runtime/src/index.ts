@@ -8,3 +8,4 @@ export * from "./retry.js";
 export * from "./runtime.js";
 export * from "./store/index.js";
 export * from "./types/index.js";
+export * from "./worker-loop.js";

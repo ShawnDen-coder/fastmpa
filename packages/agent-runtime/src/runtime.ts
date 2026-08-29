@@ -214,6 +214,7 @@ export class AgentRuntime {
     const now = this.clock.now();
     const initial: AgentRun = {
       runId: input.runId,
+      ...(input.context === undefined ? {} : { context: input.context }),
       status: "queued",
       attempt: 1,
       version: 0,
@@ -533,6 +534,7 @@ function toPersistedRunInput(input: StartRunInput): PersistedRunInput {
   const { signal: _signal, ...turn } = input.turn;
   return {
     turn,
+    ...(input.context === undefined ? {} : { context: input.context }),
     ...(input.retryPolicy === undefined
       ? {}
       : { retryPolicy: input.retryPolicy }),
@@ -566,7 +568,7 @@ function serializeRunError(error: unknown): SerializedRunError {
   const normalized = error instanceof Error ? error : new Error(String(error));
   const details =
     error !== null && (typeof error === "object" || typeof error === "function")
-      ? (error as { code?: unknown; retryable?: unknown })
+      ? (error as { code?: unknown; retryable?: unknown; details?: unknown })
       : {};
   return {
     name: normalized.name,
@@ -575,5 +577,6 @@ function serializeRunError(error: unknown): SerializedRunError {
     ...(typeof details.retryable === "boolean"
       ? { retryable: details.retryable }
       : {}),
+    ...(details.details === undefined ? {} : { details: details.details }),
   };
 }

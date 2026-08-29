@@ -1,6 +1,7 @@
 import type { RetryPolicy } from "../retry.js";
 import type { RunDependencyKeys } from "./dependencies.js";
 import type { PersistedTurnInput } from "./persisted-input.js";
+import type { RunContext } from "./run-context.js";
 
 /** 交给 lease-aware Worker 执行的纯数据请求。 */
 export interface EnqueueRunInput {
@@ -8,4 +9,5 @@ export interface EnqueueRunInput {
   readonly turn: PersistedTurnInput;
   readonly dependencies: RunDependencyKeys;
   readonly retryPolicy?: RetryPolicy;
+  readonly context?: RunContext;
 }

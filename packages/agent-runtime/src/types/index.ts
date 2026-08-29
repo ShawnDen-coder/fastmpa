@@ -18,4 +18,5 @@ export type {
   RunStatus,
   SerializedRunError,
 } from "./run.js";
+export type { RunContext } from "./run-context.js";
 export type { RunSnapshot } from "./snapshot.js";
