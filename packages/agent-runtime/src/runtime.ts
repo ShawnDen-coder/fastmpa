@@ -7,16 +7,18 @@ import { RunAlreadyActiveError, RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
 import { RunStoreError } from "./store/errors.js";
-import type { ListEventsOptions, RunStore } from "./store/index.js";
+import type { ListEventsOptions, ListRunsOptions, RunPage, RunStore } from "./store/index.js";
 import { RunNotFoundError } from "./store/index.js";
 import type {
   AgentRun,
   Clock,
   PersistedRunInput,
+  PersistedTurnResult,
   ResumeRunInput,
   RunSnapshot,
   RunStatus,
   RuntimeEvent,
+  SerializedRunError,
   StartRunInput,
 } from "./types/index.js";
 import { systemClock } from "./types/index.js";
@@ -167,6 +169,11 @@ export class AgentRuntime {
     return this.store.listEvents(runId, options);
   }
 
+  /** 按稳定 cursor 分页查询 Run。 */
+  public listRuns(options: ListRunsOptions = {}): Promise<RunPage> {
+    return this.store.listRuns(options);
+  }
+
   /** 查询 Run 和事件历史组成的只读快照。 */
   public async getRunSnapshot(runId: string): Promise<RunSnapshot | undefined> {
     const run = await this.store.get(runId);
@@ -209,8 +216,10 @@ export class AgentRuntime {
       input: toPersistedRunInput(input),
     };
 
-    await this.store.create(initial);
-    await this.store.appendEvent(this.event(input.runId, 0, "run_queued", now));
+    await this.store.createWithEvent(
+      initial,
+      this.event(input.runId, 0, "run_queued", now),
+    );
     return (
       await this.transitionAndRecord(
         initial,
@@ -330,6 +339,12 @@ export class AgentRuntime {
     sequence = Math.max(sequence, (events.at(-1)?.sequence ?? -1) + 1);
 
     const status = mapTurnStatus(result.status);
+    const resultPatch = {
+      result: toPersistedTurnResult(result),
+      ...(result.error === undefined
+        ? {}
+        : { error: serializeRunError(result.error) }),
+    };
     switch (status) {
       case "failed":
         return (
@@ -340,7 +355,7 @@ export class AgentRuntime {
             sequence,
             "run_failed",
             { message: result.error?.message ?? "Turn failed" },
-            { finishedAt: this.clock.now() },
+            { ...resultPatch, finishedAt: this.clock.now() },
           )
         ).run;
       case "cancelled":
@@ -352,7 +367,7 @@ export class AgentRuntime {
             sequence,
             "run_cancelled",
             undefined,
-            { finishedAt: this.clock.now() },
+            { ...resultPatch, finishedAt: this.clock.now() },
           )
         ).run;
       case "completed":
@@ -364,7 +379,7 @@ export class AgentRuntime {
             sequence,
             "run_completed",
             undefined,
-            { finishedAt: this.clock.now() },
+            { ...resultPatch, finishedAt: this.clock.now() },
           )
         ).run;
       case "waiting":
@@ -376,6 +391,8 @@ export class AgentRuntime {
             runId,
             sequence,
             `run_${status}`,
+            undefined,
+            resultPatch,
           )
         ).run;
     }
@@ -393,9 +410,9 @@ export class AgentRuntime {
         "failed",
         runId,
         sequence,
-        "run_failed",
-        { message: error instanceof Error ? error.message : String(error) },
-        { finishedAt: this.clock.now() },
+          "run_failed",
+          { message: serializeRunError(error).message },
+          { error: serializeRunError(error), finishedAt: this.clock.now() },
       )
     ).run;
   }
@@ -443,15 +460,12 @@ export class AgentRuntime {
         occurredAt,
         eventData,
       );
-      const updated = this.store.transitionWithEvent
-        ? await this.store.transitionWithEvent(
-            runId,
-            current.version,
-            next,
-            event,
-          )
-        : await this.store.transition(runId, current.version, next);
-      if (!this.store.transitionWithEvent) await this.store.appendEvent(event);
+      const updated = await this.store.transitionWithEvent(
+        runId,
+        current.version,
+        next,
+        event,
+      );
       return { run: updated, nextSequence: sequence + 1 };
     }
     const updated = await this.store.transition(runId, current.version, next);
@@ -533,4 +547,25 @@ function mapTurnStatus(status: TurnStatus): TurnRunStatus {
     case "failed":
       return "failed";
   }
+}
+
+function toPersistedTurnResult(result: TurnResult): PersistedTurnResult {
+  return {
+    status: result.status,
+    messages: result.messages,
+    steps: result.steps,
+  };
+}
+
+function serializeRunError(error: unknown): SerializedRunError {
+  const normalized = error instanceof Error ? error : new Error(String(error));
+  const details = error as { code?: unknown; retryable?: unknown };
+  return {
+    name: normalized.name,
+    message: normalized.message,
+    ...(typeof details.code === "string" ? { code: details.code } : {}),
+    ...(typeof details.retryable === "boolean"
+      ? { retryable: details.retryable }
+      : {}),
+  };
 }

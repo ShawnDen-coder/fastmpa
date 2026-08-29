@@ -7,5 +7,10 @@ export type {
 } from "./persisted-input.js";
 export type { StartRunInput } from "./request.js";
 export type { ResumeRunInput } from "./resume.js";
-export type { AgentRun, RunStatus } from "./run.js";
+export type {
+  AgentRun,
+  PersistedTurnResult,
+  RunStatus,
+  SerializedRunError,
+} from "./run.js";
 export type { RunSnapshot } from "./snapshot.js";

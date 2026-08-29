@@ -6,9 +6,9 @@ FastMPA 已完成 pnpm Monorepo、`agent-core` 的 Turn/Tool Loop，以及 `agen
 
 实现方式继续遵循：先阅读 Cumora 的对应入口，画出数据流，再由你手动实现最小切片；每一步都用测试证明边界。
 
-## 阶段一：Runtime 0.3 一致性收尾（进行中：2/6）
+## 阶段一：Runtime 0.3 一致性收尾（已完成：6/6）
 
-截至 2026-08-29，`finishedAt` 语义和生命周期结束/暂停事件已经修复。`agent-runtime` 类型检查通过，12 个测试文件、61 个测试全部通过。
+截至 2026-08-29，`finishedAt` 语义、生命周期结束/暂停事件、Run/Event 原子写入、最终结果/结构化错误持久化，以及稳定 cursor 分页已经完成。`agent-runtime` 类型检查与构建通过，12 个测试文件、73 个测试全部通过。
 
 ### 学习目标
 
@@ -20,30 +20,39 @@ FastMPA 已完成 pnpm Monorepo、`agent-core` 的 Turn/Tool Loop，以及 `agen
 
 - [x] 修正 `waiting/blocked` 的 `finishedAt` 语义。
 - [x] 增加 `run_completed`、`run_waiting`、`run_blocked` 事件。
-- [ ] 为 Store 增加原子 `createWithEvent`，避免 Run 与首事件分离。
-- [ ] 在 Run 中持久化结构化 `result` 和 `error`。
-- [ ] 增加 `listRuns({ status, limit, cursor })` 查询。
-- [ ] 为 Memory、JSON 和 SQLite Store 复用同一组契约测试。
+- [x] 将 `createWithEvent` 与 `transitionWithEvent` 设为 Store 端口：创建或状态变化必须与对应生命周期事件作为一个不可分割的写入完成。
+- [x] 在 Run 中持久化 JSON-friendly 的最终 `result` 与结构化 `error`；不得保存原生 `Error`、模型实例或工具函数。
+- [x] 增加 `listRuns({ status?, limit?, cursor? })`；固定按 `(createdAt, runId)` 排序，并把这对值编码为不透明 cursor，避免分页重复或遗漏。
+- [x] 为 Memory、JSON 和 SQLite Store 复用同一组契约测试。
 
 ### 验收标准
 
-- 每次状态变化都能在事件流中找到对应事件。
+- 每次生命周期状态变化都能在事件流中找到对应事件。
 - 暂停态没有 `finishedAt`，恢复后时间字段仍然正确。
-- 模拟任意一次写入失败，不产生半完成状态。
+- 模拟创建、状态转换或事件写入失败时，不产生 Run/Event 不匹配的半完成状态。
+- 三个 Store 都通过相同的原子创建、事件顺序与分页契约测试。
 - `just build && just typecheck && just test` 全部通过。
 
 ## 阶段二：Runtime 0.4 崩溃恢复
 
-补全 `claim → heartbeat/renew → release` 协议，并实现过期执行的恢复流程：
+补全 `claim → heartbeat/renew → release` 协议，并实现过期执行的恢复流程。`claimed` 不是新的 `RunStatus`：它是 `ownerId`、`leaseUntil` 和 `heartbeatAt` 组成的所有权记录，不能混入生命周期状态图。
 
 ```text
-queued → claimed → running
-                    │ process lost
-                    ▼
-               interrupted → queued → running
+queued -- 原子 claim + start --> running (ownerId + leaseUntil)
+                                  │ heartbeat / renew
+                                  │
+                                  ├─ 正常结束或暂停 → release lease
+                                  │
+                                  └─ lease 过期 / process lost
+                                             ↓
+                                      interrupted → queued → running
 ```
 
-持久化 `modelKey`、`toolsetKey` 等执行描述，通过 Resolver 重建模型与工具，禁止把函数或实例写入数据库。重点测试两个 Worker 争抢、Lease 过期、心跳续租、崩溃后恢复，以及成功工具副作用不被整轮重放。
+`queued → running` 必须在同一原子操作中校验 lease 并写入 `run_started`；不能先单独 claim、再由任意进程启动。`renew`、`release` 和所有 Run 更新都必须校验 owner，失去 lease 的 Worker 不得继续写入。
+
+持久化 `modelKey`、`toolsetKey` 等执行描述，通过 Resolver 重建模型与工具，禁止把函数或实例写入数据库。恢复器只处理 lease 已过期的 `running/retrying` Run：先原子标记为 `interrupted` 并记录事件，再重新排队；`waiting/blocked` 必须等待显式 `resumeRun()`。
+
+重点测试两个 Worker 原子争抢、错误 owner 续租/释放、lease 过期、心跳续租、崩溃后恢复，以及含成功工具副作用的 Run 不被整轮重放。后者需要幂等键或明确的人工恢复边界，不能仅依赖重新执行 Turn。
 
 ## 阶段三：第一个 APM 垂直切片
 

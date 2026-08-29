@@ -9,6 +9,7 @@ import {
   RunVersionConflictError,
 } from "./errors.js";
 import { filterEvents, type ListEventsOptions } from "./event-query.js";
+import { paginateRuns, type ListRunsOptions, type RunPage } from "./run-query.js";
 import type { RunStore } from "./run-store.js";
 
 interface PersistedRuntimeData {
@@ -40,6 +41,25 @@ export class JsonFileRunStore implements RunStore {
       this.runs.set(run.runId, clone(run));
       this.events.set(run.runId, []);
       await this.persist();
+    });
+  }
+
+  public async createWithEvent(
+    run: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<void> {
+    return this.exclusive(async () => {
+      if (this.runs.has(run.runId)) throw new DuplicateRunError(run.runId);
+      validateInitialEvent(run, event);
+      this.runs.set(run.runId, clone(run));
+      this.events.set(run.runId, [clone(event)]);
+      try {
+        await this.persist();
+      } catch (error) {
+        this.runs.delete(run.runId);
+        this.events.delete(run.runId);
+        throw error;
+      }
     });
   }
 
@@ -83,6 +103,59 @@ export class JsonFileRunStore implements RunStore {
     });
   }
 
+  public async transitionWithEvent(
+    runId: string,
+    expectedVersion: number,
+    next: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<AgentRun> {
+    return this.exclusive(async () => {
+      const current = this.requireRun(runId);
+      if (current.version !== expectedVersion) {
+        throw new RunVersionConflictError(
+          runId,
+          expectedVersion,
+          current.version,
+        );
+      }
+      if (next.runId !== runId)
+        throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
+      if (!canTransition(current.status, next.status)) {
+        throw new Error(
+          `Invalid AgentRun transition: ${current.status} -> ${next.status}`,
+        );
+      }
+      if (next.version !== current.version + 1) {
+        throw new RunVersionConflictError(
+          runId,
+          current.version + 1,
+          next.version,
+        );
+      }
+      if (event.runId !== runId)
+        throw new Error(`RuntimeEvent id mismatch: ${runId} -> ${event.runId}`);
+      const runEvents = this.events.get(runId);
+      if (!runEvents) throw new RunNotFoundError(runId);
+      const lastSequence = runEvents.at(-1)?.sequence ?? -1;
+      if (event.sequence <= lastSequence) {
+        throw new EventSequenceError(runId, event.sequence, lastSequence);
+      }
+
+      const previousRun = clone(current);
+      const previousEvents = clone(runEvents);
+      this.runs.set(runId, clone(next));
+      runEvents.push(clone(event));
+      try {
+        await this.persist();
+      } catch (error) {
+        this.runs.set(runId, previousRun);
+        this.events.set(runId, previousEvents);
+        throw error;
+      }
+      return clone(next);
+    });
+  }
+
   public async appendEvent(event: RuntimeEvent): Promise<void> {
     return this.exclusive(async () => {
       const runEvents = this.events.get(event.runId);
@@ -104,6 +177,11 @@ export class JsonFileRunStore implements RunStore {
     const runEvents = this.events.get(runId);
     if (!runEvents) throw new RunNotFoundError(runId);
     return clone(filterEvents(runEvents, options));
+  }
+
+  public async listRuns(options: ListRunsOptions = {}): Promise<RunPage> {
+    await this.loaded;
+    return clone(paginateRuns([...this.runs.values()], options));
   }
 
   private requireRun(runId: string): AgentRun {
@@ -167,4 +245,13 @@ function isFileMissing(error: unknown): boolean {
     "code" in error &&
     error.code === "ENOENT"
   );
+}
+
+function validateInitialEvent(run: AgentRun, event: RuntimeEvent): void {
+  if (event.runId !== run.runId) {
+    throw new Error(`RuntimeEvent id mismatch: ${run.runId} -> ${event.runId}`);
+  }
+  if (event.sequence !== 0) {
+    throw new Error(`Initial event sequence must be 0: ${event.sequence}`);
+  }
 }
