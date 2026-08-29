@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-runtime-0.4.0 - 2026-08-29
+#### Features
+- **(runtime)** add lease-aware recovery worker - (fe6dff4) - colyerdeng
+
+- - -
+
 ## agent-runtime-0.3.0 - 2026-08-29
 #### Bug Fixes
 - **(runtime)** complete lifecycle events - (eb8bd7c) - colyerdeng
