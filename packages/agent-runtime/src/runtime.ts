@@ -7,7 +7,12 @@ import { RunAlreadyActiveError, RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
 import { RunStoreError } from "./store/errors.js";
-import type { ListEventsOptions, ListRunsOptions, RunPage, RunStore } from "./store/index.js";
+import type {
+  ListEventsOptions,
+  ListRunsOptions,
+  RunPage,
+  RunStore,
+} from "./store/index.js";
 import { RunNotFoundError } from "./store/index.js";
 import type {
   AgentRun,
@@ -410,9 +415,9 @@ export class AgentRuntime {
         "failed",
         runId,
         sequence,
-          "run_failed",
-          { message: serializeRunError(error).message },
-          { error: serializeRunError(error), finishedAt: this.clock.now() },
+        "run_failed",
+        { message: serializeRunError(error).message },
+        { error: serializeRunError(error), finishedAt: this.clock.now() },
       )
     ).run;
   }

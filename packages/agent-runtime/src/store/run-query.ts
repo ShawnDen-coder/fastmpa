@@ -18,11 +18,16 @@ export function paginateRuns(
   options: ListRunsOptions = {},
 ): RunPage {
   validateListRunsOptions(options);
-  const cursor = options.cursor === undefined ? undefined : decodeCursor(options.cursor);
+  const cursor =
+    options.cursor === undefined ? undefined : decodeCursor(options.cursor);
   const matching = runs
-    .filter((run) => options.status === undefined || run.status === options.status)
+    .filter(
+      (run) => options.status === undefined || run.status === options.status,
+    )
     .sort(compareRuns)
-    .filter((run) => cursor === undefined || compareRunToCursor(run, cursor) > 0);
+    .filter(
+      (run) => cursor === undefined || compareRunToCursor(run, cursor) > 0,
+    );
 
   if (options.limit === undefined) return { runs: matching };
   const page = matching.slice(0, options.limit);
@@ -36,7 +41,10 @@ export function paginateRuns(
 }
 
 export function validateListRunsOptions(options: ListRunsOptions = {}): void {
-  if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit <= 0)) {
+  if (
+    options.limit !== undefined &&
+    (!Number.isInteger(options.limit) || options.limit <= 0)
+  ) {
     throw new RangeError("limit must be a positive integer");
   }
   if (options.cursor !== undefined) decodeCursor(options.cursor);
@@ -67,7 +75,9 @@ function encodeCursor(run: AgentRun): string {
 
 function decodeCursor(value: string): RunCursor {
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as unknown;
+    const parsed = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as unknown;
     if (
       typeof parsed !== "object" ||
       parsed === null ||
