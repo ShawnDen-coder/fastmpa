@@ -44,6 +44,7 @@ describe("AgentRuntime with SQLite", () => {
         "run_started",
         "turn.model_requested",
         "turn.turn_finished",
+        "run_completed",
       ]);
     } finally {
       await rm(directory, { recursive: true, force: true });

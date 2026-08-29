@@ -40,6 +40,7 @@ describe("AgentRuntime", () => {
       "run_started",
       "turn.model_requested",
       "turn.turn_finished",
+      "run_completed",
     ]);
   });
 
@@ -51,6 +52,24 @@ describe("AgentRuntime", () => {
     );
 
     expect(run.status).toBe("waiting");
+    expect(run.finishedAt).toBeUndefined();
+    expect((await store.listEvents("run-1")).at(-1)?.type).toBe(
+      "run_waiting",
+    );
+  });
+
+  it("maps a blocked Turn without completing the Run", async () => {
+    const store = new MemoryRunStore();
+    const runtime = new AgentRuntime(store);
+    const run = await runtime.startRun(
+      input(new FakeModel([{ type: "status", status: "blocked" }])),
+    );
+
+    expect(run.status).toBe("blocked");
+    expect(run.finishedAt).toBeUndefined();
+    expect((await store.listEvents("run-1")).at(-1)?.type).toBe(
+      "run_blocked",
+    );
   });
 
   it("maps a model exception to a failed Run", async () => {
@@ -240,6 +259,7 @@ describe("AgentRuntime", () => {
     const events = await store.listEvents("resume-me");
 
     expect(waiting.status).toBe("waiting");
+    expect(waiting.finishedAt).toBeUndefined();
     expect(resumed.status).toBe("completed");
     expect(resumed.attempt).toBe(2);
     expect(events.map((event) => event.sequence)).toEqual(

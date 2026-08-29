@@ -2,11 +2,12 @@
 
 ## 当前路线
 
-当前从 `packages/agent-core` 开始，采用由内向外的实现顺序：
+当前已完成 `agent-core`，正在收尾 `agent-runtime`，继续采用由内向外的实现顺序：
 
 ```text
-Turn Engine → Agent Runtime → Policy/Audit → Domain Tools
-→ API → Persistence → Agenda → Connectors → UI/BYOA/多角色
+Turn Engine → Durable Runtime → FastMPA Domain/Tools
+→ Policy/Audit → Skills/MCP → Agenda → Connectors
+→ API/UI → BYOA → 多角色
 ```
 
 ## 文档索引
@@ -14,8 +15,10 @@ Turn Engine → Agent Runtime → Policy/Audit → Domain Tools
 - [Core 学习与实现计划](CORE_FIRST_PLAN.md) — 已完成的核心阶段与边界。
 - [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Tool、Context 和 Guard 的实现细则。
 - [Agent Runtime 学习与实施计划](AGENT_RUNTIME_PLAN.md) — 当前阶段：Run 生命周期、内存 Store、取消、恢复与后续远程化。
+- [下一步学习与实施计划](NEXT_STEPS_PLAN.md) — 当前执行顺序：Runtime 一致性、崩溃恢复、APM 垂直切片、Policy/Audit、Skills/MCP。
 - [项目 README](../README.md) — workspace、命令和子包入口。
-- [agent-core 包](../packages/agent-core/) — 当前正在学习和实现的核心包。
+- [agent-core 包](../packages/agent-core/) — 已完成的 Turn Engine 基础包。
+- [agent-runtime 包](../packages/agent-runtime/) — 当前正在加固的运行时包。
 
 ## 学习工作流
 
