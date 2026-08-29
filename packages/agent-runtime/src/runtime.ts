@@ -22,6 +22,12 @@ import type {
 import { systemClock } from "./types/index.js";
 
 type RunExecutionInput = StartRunInput | ResumeRunInput;
+type TurnRunStatus =
+  | "completed"
+  | "waiting"
+  | "blocked"
+  | "cancelled"
+  | "failed";
 
 export interface RuntimeDependencies {
   /** 可注入的时间来源；默认使用系统时钟。 */
@@ -324,43 +330,55 @@ export class AgentRuntime {
     sequence = Math.max(sequence, (events.at(-1)?.sequence ?? -1) + 1);
 
     const status = mapTurnStatus(result.status);
-    if (status === "failed") {
-      return (
-        await this.transitionAndRecord(
-          running,
-          status,
-          runId,
-          sequence,
-          "run_failed",
-          { message: result.error?.message ?? "Turn failed" },
-          { finishedAt: this.clock.now() },
-        )
-      ).run;
+    switch (status) {
+      case "failed":
+        return (
+          await this.transitionAndRecord(
+            running,
+            status,
+            runId,
+            sequence,
+            "run_failed",
+            { message: result.error?.message ?? "Turn failed" },
+            { finishedAt: this.clock.now() },
+          )
+        ).run;
+      case "cancelled":
+        return (
+          await this.transitionAndRecord(
+            running,
+            status,
+            runId,
+            sequence,
+            "run_cancelled",
+            undefined,
+            { finishedAt: this.clock.now() },
+          )
+        ).run;
+      case "completed":
+        return (
+          await this.transitionAndRecord(
+            running,
+            status,
+            runId,
+            sequence,
+            "run_completed",
+            undefined,
+            { finishedAt: this.clock.now() },
+          )
+        ).run;
+      case "waiting":
+      case "blocked":
+        return (
+          await this.transitionAndRecord(
+            running,
+            status,
+            runId,
+            sequence,
+            `run_${status}`,
+          )
+        ).run;
     }
-    if (status === "cancelled") {
-      return (
-        await this.transitionAndRecord(
-          running,
-          status,
-          runId,
-          sequence,
-          "run_cancelled",
-          undefined,
-          { finishedAt: this.clock.now() },
-        )
-      ).run;
-    }
-    return (
-      await this.transitionAndRecord(
-        running,
-        status,
-        runId,
-        sequence,
-        undefined,
-        undefined,
-        { finishedAt: this.clock.now() },
-      )
-    ).run;
   }
 
   private async failRun(
@@ -501,7 +519,7 @@ function toPersistedRunInput(input: StartRunInput): PersistedRunInput {
       : { retryPolicy: input.retryPolicy }),
   };
 }
-function mapTurnStatus(status: TurnStatus): RunStatus {
+function mapTurnStatus(status: TurnStatus): TurnRunStatus {
   switch (status) {
     case "done":
       return "completed";

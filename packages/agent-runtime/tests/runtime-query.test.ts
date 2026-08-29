@@ -17,7 +17,7 @@ describe("AgentRuntime query API", () => {
     const completed = await runtime.startRun(input());
 
     await expect(runtime.getRun("query-run")).resolves.toEqual(completed);
-    await expect(runtime.listEvents("query-run")).resolves.toHaveLength(4);
+    await expect(runtime.listEvents("query-run")).resolves.toHaveLength(5);
     await expect(
       runtime.listEvents("query-run", {
         type: "turn.model_requested",
@@ -30,6 +30,7 @@ describe("AgentRuntime query API", () => {
       events: expect.arrayContaining([
         expect.objectContaining({ type: "run_queued" }),
         expect.objectContaining({ type: "turn.turn_finished" }),
+        expect.objectContaining({ type: "run_completed" }),
       ]),
     });
   });
