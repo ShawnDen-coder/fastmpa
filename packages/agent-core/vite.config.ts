@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ["pino"],
+      external: ["pino", "pino-pretty"],
     },
   },
   plugins: [dts({ rollupTypes: true })],

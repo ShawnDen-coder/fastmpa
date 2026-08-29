@@ -4,6 +4,7 @@ import pino, {
   type Logger,
   type LoggerOptions,
 } from "pino";
+import pretty from "pino-pretty";
 
 export type { Logger };
 
@@ -16,6 +17,8 @@ export interface CreateLoggerOptions {
   readonly logPath?: string;
   /** Custom stream for embedding applications and tests. */
   readonly destination?: DestinationStream;
+  /** Pretty-print terminal output; defaults to true. File output stays JSON. */
+  readonly pretty?: boolean;
 }
 
 /**
@@ -50,10 +53,13 @@ export function createLogger(
     loggerOptions.destination ??
     (fileStream
       ? pino.multistream([
-          { level: loggerOptions.level ?? "info", stream: process.stdout },
+          {
+            level: loggerOptions.level ?? "info",
+            stream: createConsoleStream(loggerOptions),
+          },
           { level: loggerOptions.level ?? "info", stream: fileStream },
         ])
-      : process.stdout);
+      : createConsoleStream(loggerOptions));
   const instance = pino(options, destination);
   return bindings ? instance.child(bindings) : instance;
 }
@@ -64,3 +70,13 @@ export function createLogger(
  * Turn code should prefer an injected child logger once Runtime exists.
  */
 export const logger = createLogger();
+
+function createConsoleStream(options: CreateLoggerOptions): DestinationStream {
+  if (options.pretty === false) return process.stdout;
+  return pretty({
+    colorize: true,
+    translateTime: "SYS:standard",
+    ignore: "pid,hostname",
+    singleLine: true,
+  });
+}

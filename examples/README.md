@@ -54,7 +54,7 @@ pnpm --filter fastmpa-examples openrouter
 
 ## 日志
 
-示例使用 Agent Core 的 Pino logger。终端输出包含结构化的 `level`、`time`、`service`、`agentId` 和 `msg` 字段，同时写入：
+示例使用 Agent Core 的 Pino logger。终端使用彩色的 `pino-pretty` 输出，文件仍保留包含 `level`、`time`、`service`、`agentId` 和 `msg` 的 JSON，写入：
 
 ```text
 logs/openrouter-tapd-audit.log
