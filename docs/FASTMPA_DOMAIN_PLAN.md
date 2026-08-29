@@ -1,6 +1,6 @@
 # FastMPA APM Requirement 垂直切片
 
-> 状态：计划中，对应 Roadmap M5。必须在 Workspace、Inbox、Wake、Agenda、Scheduler 和消息/看板 Tool 闭环完成后实施。
+> 状态：计划中，对应 Roadmap M5。必须在 Workspace、Agent Scheduler、Runtime/Core 和 Tool Pipeline 闭环完成后实施。
 
 ## 目标与边界
 
@@ -19,9 +19,8 @@ ExternalRef(TAPD / ShotGrid)
 ## 前置条件
 
 - Participant、Conversation/Message、Board/Card 已完成。
-- Inbox 能根据 Agent 的读取边界可靠返回尚未处理的消息。
-- Card assignment 或 Message mention 能生成 Wake。
-- Agenda 能加载目标 Agent 相关的 Workspace 上下文。
+- `loadAttention(agentId)` 能可靠返回 Inbox 与 Agenda。
+- Card assignment 或 Message mention 能通知 Agent Scheduler。
 - Agent 能使用 Tool 回复消息和更新卡片。
 
 缺少任一条件时，返回 [当前实施计划](NEXT_STEPS_PLAN.md)，不要提前创建 APM 包。
@@ -30,11 +29,10 @@ ExternalRef(TAPD / ShotGrid)
 
 ```text
 packages/
-├── apm/          # Requirement、状态机、Repository 端口
-└── apm-tools/    # 将 APM 用例适配为 agent-core Tool
+└── apm/          # Requirement、状态机、Repository 端口与 APM Tools
 ```
 
-`apm` 可以依赖稳定的 Workspace ID/Reference 类型，但不依赖 Agent Runtime、模型、Tool、数据库或平台 SDK。`apm-tools` 依赖 `agent-core`、`workspace` 和 `apm`。
+`apm` 包可以依赖稳定的 Workspace ID/Reference 和 Tool 契约，但不依赖 Agent Runtime、模型、数据库或平台 SDK。包内 `requirement/` 领域代码不依赖 Tool；只有 `tools/` 适配层依赖领域代码和 Core Tool 契约。第一版不为此拆成两个包。
 
 建议目录：
 
@@ -46,7 +44,7 @@ apm/src/requirement/
 ├── memory-repository.ts
 └── service.ts
 
-apm-tools/src/requirement/
+apm/src/tools/requirement/
 ├── inspect-requirement.ts
 ├── update-status.ts
 ├── add-comment.ts
@@ -74,7 +72,7 @@ needs_clarification → confirmed → in_progress → review_pending
 3. 定义 `RequirementRepository` 的 `get/save(expectedVersion)`，并完成内存契约测试。
 4. 实现 inspect、comment、update status、request review 四个用例。
 5. 将用例适配为 Core Tool，统一处理参数错误、业务拒绝和版本冲突。
-6. 从已指派 Card 触发 Wake，让 Agent 读取 Card 与 Requirement 后更新状态并回复 Conversation。
+6. 从已指派 Card 通知 Scheduler，让 Agent 读取 AttentionSnapshot 与 Requirement 后更新状态并回复 Conversation。
 
 ## 验收标准
 
@@ -82,5 +80,5 @@ needs_clarification → confirmed → in_progress → review_pending
 - 不同 Workspace 的 Participant、Card 和 Requirement 不能交叉引用。
 - 领域包不依赖 TAPD、ShotGrid、模型或 Runtime。
 - 所有状态变化经过状态机和乐观锁。
-- 至少一个测试贯通 `Card → Wake → Agenda → Turn → APM Tool → Requirement/Card`。
+- 至少一个测试贯通 `Card → Scheduler → Attention → Turn → APM Tool → Requirement/Card`。
 - 真实平台写回仍保持关闭，直到 Policy/Audit/幂等边界完成。

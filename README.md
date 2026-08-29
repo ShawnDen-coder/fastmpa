@@ -15,20 +15,18 @@ FastMPA 的目标不是提供一个只会回答问题的聊天机器人，也不
 用户通过日常协作行为发起和推进工作，而不需要学习一套特殊的 Agent 编排语法：
 
 1. 用户发送消息、@Agent、创建卡片、分配负责人或更新项目状态。
-2. 新消息进入该 Agent 的 Inbox；卡片、日程和承诺进入 Agenda 的关注范围。
-3. Workspace 记录持久化事实，并发送可丢失、可合并的 WakeSignal，提醒相关 Agent 检查工作。
-4. Inbox/Agenda Triage 判断是否值得启动主 Agent，Scheduler 再调度 Runtime 执行一次 Turn。
-5. Agent 根据 Persona、Memory、Skills、Inbox 和 Agenda 作出判断，通过 Tools 回复消息、更新卡片或操作外部平台。
+2. Workspace 保存消息、卡片、日程和读取边界，并为目标 Agent 生成 Inbox/Agenda 视图。
+3. Agent Scheduler 接收变化提醒，加载待处理上下文并判断是否值得启动主 Agent。
+4. Agent Runtime 执行一次 Turn，结合身份、记忆、Skills、Inbox 和 Agenda 决定行动。
+5. Tool Pipeline 经过验证、权限和审计后，回复消息、更新项目对象或操作外部平台。
 6. 成功处理后推进读取边界并把结果写回 Workspace，形成可追踪、可继续协作的闭环。
 
 ```text
-Workspace Event
-  → Wake Agent
-  → Inbox / Agenda
-  → Triage / Scheduler
-  → Runtime / Turn
-  → Tools
-  → Workspace Event
+Workspace
+  → Agent Scheduler
+  → Agent Runtime / Core Turn
+  → Tool Pipeline
+  → Workspace / APM / Integrations
 ```
 
 Agent 之间也使用相同机制协作：发送消息、@其他 Agent 或把卡片分配给对方，而不是依赖隐藏的中央编排器。
@@ -45,6 +43,6 @@ FastMPA 主要解决以下问题：
 - 外部平台写操作缺少权限、审批、幂等和审计边界，难以安全自动化。
 - 项目管理规则容易依赖人工记忆，需求状态、交付证据、风险和依赖关系难以稳定执行。
 
-FastMPA 通过统一 Workspace、持久 Inbox、事件驱动 Wake、Agent Agenda、受控 Tools 和 APM 领域规则，将“回答问题”扩展为“持续协助用户完成项目任务”。
+FastMPA 通过统一 Workspace、Agent Scheduler、可恢复执行、受控 Tools 和 APM 领域规则，将“回答问题”扩展为“持续协助用户完成项目任务”。
 
 项目路线与学习实施计划见 [docs](docs/README.md)。

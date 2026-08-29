@@ -2,69 +2,34 @@
 
 ## 产品方向
 
-FastMPA 延续 Cumora 的核心抽象：Agent 是 Workspace 中的一等 `Participant`。消息、卡片、日程或外部平台变化形成持久事实，系统用 `WakeSignal` 提醒相关 Agent；Agent 在独立 Runtime 中执行一次 Turn，并通过受控 Tools 将结果写回 Workspace。
+FastMPA 延续 Cumora 的核心逻辑：Agent 是 Workspace 中的一等 Participant。用户通过消息、@mention、卡片指派和日程推进工作；系统加载该 Agent 的待处理上下文，判断是否需要行动，再启动一次可恢复的 Turn，并通过受控 Tool 把结果写回协作空间或外部平台。
 
-APM 是这套协作闭环上的领域扩展，不另建一套通用 Task Router。显式负责人使用 `assigneeId`，协作使用消息、@mention 和卡片分配；自动处理由 Agenda 与 Agent 能力决定。
+APM 是 Workspace 上的业务扩展，不另建中央 Task Router。Message、Card、Calendar Event 和 Requirement 保持各自语义，Agent 继续使用消息、@mention 和指派进行协作。
 
 ## 最终组件架构
 
 ```mermaid
 flowchart LR
-    actor["Human / Agent"]
-    platform["TAPD / ShotGrid"]
+    user["Human / Agent"]
+    external["TAPD / ShotGrid"]
 
-    subgraph workspace["Workspace：协作事实"]
-        participant["Participant"]
-        conversation["Conversation / Message"]
-        board["Board / Card / Calendar"]
-        events["WorkspaceEvent"]
-        cursor["ReadCursor<br/>Agent × Conversation"]
-        inbox["Inbox Projection"]
-        agenda["Agenda Projection"]
+    workspace["Workspace<br/>Participant、Message、Card、Calendar<br/>ReadCursor、Inbox/Agenda 查询"]
+    scheduler["Agent Scheduler<br/>Notify、Triage、去重、Context 组装"]
+    execution["Agent Execution<br/>Runtime + Core Turn"]
+    tools["Tool Pipeline<br/>Validate、Policy、Audit、Execute"]
+    extensions["APM & Integrations<br/>业务规则、TAPD、ShotGrid、MCP"]
 
-        conversation --> events
-        board --> events
-        conversation --> inbox
-        cursor --> inbox
-        board --> agenda
-    end
-
-    subgraph attention["Agent Attention：是否行动"]
-        wake["WakeSignal<br/>可丢失、可合并"]
-        triage["Inbox / Agenda Triage"]
-        scheduler["Scheduler<br/>去重、优先级、同 Agent 串行"]
-        wake --> scheduler --> triage
-    end
-
-    subgraph execution["Agent Execution：如何行动"]
-        context["Persona / Memory / Skills"]
-        runtime["Agent Runtime<br/>Run / Lease / Recovery"]
-        core["Agent Core<br/>Turn / Model / Tool Loop"]
-        gateway["Tool Gateway<br/>Validation / Policy / Audit"]
-        runtime --> core --> gateway
-        context --> core
-    end
-
-    subgraph apm["APM Extension：项目规则"]
-        domain["Requirement / Milestone / Risk / Approval"]
-        connectors["Platform Connectors / MCP Adapters"]
-        domain --> connectors
-    end
-
-    actor --> participant
-    actor --> conversation
-    actor --> board
-    events -. "低延迟提醒" .-> wake
-    inbox --> triage
-    agenda --> triage
-    triage -->|"actionable"| runtime
-    gateway --> workspace
-    gateway --> domain
-    connectors <--> platform
-    connectors --> events
+    user -->|"消息、指派、项目操作"| workspace
+    workspace -->|"WorkspaceChange / notify"| scheduler
+    scheduler -->|"actionable AgentContext"| execution
+    execution -->|"ToolCall"| tools
+    tools -->|"Workspace 操作"| workspace
+    tools -->|"APM / 外部操作"| extensions
+    extensions -->|"结果与引用"| workspace
+    extensions <--> external
 ```
 
-依赖方向以 Workspace 事实为中心：Attention 读取 Inbox/Agenda，Execution 消费已经确定的 Agent 上下文，Tool Gateway 才能修改 Workspace、APM 或外部平台。Connector 和 MCP 不能绕过 Tool Policy/Audit 直接驱动 Runtime。
+顶层只保留五个职责区域：Workspace、Agent Scheduler、Agent Execution、Tool Pipeline、APM/Integrations。Inbox、Agenda、WakeSignal、Triage、Persona、Memory 和 Skills 是这些组件内部的语义，不分别升级成服务或包。
 
 ## 最终使用时序
 
@@ -73,82 +38,102 @@ sequenceDiagram
     autonumber
     actor User as Human / Agent
     participant WS as Workspace
-    participant Inbox as Inbox Projection
-    participant Attention as Wake + Scheduler + Triage
+    participant Scheduler as Agent Scheduler
     participant Runtime as Agent Runtime
-    participant Core as Agent Core / Turn
-    participant Tools as Tool Gateway
-    participant Domain as APM Domain
-    participant External as TAPD / ShotGrid
+    participant Core as Agent Core
+    participant Tools as Tool Pipeline
+    participant Extension as APM / Integration
 
     User->>WS: 发送消息、@Agent、创建或指派 Card
-    WS->>WS: 原子保存业务事实与 WorkspaceEvent
-
-    alt 新消息或 Mention
-        WS-->>Inbox: ReadCursor 之后可见为未处理消息
-        WS-)Attention: WakeSignal(message, agentId, sourceRef)
-        Attention->>Inbox: loadInbox(agentId)
-        Attention->>Attention: Inbox Triage
-    else Card、日程或外部项目变化
-        WS-)Attention: WakeSignal(assignment/agenda, agentId, sourceRef)
-        Attention->>WS: gatherAgenda(agentId)
-        Attention->>Attention: Agenda Triage
-    end
+    WS->>WS: 保存 Message、Card 或 Calendar 等业务事实
+    WS-)Scheduler: notify(WorkspaceChange)
+    Scheduler->>WS: loadAttention(agentId)
+    WS-->>Scheduler: AttentionSnapshot(inbox, agenda)
+    Scheduler->>Scheduler: 去重并执行 Triage
 
     alt 需要行动
-        Attention->>Runtime: enqueueRun(agentId, workspaceId, sourceRef)
-        Runtime->>Core: runTurn(Persona + Memory + Inbox/Agenda)
-        Core->>Tools: 调用受控 Tool
-        Tools->>Tools: 参数校验、Policy、Audit、幂等检查
-        alt Workspace / APM 操作
-            Tools->>Domain: 执行业务规则
-            Domain->>WS: 更新 Card、Requirement、评论或日程
-        else 外部平台操作
-            Tools->>External: 通过 Connector / MCP 执行
-            External-->>Tools: 平台回执
-            Tools->>WS: 保存 ExternalRef、结果和审计信息
+        Scheduler->>Runtime: enqueueRun(agentId, workspaceId, sourceRef)
+        Runtime->>Core: runTurn(AgentContext)
+        Core->>Tools: ToolCall
+        Tools->>Tools: Validate、Policy、Audit、Idempotency
+        alt Workspace 操作
+            Tools->>WS: 回复消息、更新 Card 或日程
+        else APM 或外部平台操作
+            Tools->>Extension: 执行业务规则或平台适配
+            Extension-->>Tools: 结果、ExternalRef、回执
+            Tools->>WS: 保存协作结果
         end
-        WS-->>Attention: 新 WorkspaceEvent 可触发后续协作
-        opt Inbox 消息已被确认处理
-            Runtime->>Inbox: 推进该 Conversation 的 ReadCursor
+        opt Inbox 消息确认已处理
+            Runtime->>WS: advanceReadCursor(agentId, conversationId)
         end
     else 无需行动
-        Attention->>Attention: 不启动主 Turn，保留可追踪判定
+        Scheduler->>Scheduler: 不启动主 Turn
     end
 
-    Note over Inbox,Attention: WakeSignal 丢失不等于工作丢失；重连或周期检查可重新 drain Inbox/Agenda。
+    Note over WS,Scheduler: notify 可以丢失或合并；Inbox 和 Agenda 可在重连或周期检查时重新加载。
 ```
 
-## 概念与术语审查
+## 融合后的概念边界
 
-| 概念 | 所属组件 | 持久性 | 明确职责 |
-|---|---|---:|---|
-| `Participant` | Workspace | 是 | Human/Agent 的统一成员身份；Persona 不是另一套成员模型 |
-| `Message` / `Card` / `Event` | Workspace | 是 | 协作事实和工作载体，不再抽象成通用 `Task` |
-| `WorkspaceEvent` | Workspace | 是 | 记录业务事实变化，区别于 Runtime 执行事件 |
-| `ReadCursor` | Workspace/Inbox | 是 | 每个 Agent、每个 Conversation 的处理边界 |
-| `Inbox` | Workspace 投影 | 派生 | 查询 ReadCursor 之后可见的消息，不是队列或任务表 |
-| `Agenda` | Agent 投影 | 派生 | 汇总 Card、日程、承诺和停滞工作，不承载未读消息 |
-| `WakeSignal` | Scheduler | 否 | 低延迟提醒；允许丢失、重复、合并，不作为事实来源 |
-| `TriageVerdict` | Agents/Attention | 可观测 | 低成本判断是否启动主 Turn，不决定业务状态 |
-| `AgentRun` / `RuntimeEvent` | Runtime | 是 | 一次执行的生命周期和技术事件，不等于项目任务状态 |
-| `Turn` | Agent Core | 运行期 | 有界的模型与 Tool 循环，不加载数据库或决定调度 |
-| `Skill` | Agent Context | 配置 | 描述工作方法，不直接产生副作用 |
-| `Tool` | Tool Gateway | 调用/审计 | 执行动作；所有写入经过验证、Policy、Audit 和幂等边界 |
-| `MCP Adapter` / `Connector` | Integration | 配置/状态 | 将外部能力适配为 Tool，并维护外部引用和同步游标 |
-| APM Domain | APM Extension | 是 | 强制 Requirement、Milestone、Risk、Approval 等业务规则 |
+### Workspace
 
-当前代码中的 `agent-core` 与上述 Turn/Tool Loop 一致；`agent-runtime` 与 Run/Store/Lease 一致。进入 M3 时需要为 `AgentRun` 补充 `agentId`、`workspaceId`、`trigger` 和 `sourceRef`，但不能让 Runtime 反向承担 Inbox、Agenda 或选人逻辑。
+Workspace 拥有持久协作事实：Participant、Conversation/Message、Board/Card、Calendar 和每个 Agent/Conversation 的 ReadCursor。
+
+它提供统一查询：
+
+```ts
+interface AttentionSnapshot {
+  inbox: Message[]
+  agenda: AgendaItem[]
+}
+
+workspace.loadAttention(agentId): Promise<AttentionSnapshot>
+```
+
+- Inbox 是 ReadCursor 之后可见消息的派生视图。
+- Agenda 是 Card、Calendar、承诺和停滞工作的派生视图。
+- 两者不需要独立 Repository、状态机、存储表或包。
+- 业务写入返回轻量 `WorkspaceChange` 供 Scheduler `notify()`；MVP 不建设统一持久事件流。
+
+### Agent Scheduler
+
+Scheduler 内部融合 WakeSignal、Inbox/Agenda Triage、重复提醒合并、优先级和 AgentContext 组装：
+
+```text
+notify → loadAttention → triage → enqueueRun
+```
+
+WakeSignal 只是低延迟提醒，不是事实来源，也不作为公共领域模型。消息可靠性由 Message + ReadCursor 保证，卡片和日程可靠性由 Workspace 事实保证。
+
+### Agent Execution
+
+现有 `agent-runtime` 负责 AgentRun、生命周期、Store、Lease、恢复和重试；现有 `agent-core` 负责有界 Turn、Model 和 Tool Loop。
+
+Persona、Memory、Skills 和 AttentionSnapshot 在执行前组合为 `AgentContext`，不建立独立顶层组件。进入 Scheduler 阶段时，AgentRun 需要补充 `agentId`、`workspaceId`、`trigger` 和 `sourceRef`。
+
+### Tool Pipeline
+
+Tool 是唯一副作用入口：
+
+```text
+validate → authorize → approve if needed
+→ idempotency check → execute → audit
+```
+
+Policy、Approval、Audit 和 Tool Journal 先作为 Tool Pipeline 的中间件能力，不提前拆成独立包。
+
+### APM 与 Integrations
+
+APM 强制 Requirement、Milestone、Deliverable、Risk 和 Approval 等业务规则。TAPD、ShotGrid 和 MCP 统一适配为 Tool；它们不能绕过 Tool Pipeline 直接修改 Workspace 或启动 Runtime。
 
 ## 架构原则
 
-- 保留 Cumora 的 `Participant`、Workspace、Inbox、`WakeSignal`、Agenda、Runtime、Turn 和 Tool 概念。
-- Card、Message、Event 本身承载工作，不强制统一为抽象 `Task`。
-- Inbox 是“消息 + Agent 读取边界”形成的持久待处理视图；`WakeSignal` 只是可丢失、可合并的实时提醒。
-- Runtime 只保证执行、持久化和恢复，不决定业务负责人或 APM 状态。
-- APM 领域不依赖 TAPD、ShotGrid SDK；Connector 负责外部模型映射。
-- Skills 描述工作方法，Tools 执行动作，Domain 维护业务规则。
-- 先完成单 Agent 垂直闭环，再扩展多 Agent、远程 Runtime 和复杂基础设施。
+- 保留概念语义，不按概念数量拆组件。
+- 只有拥有独立生命周期、数据所有权或替换需求时才创建新包。
+- Card、Message、Requirement 和 AgentRun 不统一成通用 Task。
+- Inbox/Agenda 是视图；WakeSignal 是提醒；AgentRun 是执行记录。
+- Skills 描述工作方法，Tools 执行动作，APM Domain 强制业务规则。
+- 先完成单 Agent 闭环，再增加多 Agent、远程 Runtime 和复杂基础设施。
 
 ## 里程碑
 
@@ -158,67 +143,57 @@ sequenceDiagram
 
 ### M1：Durable Runtime（已完成）
 
-`agent-runtime` 已实现 Run/Event 持久化、生命周期、Lease Worker、依赖重建、重试和崩溃恢复。后续仅为真实 Wake 链路补充必要字段，不继续独立扩张基础设施。
+`agent-runtime` 已实现 Run/Event 持久化、生命周期、Lease Worker、依赖重建、重试和崩溃恢复。
 
-### M2：最小 Workspace 与 Inbox（下一阶段）
+### M2：Workspace 与 Attention 查询（下一阶段）
 
-实现 `Participant`、Conversation/Message、Board/Card、WorkspaceEvent、按 Agent/Conversation 保存的 ReadCursor 和 Inbox Projection。第一版使用内存 Repository，并建立清晰的 tenant/workspace 边界。
+创建 `workspace`，实现 Participant、Conversation/Message、Board/Card、ReadCursor 和 `loadAttention(agentId)`。第一版使用内存 Repository，不实现通用事件存储。
 
-验收：Human 和 Agent 可加入同一 Workspace；Human 能发消息、创建卡片并把卡片分配给 Agent；Agent 可查询读取边界之后的 Inbox；所有变更生成可查询事件。
+验收：Human @Agent 后 Inbox 可查询该消息；Card 指派后 Agenda 可查询该卡片；不同 Workspace 不能交叉引用；业务写入返回可用于 `notify()` 的 WorkspaceChange。
 
-### M3：Wake、Inbox/Agenda Triage 与 Scheduler
+### M3：Agent Scheduler
 
-实现带 `agentId`、`workspaceId`、`reason`、`sourceRef` 的 `WakeSignal`；Inbox Triage 判断未读消息是否需要响应；Agenda 汇总分配卡片、到期事项和停滞工作；Agenda Triage 判断是否值得主动行动；Scheduler 负责去重、优先级和同 Agent 串行执行。
+创建 `agent-scheduler`，实现 `notify → loadAttention → triage → enqueueRun`，并保证重复提醒不会导致同 Agent 并发执行。
 
-验收：卡片指派或 @Agent 后只唤醒目标 Agent；WakeSignal 丢失后仍可从 Inbox 恢复未读消息；重复信号不会导致并发执行；Turn 能读取相关 Workspace 上下文。
+验收：notify 丢失后周期检查仍可发现未处理工作；无关输入不启动主 Turn；AgentRun 关联 Agent、Workspace 和来源对象。
 
-### M4：Cumora 最小闭环
+### M4：最小协作闭环
 
-提供消息和看板 Tools，贯通：
+增加 Workspace Tools，贯通消息回复和 Card 更新：
 
 ```text
-Message → Inbox ─┐
-                 ├→ Wake → Triage → Turn
-Card/Event → Agenda ┘
-→ 回复消息/更新卡片 → 产生新事件
+User → Workspace → Scheduler → Runtime/Core
+→ Tool Pipeline → Workspace
 ```
 
-验收：使用 `FakeModel` 完成确定性端到端测试，再使用真实模型做手动 smoke test。
+使用 FakeModel 完成确定性端到端测试，再使用真实模型进行手动 smoke test。
 
 ### M5：APM 领域扩展
 
-实现 Requirement、Milestone、Deliverable、Dependency、Risk/Issue 和 Approval。APM 对象必须关联 Workspace Card、Conversation 或外部引用，不能成为平行任务系统。
+创建 `apm`，从 Requirement 垂直切片开始。APM 对象必须关联 Workspace Card、Conversation 或 ExternalRef，不能形成平行任务系统。
 
-### M6：安全写入
+### M6：安全 Tool Pipeline
 
-根据真实写操作补充 Policy、Audit、Approval、幂等键和 Tool Call Journal。外部副作用未具备幂等或人工恢复边界前，不进入自动崩溃重放。
+根据真实写操作补充 Policy、Approval、Audit、幂等键和 Tool Call Journal。外部副作用未具备幂等或人工恢复边界前，不自动重放。
 
-### M7：平台连接器
+### M7：Integrations
 
-先实现一个 Connector，再扩展第二个平台：
+创建 `integrations`，先实现 TAPD，再实现 ShotGrid 和 MCP Tool Adapter。复杂度或发布边界真正出现后，再考虑拆分独立 Connector 包。
 
-1. TAPD：需求、缺陷、迭代与评论。
-2. ShotGrid：Project、Entity、Task、Version 与 Note。
+### M8：多 Agent 与部署扩展
 
-Connector 负责认证、同步、映射和平台 Tool；APM 领域只接收标准化对象与 `ExternalRef`。
+增加项目经理、制作人和需求分析等 AgentContext 配置；Agent 之间继续通过消息、@mention 和 Card 指派协作。最后评估 API/UI、BYOA、Redis 和远程 Pod。
 
-### M8：Skills、MCP 与多 Agent
-
-增加项目经理、制作人、需求分析等 Persona/Skills；MCP Tool 通过现有 Tool 边界接入；Agent 之间继续使用消息、@mention 和卡片分配协作。最后再评估 API/UI、BYOA、Redis 和远程 Pod。
-
-## 建议包演进
+## Monorepo 演进
 
 ```text
 packages/
-├── agent-core/          # 已有：Turn、Model、Tools
-├── agent-runtime/       # 已有：Run、Store、Lease Worker
-├── workspace/           # Participant、Conversation、Inbox、Board、Events
-├── agents/              # Persona、Inbox/Agenda Triage、Memory
-├── scheduler/           # Wake、去重、优先级、Runtime 调度
-├── apm/                 # APM 领域模型与规则
-├── apm-tools/           # APM Tool 适配
-├── connector-tapd/
-└── connector-shotgrid/
+├── agent-core/        # 已有：Turn、Model、Tool Loop
+├── agent-runtime/     # 已有：Run、Store、Lease、恢复
+├── workspace/         # 协作事实、ReadCursor、Attention 查询
+├── agent-scheduler/   # Notify、Triage、Context 组装、Dispatch
+├── apm/               # APM 规则与 APM Tools
+└── integrations/      # TAPD、ShotGrid、MCP Tool Adapter
 ```
 
-包只在出现第一个真实消费者时创建。当前优先创建 `workspace`，不要先创建通用 `task-router`、`assignment-engine` 或 Connector。
+当前只创建 `workspace`。后续包必须在出现第一个真实消费者时创建，不增加 `inbox`、`agenda`、`policy`、`audit`、`task-router` 或 `assignment-engine` 包。

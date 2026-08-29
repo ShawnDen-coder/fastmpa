@@ -6,12 +6,12 @@ FastMPA 不是重新设计一套通用 Agent 编排平台，而是在 Cumora 的
 
 ```text
 Participant + Workspace
-  → Inbox + Wake + Agenda + Scheduler
-  → Runtime + Turn + Tools
-  → APM Domain + Connectors
+  → Agent Scheduler
+  → Runtime/Core + Tool Pipeline
+  → APM + Integrations
 ```
 
-`agent-core` 和 `agent-runtime` 基础已经完成。当前重点是最小 Workspace 与持久 Inbox，随后贯通 Wake、Agenda 和 Scheduler；Requirement 等 APM 对象在协作闭环完成后接入。
+`agent-core` 和 `agent-runtime` 基础已经完成。当前重点是 Workspace 与 Attention 查询，随后用一个 `agent-scheduler` 贯通 Notify、Triage 和 Dispatch；Requirement 等 APM 对象在协作闭环完成后接入。
 
 ## 文档索引
 
