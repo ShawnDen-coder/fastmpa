@@ -1,5 +1,10 @@
 export type { Clock } from "./clock.js";
 export { systemClock } from "./clock.js";
+export type {
+  RunDependencyKeys,
+  RunDependencyResolver,
+} from "./dependencies.js";
+export type { EnqueueRunInput } from "./enqueue.js";
 export type { RuntimeEvent } from "./event.js";
 export type {
   PersistedRunInput,

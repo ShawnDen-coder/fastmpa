@@ -23,7 +23,7 @@ const transitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
     "cancelled",
     "failed",
   ],
-  retrying: ["running", "cancelled", "failed"],
+  retrying: ["running", "interrupted", "cancelled", "failed"],
   waiting: ["queued"],
   blocked: ["queued"],
   interrupted: ["queued"],
