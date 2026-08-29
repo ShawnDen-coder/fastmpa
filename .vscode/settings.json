@@ -4,6 +4,6 @@
   "code-runner.runInTerminal": true,
   "code-runner.fileDirectoryAsCwd": false,
   "code-runner.executorMap": {
-    "typescript": "node --env-file=${workspaceFolder}/.env ${workspaceFolder}/node_modules/vite-node/vite-node.mjs $fullFileName"
+    "typescript": "node --env-file=\"$workspaceRoot/.env\" \"$workspaceRoot/node_modules/vite-node/vite-node.mjs\" \"$fullFileName\""
   }
 }
