@@ -84,7 +84,7 @@ jobs:
           node-version: "22"
           registry-url: https://registry.npmjs.org
       - name: Publish to npm
-        run: npm publish release/*.tgz --access public
+        run: npm publish ./release/*.tgz --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -102,7 +102,7 @@ jobs:
           node-version: "22"
           registry-url: https://npm.pkg.github.com
       - name: Publish to GitHub Packages
-        run: npm publish release/*.tgz --access public --registry https://npm.pkg.github.com
+        run: npm publish ./release/*.tgz --access public --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
 
