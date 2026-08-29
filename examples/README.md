@@ -21,6 +21,8 @@ pnpm --filter fastmpa-examples exec vite-node workspace-conversation.ts
 pnpm --filter fastmpa-examples exec vite-node agent-runtime-run.ts
 ```
 
+在 VS Code 中安装推荐的 `Code Runner` 扩展后，直接打开任意 `examples/*.ts`，点击右上角 `Run Code` 即可运行。仓库设置会使用 `vite-node`，并自动读取根目录 `.env`；OpenRouter 示例仍需要配置 `OPENROUTER_API_KEY` 和 `OPENROUTER_MODEL`。
+
 ## OpenRouter TAPD 审计闭环
 
 `openrouter-tapd-audit.mjs` 模拟一个用户把任务交给 TAPD Agent：
