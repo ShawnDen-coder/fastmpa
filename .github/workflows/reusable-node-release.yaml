@@ -79,12 +79,15 @@ jobs:
         with:
           name: dist
           path: .
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.24.0
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           registry-url: https://registry.npmjs.org
       - name: Publish to npm
-        run: npm publish ./release/*.tgz --access public
+        run: pnpm publish ./release/*.tgz --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -97,12 +100,15 @@ jobs:
         with:
           name: dist
           path: .
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.24.0
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           registry-url: https://npm.pkg.github.com
       - name: Publish to GitHub Packages
-        run: npm publish ./release/*.tgz --access public --registry https://npm.pkg.github.com
+        run: pnpm publish ./release/*.tgz --access public --no-git-checks --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
 
