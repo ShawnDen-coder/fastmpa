@@ -84,6 +84,32 @@ describe("LeaseRuntimeWorker", () => {
     }
   });
 
+  it("records a failure when a resolver rejects with a non-Error value", async () => {
+    const store = await SqliteRunStore.open({ filePath: ":memory:" });
+    try {
+      const instance = new LeaseRuntimeWorker(store, {
+        ownerId: "worker-a",
+        leaseMs: 30_000,
+        resolver: {
+          resolveModel: () => Promise.reject(null),
+          resolveTools: () => new ToolRegistry(),
+        },
+        clock: { now: () => initialTime },
+      });
+      await enqueue(instance);
+
+      await expect(instance.run("run-1")).resolves.toMatchObject({
+        status: "failed",
+        error: { message: "null" },
+      });
+      await expect(store.listEvents("run-1")).resolves.toContainEqual(
+        expect.objectContaining({ type: "run_failed" }),
+      );
+    } finally {
+      store.close();
+    }
+  });
+
   it("allows only one worker to claim the same Run", async () => {
     const store = await SqliteRunStore.open({ filePath: ":memory:" });
     try {

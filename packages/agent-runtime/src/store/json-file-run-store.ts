@@ -44,7 +44,13 @@ export class JsonFileRunStore implements RunStore {
       if (this.runs.has(run.runId)) throw new DuplicateRunError(run.runId);
       this.runs.set(run.runId, clone(run));
       this.events.set(run.runId, []);
-      await this.persist();
+      try {
+        await this.persist();
+      } catch (error) {
+        this.runs.delete(run.runId);
+        this.events.delete(run.runId);
+        throw error;
+      }
     });
   }
 
@@ -101,8 +107,14 @@ export class JsonFileRunStore implements RunStore {
           next.version,
         );
       }
+      const previousRun = clone(current);
       this.runs.set(runId, clone(next));
-      await this.persist();
+      try {
+        await this.persist();
+      } catch (error) {
+        this.runs.set(runId, previousRun);
+        throw error;
+      }
       return clone(next);
     });
   }
@@ -169,7 +181,12 @@ export class JsonFileRunStore implements RunStore {
         throw new EventSequenceError(event.runId, event.sequence, lastSequence);
       }
       runEvents.push(clone(event));
-      await this.persist();
+      try {
+        await this.persist();
+      } catch (error) {
+        runEvents.pop();
+        throw error;
+      }
     });
   }
 

@@ -440,7 +440,7 @@ export class AgentRuntime {
     const nextSequence = (events.at(-1)?.sequence ?? -1) + 1;
     return this.failRun(current, runId, error, nextSequence);
   }
-  /** 统一处理“状态转换 + 生命周期事件”；当前仍使用两个 Store 操作。 */
+  /** 统一处理“状态转换 + 生命周期事件”。 */
   private async transitionAndRecord(
     current: AgentRun,
     nextStatus: RunStatus,
@@ -564,7 +564,11 @@ function toPersistedTurnResult(result: TurnResult): PersistedTurnResult {
 
 function serializeRunError(error: unknown): SerializedRunError {
   const normalized = error instanceof Error ? error : new Error(String(error));
-  const details = error as { code?: unknown; retryable?: unknown };
+  const details =
+    error !== null &&
+    (typeof error === "object" || typeof error === "function")
+      ? (error as { code?: unknown; retryable?: unknown })
+      : {};
   return {
     name: normalized.name,
     message: normalized.message,
