@@ -1,8 +1,8 @@
 import pino, {
   type DestinationStream,
+  type Level,
   type Logger,
   type LoggerOptions,
-  type Level,
 } from "pino";
 
 export type { Logger };
