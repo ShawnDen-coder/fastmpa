@@ -1,5 +1,6 @@
 /** Runtime 层状态。它描述一次 AgentRun 的生命周期，不等同于 agent-core 的 TurnStatus。 */
 import type { PersistedRunInput } from "./persisted-input.js";
+import type { Message, TurnStatus } from "@shawnden-coder/agent-core";
 
 export type RunStatus =
   | "queued"
@@ -29,4 +30,23 @@ export interface AgentRun {
   readonly startedAt?: string;
   /** Run 进入 completed、cancelled 或 failed 后的结束时间。 */
   readonly finishedAt?: string;
+  /** 本次 Run 最终或暂停时的 Turn 输出；事件历史另行保存在 RuntimeEvent 中。 */
+  readonly result?: PersistedTurnResult;
+  /** 可安全写入 Store 的错误投影，绝不保存原生 Error 实例。 */
+  readonly error?: SerializedRunError;
+}
+
+/** 可持久化的 Turn 输出，不重复保存已写入事件流的 TurnEvent。 */
+export interface PersistedTurnResult {
+  readonly status: TurnStatus;
+  readonly messages: readonly Message[];
+  readonly steps: number;
+}
+
+/** Error 的 JSON-friendly 投影，保留调用方判断所需的最小结构。 */
+export interface SerializedRunError {
+  readonly name: string;
+  readonly message: string;
+  readonly code?: string;
+  readonly retryable?: boolean;
 }

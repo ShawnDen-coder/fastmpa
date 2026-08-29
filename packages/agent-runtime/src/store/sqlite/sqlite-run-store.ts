@@ -12,6 +12,7 @@ import {
   validateListEventsOptions,
 } from "../event-query.js";
 import type { RunLease, RunStore } from "../run-store.js";
+import { paginateRuns, type ListRunsOptions, type RunPage } from "../run-query.js";
 import type { SqliteStoreConfig } from "./config.js";
 import { openSqliteDatabase, type SqliteDatabase } from "./database.js";
 import { agentRuns, runtimeEvents } from "./schema.js";
@@ -26,6 +27,22 @@ export class SqliteRunStore implements RunStore {
   public async create(run: AgentRun): Promise<void> {
     try {
       this.database.db.insert(agentRuns).values(toRunRow(run, true)).run();
+    } catch (error) {
+      if (isConstraintError(error)) throw new DuplicateRunError(run.runId);
+      throw error;
+    }
+  }
+
+  public async createWithEvent(
+    run: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<void> {
+    validateInitialEvent(run, event);
+    try {
+      this.database.db.transaction((tx) => {
+        tx.insert(agentRuns).values(toRunRow(run, true)).run();
+        tx.insert(runtimeEvents).values(toEventRow(event)).run();
+      });
     } catch (error) {
       if (isConstraintError(error)) throw new DuplicateRunError(run.runId);
       throw error;
@@ -151,6 +168,10 @@ export class SqliteRunStore implements RunStore {
       .map(toEvent);
   }
 
+  public async listRuns(options: ListRunsOptions = {}): Promise<RunPage> {
+    return paginateRuns(this.database.db.select().from(agentRuns).all().map(toRun), options);
+  }
+
   /** Atomically claims a Run whose lease is absent or expired. */
   public async claim(
     runId: string,
@@ -201,6 +222,15 @@ function validateTransition(
     throw new RunVersionConflictError(runId, current.version + 1, next.version);
 }
 
+function validateInitialEvent(run: AgentRun, event: RuntimeEvent): void {
+  if (event.runId !== run.runId) {
+    throw new Error(`RuntimeEvent id mismatch: ${run.runId} -> ${event.runId}`);
+  }
+  if (event.sequence !== 0) {
+    throw new Error(`Initial event sequence must be 0: ${event.sequence}`);
+  }
+}
+
 function toRunRow(run: AgentRun, includeLease = false) {
   const row = {
     runId: run.runId,
@@ -211,6 +241,8 @@ function toRunRow(run: AgentRun, includeLease = false) {
     createdAt: run.createdAt,
     startedAt: run.startedAt ?? null,
     finishedAt: run.finishedAt ?? null,
+    resultJson: run.result === undefined ? null : JSON.stringify(run.result),
+    errorJson: run.error === undefined ? null : JSON.stringify(run.error),
   };
   return includeLease
     ? { ...row, ownerId: null, leaseUntil: null, heartbeatAt: null }
@@ -235,6 +267,12 @@ function toRun(row: typeof agentRuns.$inferSelect): AgentRun {
     createdAt: row.createdAt,
     ...(row.startedAt === null ? {} : { startedAt: row.startedAt }),
     ...(row.finishedAt === null ? {} : { finishedAt: row.finishedAt }),
+    ...(row.resultJson === null
+      ? {}
+      : { result: JSON.parse(row.resultJson) as AgentRun["result"] }),
+    ...(row.errorJson === null
+      ? {}
+      : { error: JSON.parse(row.errorJson) as AgentRun["error"] }),
   };
 }
 function toEvent(row: typeof runtimeEvents.$inferSelect): RuntimeEvent {

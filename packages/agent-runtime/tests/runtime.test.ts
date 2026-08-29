@@ -33,6 +33,11 @@ describe("AgentRuntime", () => {
     expect(run.version).toBe(2);
     expect(run.startedAt).toBeDefined();
     expect(run.finishedAt).toBeDefined();
+    expect(run.result).toMatchObject({
+      status: "done",
+      messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "hi" }],
+      steps: 1,
+    });
     expect(
       (await store.listEvents("run-1")).map((event) => event.type),
     ).toEqual([
@@ -80,6 +85,13 @@ describe("AgentRuntime", () => {
     );
 
     expect(run.status).toBe("failed");
+    expect(run.result).toMatchObject({ status: "failed", steps: 1 });
+    expect(run.error).toMatchObject({
+      name: "AgentCoreError",
+      message: "model unavailable",
+      code: "turn_failed",
+      retryable: false,
+    });
     expect((await store.listEvents("run-1")).at(-1)?.type).toBe("run_failed");
   });
 

@@ -7,6 +7,7 @@ import {
   RunVersionConflictError,
 } from "./errors.js";
 import { filterEvents, type ListEventsOptions } from "./event-query.js";
+import { paginateRuns, type ListRunsOptions, type RunPage } from "./run-query.js";
 import type { RunStore } from "./run-store.js";
 
 /* 使用结构化复制隔离调用方对象，避免外部引用修改 Store 内部状态。 */
@@ -26,6 +27,17 @@ export class MemoryRunStore implements RunStore {
     if (this.runs.has(run.runId)) throw new DuplicateRunError(run.runId);
     this.runs.set(run.runId, clone(run));
     this.events.set(run.runId, []);
+  }
+
+  /** 原子创建 Run 与首个事件，避免 Runtime 留下无事件的孤立 Run。 */
+  public async createWithEvent(
+    run: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<void> {
+    if (this.runs.has(run.runId)) throw new DuplicateRunError(run.runId);
+    validateInitialEvent(run, event);
+    this.runs.set(run.runId, clone(run));
+    this.events.set(run.runId, [clone(event)]);
   }
 
   /** 返回内部快照的副本；未知 runId 返回 undefined。 */
@@ -74,6 +86,47 @@ export class MemoryRunStore implements RunStore {
     return clone(snapshot);
   }
 
+  /** 原子更新 Run 与事件；所有校验在写入前完成。 */
+  public async transitionWithEvent(
+    runId: string,
+    expectedVersion: number,
+    next: AgentRun,
+    event: RuntimeEvent,
+  ): Promise<AgentRun> {
+    const current = this.runs.get(runId);
+    if (current === undefined) throw new RunNotFoundError(runId);
+    if (current.version !== expectedVersion) {
+      throw new RunVersionConflictError(runId, expectedVersion, current.version);
+    }
+    if (next.runId !== runId)
+      throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
+    if (!canTransition(current.status, next.status)) {
+      throw new Error(
+        `Invalid AgentRun transition: ${current.status} -> ${next.status}`,
+      );
+    }
+    if (next.version !== current.version + 1) {
+      throw new RunVersionConflictError(
+        runId,
+        current.version + 1,
+        next.version,
+      );
+    }
+    if (event.runId !== runId)
+      throw new Error(`RuntimeEvent id mismatch: ${runId} -> ${event.runId}`);
+    const events = this.events.get(runId);
+    if (events === undefined) throw new RunNotFoundError(runId);
+    const lastSequence = events.at(-1)?.sequence ?? -1;
+    if (event.sequence <= lastSequence) {
+      throw new EventSequenceError(runId, event.sequence, lastSequence);
+    }
+
+    const snapshot = clone(next);
+    this.runs.set(runId, snapshot);
+    events.push(clone(event));
+    return clone(snapshot);
+  }
+
   /**
    * 追加一个事件。事件必须属于已存在的 Run，且 sequence 大于上一个事件。
    */
@@ -95,5 +148,18 @@ export class MemoryRunStore implements RunStore {
     const events = this.events.get(runId);
     if (events === undefined) throw new RunNotFoundError(runId);
     return clone(filterEvents(events, options));
+  }
+
+  public async listRuns(options: ListRunsOptions = {}): Promise<RunPage> {
+    return clone(paginateRuns([...this.runs.values()], options));
+  }
+}
+
+function validateInitialEvent(run: AgentRun, event: RuntimeEvent): void {
+  if (event.runId !== run.runId) {
+    throw new Error(`RuntimeEvent id mismatch: ${run.runId} -> ${event.runId}`);
+  }
+  if (event.sequence !== 0) {
+    throw new Error(`Initial event sequence must be 0: ${event.sequence}`);
   }
 }

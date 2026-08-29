@@ -14,6 +14,8 @@ export const agentRuns = sqliteTable("agent_runs", {
   createdAt: text("created_at").notNull(),
   startedAt: text("started_at"),
   finishedAt: text("finished_at"),
+  resultJson: text("result_json"),
+  errorJson: text("error_json"),
   ownerId: text("owner_id"),
   leaseUntil: text("lease_until"),
   heartbeatAt: text("heartbeat_at"),

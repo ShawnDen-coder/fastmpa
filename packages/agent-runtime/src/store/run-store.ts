@@ -1,9 +1,12 @@
 import type { AgentRun, RuntimeEvent } from "../types/index.js";
 import type { ListEventsOptions } from "./event-query.js";
+import type { ListRunsOptions, RunPage } from "./run-query.js";
 
 export interface RunStore {
   /** 创建一个新的 Run；runId 已存在时必须失败。 */
   create(run: AgentRun): Promise<void>;
+  /** 原子创建 Run 与首个事件；两者任意一个失败都不得留下部分数据。 */
+  createWithEvent(run: AgentRun, event: RuntimeEvent): Promise<void>;
   /** 查询 Run；找不到时返回 undefined，而不是伪造默认状态。 */
   get(runId: string): Promise<AgentRun | undefined>;
   /** 按 expectedVersion 原子地更新 Run，并校验生命周期转换。 */
@@ -12,8 +15,8 @@ export interface RunStore {
     expectedVersion: number,
     next: AgentRun,
   ): Promise<AgentRun>;
-  /** 可选的原子状态+事件更新；数据库 Store 应在事务中实现。 */
-  transitionWithEvent?(
+  /** 原子更新状态与生命周期事件；任一校验或写入失败都不得留下部分数据。 */
+  transitionWithEvent(
     runId: string,
     expectedVersion: number,
     next: AgentRun,
@@ -26,6 +29,8 @@ export interface RunStore {
     runId: string,
     options?: ListEventsOptions,
   ): Promise<readonly RuntimeEvent[]>;
+  /** 按 `(createdAt, runId)` 稳定排序分页查询 Run。 */
+  listRuns(options?: ListRunsOptions): Promise<RunPage>;
   /** Atomically claims an executable Run for one process owner. */
   claim?(
     runId: string,
