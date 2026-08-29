@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.1 - 2026-08-29
+### Package updates
+- agent-runtime bumped to agent-runtime-0.4.1
+### Global changes
+#### Bug Fixes
+- **(runtime)** harden store writes and error handling - (b63e100) - colyerdeng
+
+- - -
+
 ## 0.5.0 - 2026-08-29
 ### Package updates
 - agent-runtime bumped to agent-runtime-0.4.0

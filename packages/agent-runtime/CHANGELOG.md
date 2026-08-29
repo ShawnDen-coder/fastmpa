@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-runtime-0.4.1 - 2026-08-29
+#### Bug Fixes
+- **(runtime)** harden store writes and error handling - (b63e100) - colyerdeng
+#### Style
+- lint code - (aa7ff81) - colyerdeng
+
+- - -
+
 ## agent-runtime-0.4.0 - 2026-08-29
 #### Features
 - **(runtime)** add lease-aware recovery worker - (fe6dff4) - colyerdeng
