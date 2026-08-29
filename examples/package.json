@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "openrouter": "node --env-file=../.env node_modules/vite-node/vite-node.mjs openrouter-tapd-audit.ts"
+  },
   "dependencies": {
     "@shawnden-coder/agent-core": "workspace:*",
     "integrations": "workspace:*",
     "tool-pipeline": "workspace:*",
     "workspace": "workspace:*"
+  },
+  "devDependencies": {
+    "vite-node": "^3.2.4"
   }
 }

@@ -26,9 +26,10 @@ OPENROUTER_MODEL=your-model
 然后执行：
 
 ```bash
-just build
-node --env-file=.env examples/openrouter-tapd-audit.mjs
+pnpm --filter fastmpa-examples openrouter
 ```
+
+示例直接由 `vite-node` 运行 TypeScript 源码，不要求先构建各个 package。
 
 示例使用 `apps/fastmpa/fixtures/tapd.json`，其中包含项目 `7A` 的正常、缺失和错误迭代数据。只读 Toolset 中没有注册任何写入工具，所以它只能产生检查报告，不会修改数据。
 

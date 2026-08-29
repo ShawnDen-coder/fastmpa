@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { OpenRouterModel, runTurn } from "@shawnden-coder/agent-core"
-import { createTapdReadonlyTools } from "integrations"
-import { toCoreToolRegistry } from "tool-pipeline"
 import {
-  InMemoryWorkspaceRepository,
-  sendMessage,
-} from "workspace"
+  createTapdReadonlyTools,
+  type TapdReadonlyClient,
+  type TapdRequirement,
+} from "integrations"
+import { toCoreToolRegistry } from "tool-pipeline"
+import { InMemoryWorkspaceRepository, sendMessage } from "workspace"
 
 const apiKey = process.env.OPENROUTER_API_KEY
 const modelName = process.env.OPENROUTER_MODEL
@@ -26,12 +27,15 @@ const fixtureUrl = new URL(
   "../apps/fastmpa/fixtures/tapd.json",
   import.meta.url,
 )
-const fixture = JSON.parse(await readFile(fixtureUrl, "utf8"))
-const requirements = fixture.requirements ?? []
+const fixture = JSON.parse(await readFile(fixtureUrl, "utf8")) as {
+  requirements: TapdRequirement[]
+}
 
-const client = {
+const client: TapdReadonlyClient = {
   async listRequirements({ projectId, page, pageSize }) {
-    const matching = requirements.filter((item) => item.projectId === projectId)
+    const matching = fixture.requirements.filter(
+      (item) => item.projectId === projectId,
+    )
     const start = (page - 1) * pageSize
     const items = matching.slice(start, start + pageSize)
     return {
@@ -117,20 +121,26 @@ if (finalMessage) {
   })
 }
 
-console.log(JSON.stringify({
-  model: modelName,
-  selectedAgent: agentId,
-  registeredTools: ["tapd.auditRequirementIterations"],
-  writesEnabled: false,
-  turn: {
-    status: result.status,
-    steps: result.steps,
-    events: result.events,
-  },
-  conversation: repository
-    .listMessages(workspaceId, conversationId)
-    .map(({ senderId, body }) => ({ senderId, body })),
-  error: result.error?.message,
-}, null, 2))
+console.log(
+  JSON.stringify(
+    {
+      model: modelName,
+      selectedAgent: agentId,
+      registeredTools: ["tapd.auditRequirementIterations"],
+      writesEnabled: false,
+      turn: {
+        status: result.status,
+        steps: result.steps,
+        events: result.events,
+      },
+      conversation: repository
+        .listMessages(workspaceId, conversationId)
+        .map(({ senderId, body }) => ({ senderId, body })),
+      error: result.error?.message,
+    },
+    null,
+    2,
+  ),
+)
 
 if (result.status !== "done") process.exitCode = 1
