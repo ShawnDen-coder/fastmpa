@@ -1,6 +1,8 @@
 # Agent Core Turn 实现计划
 
-本计划描述 `packages/agent-core` 当前已经落地的最小 Turn 闭环，以及进入 Runtime 前必须保持的边界。
+> 状态：已完成的基础阶段记录。当前全局顺序以 [项目 Roadmap](ROADMAP.md) 为准。
+
+本计划描述 `packages/agent-core` 已经落地的最小 Turn 闭环，以及后续层必须保持的边界。
 
 ## 目标与数据流
 
@@ -122,4 +124,4 @@ pnpm --filter agent-core build
 
 ## 下一步
 
-Core 当前进入稳定阶段。下一步创建 `agent-runtime`，实现 Run 生命周期、内存 Store、取消控制、事件保存和基于 `retryable` 的重试策略；不要把这些职责继续加入 `turn.ts`。
+Core 已进入稳定阶段，`agent-runtime` 也已实现 Run 生命周期、Store、取消、事件、Lease 和恢复。当前下一步是 Workspace/Inbox/Wake 闭环；不要把 Participant、Inbox、Agenda、Scheduler 或 APM 规则加入 `turn.ts`。

@@ -1,99 +1,95 @@
-# FastMPA 下一步学习与实施计划
+# FastMPA 当前实施计划
 
 ## 当前基线
 
-FastMPA 已完成 pnpm Monorepo、`agent-core` 的 Turn/Tool Loop，以及 `agent-runtime` 的生命周期、重试、取消、恢复和 Run/Event 持久化。当前重点不是增加更多界面或连接器，而是先让 Runtime 在异常退出、并发执行和事件订阅场景下保持一致。
+`agent-core` 已完成 Turn/Tool Loop；`agent-runtime` 已完成 Run/Event 持久化、生命周期、SQLite、Lease Worker、依赖重建和崩溃恢复。完整路线以 [项目 Roadmap](ROADMAP.md) 为准。
 
-实现方式继续遵循：先阅读 Cumora 的对应入口，画出数据流，再由你手动实现最小切片；每一步都用测试证明边界。
+下一步停止继续扩张通用 Runtime，进入 **M2：最小 Workspace 与 Inbox**。目标不是立即实现 TAPD/ShotGrid，也不是建立中央 Task Router，而是先让 Human 与 Agent 在同一个工作空间内围绕消息和卡片协作，并保证 Wake 丢失后未处理消息仍可恢复。
 
-## 阶段一：Runtime 0.3 一致性收尾（已完成：6/6）
+## 当前架构切片
 
-截至 2026-08-29，`finishedAt` 语义、生命周期结束/暂停事件、Run/Event 原子写入、最终结果/结构化错误持久化，以及稳定 cursor 分页已经完成。`agent-runtime` 类型检查与构建通过，12 个测试文件、73 个测试全部通过。
+```text
+Human / Agent Participant
+          │
+          ▼
+Conversation / Message ──┐
+Board / Card ────────────┼→ WorkspaceEvent
+Agent Read Cursor ────────┘
+          │
+          └→ Inbox Projection → 后续 Wake / Triage / Scheduler
+```
+
+## M2：最小 Workspace 与 Inbox
 
 ### 学习目标
 
-- 区分终态 `completed/cancelled/failed` 与暂停态 `waiting/blocked`。
-- 理解状态快照与事件流必须表达同一个事实。
-- 理解数据库事务为何要覆盖“状态变化 + 生命周期事件”。
+- 理解 Cumora 为什么统一建模 Human 与 Agent 为 `Participant`。
+- 区分 Workspace 业务事件与 RuntimeEvent。
+- 理解 Card/Message 是工作事实，Run 只是一次处理记录。
+- 理解 Inbox 是 Message 基于 Agent Read Cursor 形成的持久投影，而不是 Wake 队列。
+- 理解 Wake 可以丢失或合并，但未读消息必须能从 Inbox 重新查询。
+- 建立 `workspaceId` 隔离，避免后续 Connector 和 Agent 跨空间读取数据。
 
-### 手动实现任务
+### 建议目录
 
-- [x] 修正 `waiting/blocked` 的 `finishedAt` 语义。
-- [x] 增加 `run_completed`、`run_waiting`、`run_blocked` 事件。
-- [x] 将 `createWithEvent` 与 `transitionWithEvent` 设为 Store 端口：创建或状态变化必须与对应生命周期事件作为一个不可分割的写入完成。
-- [x] 在 Run 中持久化 JSON-friendly 的最终 `result` 与结构化 `error`；不得保存原生 `Error`、模型实例或工具函数。
-- [x] 增加 `listRuns({ status?, limit?, cursor? })`；固定按 `(createdAt, runId)` 排序，并把这对值编码为不透明 cursor，避免分页重复或遗漏。
-- [x] 为 Memory、JSON 和 SQLite Store 复用同一组契约测试。
+```text
+packages/workspace/
+├── src/
+│   ├── participant/
+│   ├── conversation/
+│   ├── inbox/
+│   ├── board/
+│   ├── events/
+│   ├── repository/
+│   └── index.ts
+├── tests/
+└── README.md
+```
+
+第一版使用内存 Repository。不要在本阶段加入 PostgreSQL、Redis、HTTP API、APM 状态机或外部平台 SDK。
+
+### 手动实现顺序
+
+1. 定义 `Participant`：`id`、`workspaceId`、`kind: human | agent`、`name`、`role`、`status`；Agent 配置先只保留最小 Persona/Model/Tools 引用。
+2. 定义 Conversation、Message，以及发送消息用例；消息支持 `mentions` 和稳定的会话内顺序。
+3. 定义按 `(agentId, conversationId)` 存储的 `ReadCursor`，实现 `loadInbox(agentId)`：聚合该 Agent 在所有可见 Conversation 中各自读取边界之后的消息。
+4. 实现显式推进读取边界的用例；禁止在生成 Wake 或开始 Turn 时自动标记已读。
+5. 定义 Board、Column、Card，以及创建、指派、移动卡片用例；Card 支持 `assigneeId`。
+6. 定义独立于 RuntimeEvent 的 `WorkspaceEvent`，记录消息发送、读取边界推进、卡片创建、指派和移动。
+7. 为 Repository 编写共享契约测试，验证 workspace 隔离、快照复制、版本冲突和事件顺序。
+8. 写两个垂直测试：Human @Agent 后 Inbox 可见该消息；Human 创建 Card 并指派给 Agent 后产生目标明确的 WorkspaceEvent。
 
 ### 验收标准
 
-- 每次生命周期状态变化都能在事件流中找到对应事件。
-- 暂停态没有 `finishedAt`，恢复后时间字段仍然正确。
-- 模拟创建、状态转换或事件写入失败时，不产生 Run/Event 不匹配的半完成状态。
-- 三个 Store 都通过相同的原子创建、事件顺序与分页契约测试。
-- `just build && just typecheck && just test` 全部通过。
+- Human 和 Agent 使用同一 Participant 模型，同时保留 `kind` 差异。
+- 不同 `workspaceId` 的对象不能互相引用或查询。
+- Message mention 和 Card assignment 引用的成员必须存在于同一 Workspace。
+- Inbox 只返回 Agent 可见且位于读取边界之后的消息，并保持稳定顺序。
+- WakeSignal 未发送或重复发送都不改变 Inbox；只有显式确认处理后才能推进读取边界。
+- 业务变更与对应 WorkspaceEvent 原子写入，失败时不产生半完成状态。
+- `pnpm --filter workspace typecheck/test/build` 和仓库 `just ci` 通过。
 
-## 阶段二：Runtime 0.4 崩溃恢复
+## M3 预告：Wake、Inbox/Agenda Triage 与 Scheduler
 
-补全 `claim → heartbeat/renew → release` 协议，并实现过期执行的恢复流程。`claimed` 不是新的 `RunStatus`：它是 `ownerId`、`leaseUntil` 和 `heartbeatAt` 组成的所有权记录，不能混入生命周期状态图。
+M2 验收后再创建 `agents` 与 `scheduler`。第一个闭环只处理两种触发：Message @Agent 和 Card 指派。Inbox 负责消息可靠性，Agenda 负责卡片和主动工作，`WakeSignal` 只负责低延迟提醒。它至少携带：
 
-```text
-queued -- 原子 claim + start --> running (ownerId + leaseUntil)
-                                  │ heartbeat / renew
-                                  │
-                                  ├─ 正常结束或暂停 → release lease
-                                  │
-                                  └─ lease 过期 / process lost
-                                             ↓
-                                      interrupted → queued → running
+```ts
+interface WakeSignal {
+  wakeId: string
+  workspaceId: string
+  agentId: string
+  reason: "mention" | "assignment"
+  sourceRef: { type: "message" | "card"; id: string }
+}
 ```
 
-`queued → running` 必须在同一原子操作中校验 lease 并写入 `run_started`；不能先单独 claim、再由任意进程启动。`renew`、`release` 和所有 Run 更新都必须校验 owner，失去 lease 的 Worker 不得继续写入。
+Inbox Triage 判断未读消息是否需要响应；Agenda 根据 `agentId` 汇总 Card 和后续到期事项；Agenda Triage 判断是否值得主动行动；Scheduler 去重并调用现有 `agent-runtime`。Turn 成功处理消息后才推进 Read Cursor，失败则保留 Inbox。到这一步才为 `AgentRun` 增加必要的 Agent、Workspace 和 Wake 关联字段。
 
-持久化 `modelKey`、`toolsetKey` 等执行描述，通过 Resolver 重建模型与工具，禁止把函数或实例写入数据库。恢复器只处理 lease 已过期的 `running/retrying` Run：先原子标记为 `interrupted` 并记录事件，再重新排队；`waiting/blocked` 必须等待显式 `resumeRun()`。
+## 暂缓事项
 
-重点测试两个 Worker 原子争抢、错误 owner 续租/释放、lease 过期、心跳续租、崩溃后恢复，以及含成功工具副作用的 Run 不被整轮重放。后者需要幂等键或明确的人工恢复边界，不能仅依赖重新执行 Turn。
+- `fastmpa-domain` / Requirement 状态机。
+- Policy、Audit、Approval 和 Tool Call Journal。
+- Skills、MCP、TAPD、ShotGrid。
+- Redis、远程 Pod、BYOA、多 Agent 自动路由和 UI。
 
-### 实施任务
-
-- [x] 将 lease 协议从通用 `RunStore` 拆为 SQLite 的 `RunLeaseStore` 扩展。
-- [x] 实现原子 `claimAndStart`：领取、`queued → running`、`run_started` 事件和 lease 元数据一次事务完成。
-- [x] 实现 `renewLease`：只允许当前 owner 在 lease 未过期时续租。
-- [x] 实现受 owner 约束的 release/终态或暂停转换，防止失去 lease 的 Worker 继续写入。
-- [x] 实现过期扫描：`running/retrying → interrupted → queued`，并记录生命周期事件。
-- [x] 持久化 `modelKey/toolsetKey`，通过 Resolver 重建执行依赖；`waiting/blocked` 保持显式恢复。
-- [x] 基于 Resolver 接入 lease-aware Worker：claim、定期 renew、owner 约束的状态提交与失败释放；重启后只执行已持久化描述的 queued Run。
-- [x] 为争抢、错误 owner、续租、过期恢复和副作用边界增加 SQLite 集成测试。
-
-## 阶段三：第一个 APM 垂直切片
-
-Runtime 达到上述验收标准后，再新增业务包：
-
-```text
-packages/
-├── fastmpa-domain/   # Requirement、状态机、证据与版本规则
-└── fastmpa-tools/    # inspect/update/comment/request-review
-```
-
-第一版只实现 `Requirement`，使用内存 Repository 完成：检查需求、更新状态、添加评论、请求审核。非法状态转换必须由领域代码拒绝，不能依赖模型自觉。
-
-## 阶段四：Policy、Audit、Skills 与 MCP
-
-按以下依赖顺序扩展：
-
-```text
-fastmpa-domain
-      ↓
-agent-policy → agent-audit
-      ↓
-agent-skills → mcp-adapter
-```
-
-- `agent-policy`：风险分级、权限、审批和幂等键。
-- `agent-audit`：记录提议、批准、执行前后值和回执。
-- `agent-skills`：发现、加载和渐进式注入业务指导，不直接执行操作。
-- `mcp-adapter`：把 MCP Tool 转换为 Core Tool；所有写操作仍经过 Policy/Audit。
-
-## 后续路线
-
-完成上述核心闭环后，再依次推进领域持久化、Agenda/Scheduler、第一个平台 Connector、API/Web/Desktop、BYOA 和多角色 Agent。每个新包必须先有真实消费者、契约测试和清晰的失败恢复策略。
+这些能力没有取消，只是按照 Cumora 的依赖关系后移。Requirement 阶段见 [APM Requirement 垂直切片](FASTMPA_DOMAIN_PLAN.md)。
