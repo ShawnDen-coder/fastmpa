@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "fastmpa": "./dist/index.cjs"
+    "fastmpa": "./dist/index.js"
   },
   "files": ["dist"],
   "scripts": {
@@ -16,7 +16,13 @@
   },
   "dependencies": {
     "commander": "^13.1.0",
-    "@shawnden-coder/agent-runtime": "workspace:*"
+    "@shawnden-coder/agent-core": "workspace:*",
+    "@shawnden-coder/agent-runtime": "workspace:*",
+    "apm": "workspace:*",
+    "agent-scheduler": "workspace:*",
+    "integrations": "workspace:*",
+    "tool-pipeline": "workspace:*",
+    "workspace": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
