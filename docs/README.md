@@ -30,6 +30,10 @@ Participant + Workspace
 - [APM Requirement 垂直切片](FASTMPA_DOMAIN_PLAN.md) — 延后到 Workspace 闭环之后的第一个 APM 扩展。
 - [项目 README](../README.md) — Monorepo 结构与常用命令。
 
+### 可运行示例
+
+- [OpenRouter TAPD 审计示例](../examples/README.md) — 使用 fixture 验收“用户消息 → 指定 Agent → 只读 Tool → Conversation 回执”，不连接真实 TAPD。
+
 ## 文档职责
 
 - `ROADMAP.md` 回答“总体按什么顺序实现”。
