@@ -95,6 +95,7 @@ import { CancellationGuard, checkGuards, StepLimitGuard } from "./guards";
 import { type Logger, logger } from "./logger";
 import type { ModelAdapter } from "./model/adapter";
 import { ModelExecutionError } from "./model/errors";
+import { ToolExecutionError } from "./tools/errors";
 import { ToolExecutor } from "./tools/executor";
 import type { ToolRegistry } from "./tools/registry";
 import type {
@@ -217,6 +218,22 @@ export async function runTurn(
               signal: input.signal,
             });
             context.addToolResult(result);
+
+            if (!result.ok && result.error.code === "approval_required") {
+              return finishTurn(
+                log,
+                context,
+                events,
+                step + 1,
+                "waiting",
+                new ToolExecutionError(
+                  "approval_required",
+                  result.error.message,
+                  false,
+                  result.error.details,
+                ),
+              );
+            }
 
             if (!result.ok && result.error.code === "cancelled") {
               return finishTurn(

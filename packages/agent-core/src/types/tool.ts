@@ -17,6 +17,8 @@ export type ToolErrorCode =
   | "tool_not_found"
   | "invalid_json"
   | "invalid_arguments"
+  | "policy_denied"
+  | "approval_required"
   | "execution_failed"
   | "cancelled"
   | "timeout";

@@ -4,6 +4,7 @@ import {
   FakeModel,
   ModelExecutionError,
   runTurn,
+  ToolExecutionError,
   ToolRegistry,
 } from "../src/index";
 
@@ -12,6 +13,43 @@ function input(content = "请求") {
 }
 
 describe("runTurn", () => {
+  it("将 approval_required 工具结果转换为 waiting", async () => {
+    const registry = new ToolRegistry();
+    registry.register({
+      definition: {
+        name: "write.example",
+        description: "write",
+        parameters: { type: "object" },
+      },
+      validate: () => undefined,
+      execute: () => {
+        throw new ToolExecutionError(
+          "approval_required",
+          "需要用户确认",
+          false,
+          { approvalId: "approval-1" },
+        );
+      },
+    });
+    const result = await runTurn(input(), {
+      model: new FakeModel([
+        {
+          type: "tool_calls",
+          content: "",
+          toolCalls: [{ id: "call-1", name: "write.example", arguments: "{}" }],
+        },
+      ]),
+      tools: registry,
+    });
+
+    expect(result.status).toBe("waiting");
+    expect(result.messages.at(-1)).toMatchObject({
+      role: "tool",
+      toolCallId: "call-1",
+      content: expect.stringContaining("需要用户确认"),
+    });
+  });
+
   it("模型返回文本时结束回合", async () => {
     const result = await runTurn(input("你好"), {
       model: new FakeModel([{ type: "text", content: "你好，我可以帮助你。" }]),
