@@ -11,6 +11,9 @@ export default defineConfig({
       formats: ['es', 'cjs'],
       fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
     },
+    rollupOptions: {
+      external: ["pino"],
+    },
   },
   plugins: [dts({ rollupTypes: true })],
   resolve: {
