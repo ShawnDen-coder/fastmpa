@@ -414,8 +414,7 @@ function toPersistedTurnResult(result: TurnResult): PersistedTurnResult {
 function serializeRunError(error: unknown): SerializedRunError {
   const normalized = error instanceof Error ? error : new Error(String(error));
   const details =
-    error !== null &&
-    (typeof error === "object" || typeof error === "function")
+    error !== null && (typeof error === "object" || typeof error === "function")
       ? (error as { code?: unknown; retryable?: unknown })
       : {};
   return {
