@@ -1,0 +1,12 @@
+{
+  "name": "fastmpa-examples",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@shawnden-coder/agent-core": "workspace:*",
+    "integrations": "workspace:*",
+    "tool-pipeline": "workspace:*",
+    "workspace": "workspace:*"
+  }
+}
