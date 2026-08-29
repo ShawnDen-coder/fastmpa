@@ -21,6 +21,30 @@ TAPD fields → RequirementSnapshot → APM rule → violation → report / appr
 Requirement → lifecycle action → versioned domain state
 ```
 
+## Quickstart
+
+规则本身不依赖平台；Requirement 持久化可以使用 SQLite `:memory:`：
+
+```ts
+const repository = new SqliteRequirementRepository(":memory:")
+const service = new RequirementService(repository)
+const requirement = service.create({
+  id: "req-1",
+  workspaceId: "demo",
+  title: "导出报表",
+  cardId: "card-1",
+  now: new Date().toISOString(),
+})
+console.log(service.get("demo", requirement.id))
+repository.close()
+```
+
+完整示例见 [`examples/apm-requirement.ts`](../../examples/apm-requirement.ts)：
+
+```bash
+pnpm --filter fastmpa-examples exec vite-node apm-requirement.ts
+```
+
 目录：
 
 ```text

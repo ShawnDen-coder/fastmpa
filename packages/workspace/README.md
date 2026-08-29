@@ -46,3 +46,21 @@ tests/             # 单元测试与垂直闭环测试
 - 构建：`pnpm build`
 
 实现时优先保持纯领域逻辑、显式依赖注入和稳定查询顺序；不要把 Runtime、Scheduler 或外部平台适配逻辑放入本包。
+
+## Quickstart
+
+使用 SQLite `:memory:` 创建 Workspace，并通过 `sendMessage` 生成可供 Scheduler 消费的 `WorkspaceChange`：
+
+```ts
+const repository = new SqliteWorkspaceRepository(":memory:")
+// 先保存 Participant 和 Conversation，再调用 sendMessage。
+const { message, change } = sendMessage(repository, input)
+console.log(message, change)
+repository.close()
+```
+
+完整示例见 [`examples/workspace-conversation.ts`](../../examples/workspace-conversation.ts)：
+
+```bash
+pnpm --filter fastmpa-examples exec vite-node workspace-conversation.ts
+```

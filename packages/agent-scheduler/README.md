@@ -36,3 +36,27 @@ tests/            # 调度与去重测试
 `AgentContext` 当前由 Persona、工具名、Attention 和 Wake 来源组成。`ScheduleRunner` 只负责周期扫描和唤醒，不包含 TAPD/ShotGrid 业务规则；Schedule 定义由 Workspace Repository 持有，当前 Repository 仍是内存实现。多进程部署可把 ClaimStore 替换为 SQLite 实现。
 
 传入 `dispatch: signal => scheduler.dispatch(signal)` 后调用 `start()` 即可自动派发到 Runtime；不传时可使用 `tick()` 手动观察每次到期信号。
+
+## Quickstart
+
+Scheduler 只产生唤醒信号，Runtime 由调用方注入：
+
+```ts
+const scheduler = new AgentScheduler({
+  repository,
+  runtime: { enqueue: async (input) => input },
+  modelKey: "model.default",
+  toolsetKey: "tools.readonly",
+})
+const signal = scheduler.notifySchedule({
+  scheduleId: "schedule-1",
+  workspaceId: "demo",
+  agentId: "agent-1",
+})
+```
+
+SQLite Workspace 的最小示例见 [`examples/agent-scheduler-wakeup.ts`](../../examples/agent-scheduler-wakeup.ts)：
+
+```bash
+pnpm --filter fastmpa-examples exec vite-node agent-scheduler-wakeup.ts
+```

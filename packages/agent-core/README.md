@@ -14,6 +14,24 @@ ToolCall → ToolRegistry → ToolExecutor → TurnContext → TurnResult
 
 本包不负责 Runtime 调度、持久化、APM 业务规则、权限审批或外部平台连接。
 
+## Quickstart
+
+使用 `FakeModel` 可以离线验证一次 Turn；使用 `OpenRouterModel` 时只需替换模型并配置环境变量：
+
+```ts
+const result = await runTurn(
+  { messages: [{ role: "user", content: "开始检查" }] },
+  { model: new FakeModel([{ type: "text", content: "完成" }]), tools },
+)
+console.log(result.status, result.messages)
+```
+
+完整的 OpenRouter + Tool + Workspace 示例见 [`examples/openrouter-tapd-audit.ts`](../../examples/openrouter-tapd-audit.ts)，运行：
+
+```bash
+pnpm --filter fastmpa-examples openrouter
+```
+
 ## 目录结构
 
 ```text

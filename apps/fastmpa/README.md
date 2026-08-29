@@ -4,6 +4,25 @@ The final FastMPA program lives here. This private app composes the reusable
 libraries under `packages/` and is the future home for Runtime, Skills, and
 MCP integration wiring.
 
+## Quickstart
+
+先构建 App，再运行本地 fixture 审计；该流程不访问真实 TAPD：
+
+```bash
+just build
+node apps/fastmpa/dist/index.js tapd-audit \
+  --file ./apps/fastmpa/fixtures/tapd.json --project 7A --iteration "Sprint 1"
+```
+
+需要观察完整的 OpenRouter Agent 闭环时，运行仓库级示例：
+
+```bash
+pnpm --filter fastmpa-examples openrouter
+```
+
+组合层负责装配 Workspace、Scheduler、Runtime、Tool Pipeline 和 Integrations；
+具体包的最小用法见 [`examples/README.md`](../../examples/README.md)。
+
 ## Commands
 
 ```bash

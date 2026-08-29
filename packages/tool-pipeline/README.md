@@ -33,3 +33,25 @@ tests/           # 只读、拒绝、审批、幂等和失败测试
 - `pnpm test`、`pnpm typecheck`、`pnpm build`
 
 默认原则：只读 Tool 可直接执行；写入 Tool 默认需要审批；拒绝和执行结果都必须形成可查询的 Journal 记录。
+
+## Quickstart
+
+写入 Tool 使用 SQLite `:memory:` 保存审批和 Journal：
+
+```ts
+const store = new SqliteApprovalStore(":memory:")
+const pipeline = new ToolPipeline(registry, undefined, undefined, store)
+const decision = await pipeline.execute(call, {
+  actorId: "agent-1",
+  idempotencyKey: "run-1:update-1",
+})
+if (decision.status === "approval_required")
+  await pipeline.approve(decision.approval.approvalId)
+store.close()
+```
+
+完整审批示例见 [`examples/tool-pipeline-approval.ts`](../../examples/tool-pipeline-approval.ts)：
+
+```bash
+pnpm --filter fastmpa-examples exec vite-node tool-pipeline-approval.ts
+```
