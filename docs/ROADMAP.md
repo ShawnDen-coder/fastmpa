@@ -195,17 +195,17 @@ APM 强制 Requirement、Milestone、Deliverable、Risk 和 Approval 等业务�
 
 `agent-runtime` 已实现 Run/Event 持久化、生命周期、Lease Worker、依赖重建、重试和崩溃恢复。
 
-### M2：Workspace 与 Attention 查询（下一阶段）
+### M2：Workspace 与 Attention 查询（已完成第一版）
 
 创建 `workspace`，实现 Participant、Conversation/Message、Board/Card、ReadCursor 和 `loadAttention(agentId)`。第一版使用内存 Repository，不实现通用事件存储。
 
 验收：Human @Agent 后 Inbox 可查询该消息；Card 指派后 Agenda 可查询该卡片；不同 Workspace 不能交叉引用；业务写入返回可用于 `notify()` 的 WorkspaceChange。
 
-### M3：Agent Scheduler
+### M3：Agent Scheduler（已实现第一版）
 
-创建 `agent-scheduler`，实现 `notify → loadAttention → triage → enqueueRun`，并用有期限的 WorkClaim 保证同一工作范围不会被重复处理。
+创建 `agent-scheduler`，实现 `notify → loadAttention → triage → enqueueRun`，支持 Workspace Schedule 到期扫描、`schedule` WakeSignal、RuntimeContext、WorkClaim/Lease，以及可共享文件的 SQLite 原子 ClaimStore。`agent-runtime` 已提供 Worker 启动循环，负责消费 queued Run 和恢复过期 Run；当前仍需补充 Claim 续租与多 Worker 运行时的健康检查/优雅退出。
 
-验收：notify 丢失后周期检查仍可发现未处理工作；无关输入不启动主 Turn；AgentRun 关联 Agent、Workspace 和来源对象。
+验收：notify 丢失后周期检查仍可发现未处理工作；无关输入不启动主 Turn；AgentRun 关联 Agent、Workspace 和来源对象；并发同源 Dispatch 只有一个 Claim 持有者。
 
 ### M4：最小协作闭环
 
@@ -218,17 +218,17 @@ User → Workspace → Scheduler → Runtime/Core
 
 使用 FakeModel 完成确定性端到端测试，再使用真实模型进行手动 smoke test。
 
-### M5：APM 领域扩展
+### M5：APM 领域扩展（已开始实施）
 
-创建 `apm`，从 Requirement 垂直切片开始。APM 对象必须关联 Workspace Card、Conversation 或 ExternalRef，不能形成平行任务系统。
+已创建 `apm`，并完成平台无关的 Requirement 迭代合规规则、状态机、证据约束、审批记录、内存/SQLite Repository 乐观锁、查询、Rule 组合和 APM Tools。FastMPA 已适配 Workspace/Card 引用，并通过 `Card → Scheduler → Attention → Turn → APM Tool → Approval → Requirement → Conversation` 垂直测试；下一步补更完整的 APM 规则组合和查询结果报告。APM 对象必须关联 Workspace Card、Conversation 或 ExternalRef，不能形成平行任务系统。
 
-### M6：安全 Tool Pipeline
+### M6：安全 Tool Pipeline（已实现第一版）
 
-根据真实写操作补充 Policy、Approval、Audit、幂等键和 Tool Call Journal。外部副作用未具备幂等或人工恢复边界前，不自动重放。
+`packages/tool-pipeline` 已完成 Registry、参数校验、只读/写入策略、Approval、幂等结果缓存和 Tool Journal，并提供显式的 Pipeline→Core 投影。Approval 支持内存与 SQLite 持久化，重启后可恢复原 ToolCall；`approval_required` 会让 Core/Runtime 进入可持久化的 waiting 状态；应用层 `ApprovalResumer` 负责校验 Run 归属、批准并恢复原 Run。FastMPA 提供 `createPersistentTapdToolset()` 和 Host 共享 ApprovalStore 生命周期。下一步补充真实 TAPD 写操作的授权范围、预期旧值、外部回执和人工恢复边界；外部副作用未具备幂等或人工恢复边界前，不自动重放。
 
-### M7：Integrations 与 TAPD 交互式 Demo
+### M7：Integrations 与 TAPD 交互式 Demo（已实现第一版）
 
-创建 `integrations`，先实现 TAPD 只读/写入 Tool Adapter，跑通 North Star 的人工请求、完整检查、报告、等待批准和受控写入。之后再实现 ShotGrid 和 MCP Tool Adapter。复杂度或发布边界真正出现后，再考虑拆分独立 Connector 包。
+`packages/integrations` 已实现 TAPD 只读分页和迭代字段审计 Tool，并有独立写入 Tool；`TapdApiError` 已统一记录平台错误并区分读取重试与写入不可重放；App 层会把成功写入的 `receiptId` 发布到 Conversation；`verifyTapdUpdate()` 提供写入结果未知时的三态只读核查。当前已用 SQLite RunStore、FakeModel、TAPD write Tool、Scheduler 消息触发和周期 Schedule 跑通 North Star E2E；下一步接入真实 TAPD 凭据和完整规则。之后再实现 ShotGrid 和 MCP Tool Adapter。复杂度或发布边界真正出现后，再考虑拆分独立 Connector 包。
 
 ### M8：Schedule 与主动工作
 
@@ -250,4 +250,4 @@ packages/
 └── integrations/      # TAPD、ShotGrid、MCP Tool Adapter
 ```
 
-当前只创建 `workspace`。后续包必须在出现第一个真实消费者时创建，不增加 `inbox`、`agenda`、`policy`、`audit`、`task-router` 或 `assignment-engine` 包。
+当前已创建并有真实消费者的包为 `agent-core`、`agent-runtime`、`workspace`、`agent-scheduler`、`tool-pipeline`、`apm` 和 `integrations`；应用装配位于 `apps/fastmpa`。后续只有在出现第一个真实消费者时才创建独立的 Skills/MCP 或更多 Connector 包，不增加 `inbox`、`agenda`、`policy`、`audit`、`task-router` 或 `assignment-engine` 包。

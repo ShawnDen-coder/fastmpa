@@ -36,5 +36,75 @@ path = "apps/fastmpa"
 public_api = false
 changelog_path = "apps/fastmpa/CHANGELOG.md"
 pre_bump_hooks = [
-    "pnpm --filter fastmpa version {{version}} --no-git-tag-version",
+    "echo 'bumping fastmpa from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
+]
+
+[packages.workspace]
+path = "packages/workspace"
+public_api = false
+changelog_path = "packages/workspace/CHANGELOG.md"
+pre_bump_hooks = [
+    "echo 'bumping workspace from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
+]
+
+[packages.agent-scheduler]
+path = "packages/agent-scheduler"
+public_api = false
+changelog_path = "packages/agent-scheduler/CHANGELOG.md"
+pre_bump_hooks = [
+    "echo 'bumping agent-scheduler from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
+]
+
+[packages.tool-pipeline]
+path = "packages/tool-pipeline"
+public_api = false
+changelog_path = "packages/tool-pipeline/CHANGELOG.md"
+pre_bump_hooks = [
+    "echo 'bumping tool-pipeline from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
+]
+
+[packages.integrations]
+path = "packages/integrations"
+public_api = false
+changelog_path = "packages/integrations/CHANGELOG.md"
+pre_bump_hooks = [
+    "echo 'bumping integrations from {{latest|0.0.0}} to {{version|0.0.1}}'",
+    "pnpm pkg set version={{version|0.0.1}}",
+]
+
+post_bump_hooks = [
+    "git push",
+    "git push origin --tags",
+]
+
+[packages.apm]
+path = "packages/apm"
+public_api = false
+changelog_path = "packages/apm/CHANGELOG.md"
+pre_bump_hooks = [
+    "pnpm --filter apm version {{version}} --no-git-tag-version",
 ]

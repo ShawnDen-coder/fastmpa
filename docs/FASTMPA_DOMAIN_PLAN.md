@@ -1,6 +1,6 @@
 # FastMPA APM Requirement 垂直切片
 
-> 状态：计划中，对应 Roadmap M5。必须在 Workspace、Agent Scheduler、Runtime/Core 和 Tool Pipeline 闭环完成后实施。
+> 状态：已开始实施，对应 Roadmap M5。当前先完成最小 Requirement 迭代规则，完整状态机和持久 Repository 继续后置。
 
 ## 目标与边界
 
@@ -14,7 +14,23 @@ Workspace Card / Conversation
 ExternalRef(TAPD / ShotGrid)
 ```
 
-第一版使用内存 Repository，不接 MCP、数据库或真实平台。模型只能提出 Tool 调用；状态转换、版本校验和证据要求由领域代码强制执行。
+当前第一版只实现纯领域规则，不接 MCP、数据库或 Runtime。平台 Adapter 负责映射外部字段，模型只能提出 Tool 调用；状态转换、版本校验和证据要求仍由后续领域代码强制执行。
+
+## 当前已实现
+
+`packages/apm` 提供平台无关的 `RequirementSnapshot`、`RequirementIterationPolicy`
+和纯函数 `evaluateRequirementIteration()`。TAPD Adapter 将平台字段映射为该快照，
+再生成平台报告；因此“什么是合规”不再写死在 TAPD Tool 中。
+
+Requirement 基础模型、状态机、`MemoryRequirementRepository`、
+`SqliteRequirementRepository` 和 `RequirementService` 也已完成。所有状态变化必须经过领域动作和
+`expectedVersion`；进入进行中需要负责人，进入待审核需要证据，交付需要审核记录。
+当前 APM Tools 已提供 inspect、证据、状态动作和审核动作；FastMPA 已接入
+`WorkspaceRepository → WorkspaceReferencePort`，并通过测试贯通
+`Card → Scheduler → Attention → Turn → APM Tool → Requirement`。
+当前已支持按 Workspace/状态/负责人查询、SQLite 持久化、多 Rule 组合和 Requirement Tools。
+FastMPA 的 `createRequirementConversationReporter()` 已将动作、状态和版本写回 Conversation；
+下一步补更完整的真实 APM 规则组合和查询结果报告。
 
 ## 前置条件
 
@@ -23,7 +39,7 @@ ExternalRef(TAPD / ShotGrid)
 - Card assignment 或 Message mention 能通知 Agent Scheduler。
 - Agent 能使用 Tool 回复消息和更新卡片。
 
-缺少任一条件时，返回 [当前实施计划](NEXT_STEPS_PLAN.md)，不要提前创建 APM 包。
+完整 Requirement 状态机的持久化和 Workspace 适配仍需满足以上前置条件；当前领域切片已经满足最小依赖，后续按本计划扩展。
 
 ## 包边界
 

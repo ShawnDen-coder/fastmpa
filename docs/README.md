@@ -11,7 +11,7 @@ Participant + Workspace
   → APM + Integrations
 ```
 
-`agent-core` 和 `agent-runtime` 基础已经完成。当前重点是 Workspace 与 Attention 查询，随后用一个 `agent-scheduler` 贯通 Notify、Triage 和 Dispatch；Requirement 等 APM 对象在协作闭环完成后接入。
+`agent-core`、`agent-runtime`、Workspace、Scheduler、Tool Pipeline 和 TAPD Adapter 已有第一版实现。当前重点是用 TAPD North Star 场景验证“检查—报告—审批—恢复—写入—回执”的完整闭环，再推进周期任务与真实平台接入。
 
 ## 文档索引
 
