@@ -1,33 +1,47 @@
-# FastMPA 学习文档
+# FastMPA 文档
 
-## 当前路线
+## 当前方向
 
-当前已完成 `agent-core`，正在收尾 `agent-runtime`，继续采用由内向外的实现顺序：
+FastMPA 不是重新设计一套通用 Agent 编排平台，而是在 Cumora 的协作模型上扩充 APM 工作逻辑：
 
 ```text
-Turn Engine → Durable Runtime → FastMPA Domain/Tools
-→ Policy/Audit → Skills/MCP → Agenda → Connectors
-→ API/UI → BYOA → 多角色
+Participant + Workspace
+  → Inbox + Wake + Agenda + Scheduler
+  → Runtime + Turn + Tools
+  → APM Domain + Connectors
 ```
+
+`agent-core` 和 `agent-runtime` 基础已经完成。当前重点是最小 Workspace 与持久 Inbox，随后贯通 Wake、Agenda 和 Scheduler；Requirement 等 APM 对象在协作闭环完成后接入。
 
 ## 文档索引
 
-- [Core 学习与实现计划](CORE_FIRST_PLAN.md) — 已完成的核心阶段与边界。
-- [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Tool、Context 和 Guard 的实现细则。
-- [Agent Runtime 学习与实施计划](AGENT_RUNTIME_PLAN.md) — 当前阶段：Run 生命周期、内存 Store、取消、恢复与后续远程化。
-- [下一步学习与实施计划](NEXT_STEPS_PLAN.md) — 当前执行顺序：Runtime 一致性、崩溃恢复、APM 垂直切片、Policy/Audit、Skills/MCP。
-- [项目 README](../README.md) — workspace、命令和子包入口。
-- [agent-core 包](../packages/agent-core/) — 已完成的 Turn Engine 基础包。
-- [agent-runtime 包](../packages/agent-runtime/) — 当前正在加固的运行时包。
+### 总体规划
+
+- [项目 Roadmap](ROADMAP.md) — 唯一的总体阶段顺序、架构原则和包演进规划。
+- [当前实施计划](NEXT_STEPS_PLAN.md) — 当前里程碑、手动实现步骤和验收条件。
+
+### 已完成的基础阶段
+
+- [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Model、Tool、Context 与 Guard。
+- [Agent Runtime 计划](AGENT_RUNTIME_PLAN.md) — Run 生命周期、Store、Lease 和恢复设计。
+
+### 后续领域阶段
+
+- [APM Requirement 垂直切片](FASTMPA_DOMAIN_PLAN.md) — 延后到 Workspace 闭环之后的第一个 APM 扩展。
+- [项目 README](../README.md) — Monorepo 结构与常用命令。
+
+## 文档职责
+
+- `ROADMAP.md` 回答“总体按什么顺序实现”。
+- `NEXT_STEPS_PLAN.md` 回答“现在手动实现什么”。
+- `*_PLAN.md` 记录某个阶段的学习目标、设计和验收，不再定义全局顺序。
+- 包内 `README.md` 只说明该包的职责、API、目录和命令。
 
 ## 学习工作流
 
-1. 阅读 Cumora 对应的 2–3 个入口文件。
-2. 画出数据流或状态图。
-3. 在 FastMPA 写最小设计。
-4. 手动实现一个垂直切片。
-5. 为正常、失败和重复执行写测试。
-6. 再进行代码审查和边界分析。
-
-不要为了复刻 Cumora 而提前引入数据库、Redis、BYOA 或多角色；每个新包都必须有真实消费者和测试。
-
+1. 阅读 Cumora 对应入口，确认它解决的具体问题。
+2. 画出事件流、状态图及模块边界。
+3. 先写最小类型和契约测试。
+4. 由学习者手动实现一个可运行垂直切片。
+5. 覆盖正常、失败、重复事件和恢复边界。
+6. 复盘后再创建下一个包。

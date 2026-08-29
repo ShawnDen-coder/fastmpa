@@ -1,6 +1,8 @@
 # FastMPA Agent Runtime 学习与实施计划
 
-`agent-core` 已完成一次 Turn 内的模型调用、工具循环、取消、步数限制和结果生成。下一阶段实现 `agent-runtime`：管理一个 `AgentRun` 从创建到结束的生命周期，并为后续持久化、API、Wake 和远程执行建立稳定边界。
+> 状态：Durable Runtime 基础已完成；本文保留为学习和设计记录。当前全局顺序以 [项目 Roadmap](ROADMAP.md) 为准。
+
+`agent-core` 已完成一次 Turn 内的模型调用、工具循环、取消、步数限制和结果生成。`agent-runtime` 管理一个 `AgentRun` 从创建到结束的生命周期，并为持久化、Wake 和远程执行建立稳定边界。
 
 本阶段仍由学习者手动实现。Cumora 用来理解问题和设计取舍，不作为逐文件复制模板。
 
@@ -52,7 +54,7 @@ flowchart TB
     StorePort --> Memory["MemoryRunStore<br/>当前 MVP"]
     StorePort -.->|后续替换| Database[("Database RunStore")]
     StorePort -.->|后续投影| Observability["Observability / SSE"]
-    Wake["WakeSource<br/>Agenda 后实现"] -.->|触发 Run| Runtime
+    Wake["WakeSource<br/>Inbox/Agenda 后实现"] -.->|触发 Run| Runtime
     Remote["HTTP Client + Scoped JWT<br/>远程执行阶段"] -.-> Caller
     Tools -.->|后续受控工具| Domain["Policy / Audit / Domain"]
 
@@ -351,9 +353,9 @@ CREATE TABLE runtime_events (
 5. 测试重启恢复、版本冲突、事件唯一性和事务回滚。
 关键读失败应显式传播；心跳和观测写入可降级。HTTP 身份令牌必须包含 agent、tenant 和 scope，不能只依赖请求体中的 ID。
 
-### 阶段 R8：Wake Bus（后续）
+### 阶段 R8：Wake 适配（随 M3 实现）
 
-只有 Agenda 和主动追踪出现后再实现 Wake。要求单调 cursor、重复事件可幂等处理、断线指数退避、短连接不重置退避阶梯、健康连接后才重置。
+只有 Workspace、Inbox、Agenda 和主动追踪出现后再实现 Wake。Wake 归属 `scheduler`，Runtime 只接收已经确定的 `agentId/workspaceId/reason/sourceRef`。要求重复信号可幂等处理；远程 Wake Bus 出现后再增加单调 cursor、断线退避和重连。
 
 Redis、SSE、Pod、Kubernetes 和 BYOA 都不属于当前 Runtime MVP。
 
@@ -400,4 +402,4 @@ const runtime = new AgentRuntime(store, {
 生产环境默认使用系统时钟；测试环境使用固定时钟，避免真实时间导致断言不稳定。`runId` 仍由调用方提供，因此暂不增加 ID Generator。
 ## 八、完成后的下一步
 
-Runtime 稳定后进入 `policy` 与 `audit`：让工具副作用具备风险分级、审批、幂等键和审计回执。之后才实现 APM `domain` 与真实 `agent-tools`。这时 Runtime 只负责“何时运行、运行到哪里”，不会承担“业务动作是否允许”的职责。
+Runtime 已稳定，下一步先完成 Workspace、Inbox、Wake、Agenda 和 Scheduler 的最小协作闭环。APM Domain、Policy/Audit 和真实平台 Tools 按 Roadmap 后续接入。Runtime 只负责执行、持久化和恢复，不承担“谁应该处理工作”或“业务动作是否允许”的职责。
