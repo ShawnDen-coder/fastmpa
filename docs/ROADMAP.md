@@ -6,6 +6,49 @@ FastMPA 延续 Cumora 的核心逻辑：Agent 是 Workspace 中的一等 Partici
 
 APM 是 Workspace 上的业务扩展，不另建中央 Task Router。Message、Card、Calendar Event 和 Requirement 保持各自语义，Agent 继续使用消息、@mention 和指派进行协作。
 
+## North Star：TAPD 需求治理
+
+Roadmap 必须持续支持下面这个常见场景；如果某项设计让该流程变得绕行、重复建模或无法恢复，应优先修正设计。
+
+> 用户：请检查 TAPD 项目 7A 的所有需求单，确认“迭代”字段是否符合项目规则。
+
+目标产品行为：
+
+1. 用户在 Workspace 中把请求发送给或 @TAPD Agent；第一版使用显式 Agent，不引入智能选人 Router。
+2. Agent Scheduler 从 Inbox 发现请求，并针对 `tapd:7A:requirement-iteration-audit` 取得有期限的 WorkClaim，避免多个 Run 重复处理同一范围。
+3. TAPD Agent 使用只读 Tools 分页读取 7A 的需求、迭代字段和项目规则，生成异常清单、判断依据及拟修改值。
+4. Agent 把初步报告写回 Conversation，向用户请求确认，并进入等待状态；初次检查不得直接修改 TAPD。
+5. 用户批准后，新的消息重新唤醒同一 Agent。Tool Pipeline 校验批准范围、权限、幂等键和预期旧值，再调用 TAPD 写 Tool。
+6. Agent 保存平台回执和审计结果，向用户汇报成功、失败和未处理项，最后释放 WorkClaim。
+7. 用户也可以保存周期 Schedule。到期时 Agent Scheduler 生成同一类检查触发，复用相同的认领、检查、报告和审批链路。
+
+```text
+显式交给 TAPD Agent
+→ 认领检查范围
+→ 只读检查全部需求
+→ 报告问题与修改建议
+→ 等待用户批准
+→ 受控写入 TAPD
+→ 保存回执并汇报
+```
+
+周期任务默认只自动执行“检查与报告”。自动修复必须由用户显式预授权，并受 Policy、变更范围、幂等和审计约束；Schedule 不等于无限写权限。
+
+### 对架构的校准要求
+
+| 产品要求 | 必须由哪个组件承担 |
+|---|---|
+| 用户指定 TAPD Agent | Workspace 的 Participant、Message、@mention |
+| 防止重复处理同一检查范围 | Agent Scheduler 内部 WorkClaim/Lease |
+| 分页读取全部需求 | Integrations 中的 TAPD Tool Adapter |
+| 判断迭代字段是否合规 | APM 规则或 Workspace 配置，不写进 Prompt 常量 |
+| 先报告再修改 | Agent Execution 的 waiting + Tool Pipeline Approval |
+| 安全更新 TAPD | Tool Pipeline + TAPD Adapter + 平台回执 |
+| 每隔一段时间执行 | Workspace 中的持久 Schedule + Agent Scheduler 触发 |
+| 失败后继续且不重复写 | Agent Runtime 恢复 + Tool 幂等边界 |
+
+WorkClaim 是 Scheduler 的短期协调状态，不是新的业务 Task；Schedule 是 Workspace 中的持久工作来源，不是独立调度平台。这个场景覆盖五个顶层组件，可作为每个里程碑完成后的架构验收样例。
+
 ## 最终组件架构
 
 ```mermaid
@@ -13,8 +56,8 @@ flowchart LR
     user["Human / Agent"]
     external["TAPD / ShotGrid"]
 
-    workspace["Workspace<br/>Participant、Message、Card、Calendar<br/>ReadCursor、Inbox/Agenda 查询"]
-    scheduler["Agent Scheduler<br/>Notify、Triage、去重、Context 组装"]
+    workspace["Workspace<br/>Participant、Message、Card、Calendar/Schedule<br/>ReadCursor、Inbox/Agenda 查询"]
+    scheduler["Agent Scheduler<br/>Notify、Triage、WorkClaim、Context 组装"]
     execution["Agent Execution<br/>Runtime + Core Turn"]
     tools["Tool Pipeline<br/>Validate、Policy、Audit、Execute"]
     extensions["APM & Integrations<br/>业务规则、TAPD、ShotGrid、MCP"]
@@ -37,6 +80,7 @@ flowchart LR
 sequenceDiagram
     autonumber
     actor User as Human / Agent
+    actor Clock as Schedule Clock
     participant WS as Workspace
     participant Scheduler as Agent Scheduler
     participant Runtime as Agent Runtime
@@ -44,12 +88,17 @@ sequenceDiagram
     participant Tools as Tool Pipeline
     participant Extension as APM / Integration
 
-    User->>WS: 发送消息、@Agent、创建或指派 Card
-    WS->>WS: 保存 Message、Card 或 Calendar 等业务事实
-    WS-)Scheduler: notify(WorkspaceChange)
+    alt 交互式请求
+        User->>WS: 发送消息、@Agent、创建或指派 Card
+        WS->>WS: 保存 Message、Card 或 Calendar 等业务事实
+        WS-)Scheduler: notify(WorkspaceChange)
+    else 周期 Schedule 到期
+        Clock->>WS: Schedule due
+        WS-)Scheduler: notify(ScheduledChange)
+    end
     Scheduler->>WS: loadAttention(agentId)
     WS-->>Scheduler: AttentionSnapshot(inbox, agenda)
-    Scheduler->>Scheduler: 去重并执行 Triage
+    Scheduler->>Scheduler: 去重、取得 WorkClaim 并执行 Triage
 
     alt 需要行动
         Scheduler->>Runtime: enqueueRun(agentId, workspaceId, sourceRef)
@@ -66,8 +115,9 @@ sequenceDiagram
         opt Inbox 消息确认已处理
             Runtime->>WS: advanceReadCursor(agentId, conversationId)
         end
+        Scheduler->>Scheduler: 释放 WorkClaim
     else 无需行动
-        Scheduler->>Scheduler: 不启动主 Turn
+        Scheduler->>Scheduler: 不启动主 Turn，释放 WorkClaim
     end
 
     Note over WS,Scheduler: notify 可以丢失或合并；Inbox 和 Agenda 可在重连或周期检查时重新加载。
@@ -153,7 +203,7 @@ APM 强制 Requirement、Milestone、Deliverable、Risk 和 Approval 等业务�
 
 ### M3：Agent Scheduler
 
-创建 `agent-scheduler`，实现 `notify → loadAttention → triage → enqueueRun`，并保证重复提醒不会导致同 Agent 并发执行。
+创建 `agent-scheduler`，实现 `notify → loadAttention → triage → enqueueRun`，并用有期限的 WorkClaim 保证同一工作范围不会被重复处理。
 
 验收：notify 丢失后周期检查仍可发现未处理工作；无关输入不启动主 Turn；AgentRun 关联 Agent、Workspace 和来源对象。
 
@@ -176,11 +226,15 @@ User → Workspace → Scheduler → Runtime/Core
 
 根据真实写操作补充 Policy、Approval、Audit、幂等键和 Tool Call Journal。外部副作用未具备幂等或人工恢复边界前，不自动重放。
 
-### M7：Integrations
+### M7：Integrations 与 TAPD 交互式 Demo
 
-创建 `integrations`，先实现 TAPD，再实现 ShotGrid 和 MCP Tool Adapter。复杂度或发布边界真正出现后，再考虑拆分独立 Connector 包。
+创建 `integrations`，先实现 TAPD 只读/写入 Tool Adapter，跑通 North Star 的人工请求、完整检查、报告、等待批准和受控写入。之后再实现 ShotGrid 和 MCP Tool Adapter。复杂度或发布边界真正出现后，再考虑拆分独立 Connector 包。
 
-### M8：多 Agent 与部署扩展
+### M8：Schedule 与主动工作
+
+在 Workspace 保存周期 Schedule，由 Agent Scheduler 在到期时复用同一 Attention、WorkClaim、Runtime 和 Tool Pipeline。默认自动检查和报告；自动写入需要显式预授权。
+
+### M9：多 Agent 与部署扩展
 
 增加项目经理、制作人和需求分析等 AgentContext 配置；Agent 之间继续通过消息、@mention 和 Card 指派协作。最后评估 API/UI、BYOA、Redis 和远程 Pod。
 
