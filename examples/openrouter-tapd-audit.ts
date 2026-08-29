@@ -1,3 +1,8 @@
+/**
+ * agent-core + integrations example: OpenRouter 驱动指定 TAPD Agent 完成只读审计。
+ * 运行：pnpm --filter fastmpa-examples openrouter
+ * 外部服务：OpenRouter；TAPD 使用本地 fixture，不执行写入。
+ */
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import {
@@ -11,7 +16,7 @@ import {
   type TapdRequirement,
 } from "integrations"
 import { toCoreToolRegistry } from "tool-pipeline"
-import { InMemoryWorkspaceRepository, sendMessage } from "workspace"
+import { SqliteWorkspaceRepository, sendMessage } from "workspace"
 
 const apiKey = process.env.OPENROUTER_API_KEY
 const modelName = process.env.OPENROUTER_MODEL
@@ -49,7 +54,7 @@ const client: TapdReadonlyClient = {
   },
 }
 
-const repository = new InMemoryWorkspaceRepository()
+const repository = new SqliteWorkspaceRepository(":memory:")
 repository.saveParticipant({
   id: humanId,
   workspaceId,
@@ -155,3 +160,4 @@ console.log(
 )
 
 if (result.status !== "done") process.exitCode = 1
+repository.close()

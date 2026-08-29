@@ -1,6 +1,11 @@
-import { InMemoryWorkspaceRepository, sendMessage } from "workspace"
+/**
+ * workspace example: SQLite :memory: 中保存 Participant、Conversation 和 Message。
+ * 运行：pnpm --filter fastmpa-examples exec vite-node workspace-conversation.ts
+ * 外部服务：无。
+ */
+import { SqliteWorkspaceRepository, sendMessage } from "workspace"
 
-const repository = new InMemoryWorkspaceRepository()
+const repository = new SqliteWorkspaceRepository(":memory:")
 repository.saveParticipant({
   id: "user-1",
   workspaceId: "demo",
@@ -31,3 +36,4 @@ const { message, change } = sendMessage(repository, {
   createdAt: new Date().toISOString(),
 })
 console.log({ message, change })
+repository.close()

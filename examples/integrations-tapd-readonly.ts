@@ -1,3 +1,8 @@
+/**
+ * integrations example: 用内存 Client 模拟 TAPD，只展示只读 Adapter/Tool。
+ * 运行：pnpm --filter fastmpa-examples exec vite-node integrations-tapd-readonly.ts
+ * 外部服务：无，不调用真实 TAPD。
+ */
 import { createTapdReadonlyTools } from "integrations"
 
 const [auditTool] = createTapdReadonlyTools({

@@ -1,7 +1,13 @@
+/**
+ * agent-runtime example: 使用 SQLite :memory: RunStore 执行一次确定性的 Run。
+ * 运行：pnpm --filter fastmpa-examples exec vite-node agent-runtime-run.ts
+ * 外部服务：无，FakeModel 不访问网络。
+ */
 import { FakeModel, ToolRegistry } from "@shawnden-coder/agent-core"
-import { AgentRuntime, MemoryRunStore } from "@shawnden-coder/agent-runtime"
+import { AgentRuntime, SqliteRunStore } from "@shawnden-coder/agent-runtime"
 
-const runtime = new AgentRuntime(new MemoryRunStore())
+const store = await SqliteRunStore.open({ filePath: ":memory:", migrationsFolder: false })
+const runtime = new AgentRuntime(store)
 const run = await runtime.startRun({
   runId: "run-1",
   model: new FakeModel([{ type: "text", content: "已完成只读检查" }]),
@@ -10,3 +16,4 @@ const run = await runtime.startRun({
   context: { agentId: "agent-tapd", workspaceId: "demo", trigger: "manual" },
 })
 console.log({ runId: run.runId, status: run.status, result: run.result })
+store.close()

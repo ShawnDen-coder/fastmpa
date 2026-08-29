@@ -1,4 +1,9 @@
-import { ToolPipeline, ToolRegistry } from "tool-pipeline"
+/**
+ * tool-pipeline example: 使用 SQLite :memory: 保存审批、结果和审计记录。
+ * 运行：pnpm --filter fastmpa-examples exec vite-node tool-pipeline-approval.ts
+ * 外部服务：无。
+ */
+import { SqliteApprovalStore, ToolPipeline, ToolRegistry } from "tool-pipeline"
 
 const registry = new ToolRegistry()
 registry.register({
@@ -10,7 +15,8 @@ registry.register({
   effect: "write",
   execute: (args) => ({ updated: true, ...args }),
 })
-const pipeline = new ToolPipeline(registry, undefined, () => "approval-1")
+const approvalStore = new SqliteApprovalStore(":memory:")
+const pipeline = new ToolPipeline(registry, undefined, () => "approval-1", approvalStore)
 const pending = await pipeline.execute(
   {
     id: "call-1",
@@ -22,3 +28,4 @@ const pending = await pipeline.execute(
 console.log("first decision", pending)
 if (pending.status === "approval_required")
   console.log("after approval", await pipeline.approve(pending.approval.approvalId))
+approvalStore.close()
