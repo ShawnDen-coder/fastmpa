@@ -154,7 +154,9 @@ export function describeRunStore(
         await expect(
           fixture.store.listRuns({ limit: 2, cursor: first.nextCursor }),
         ).resolves.toMatchObject({ runs: [{ runId: "run-3" }] });
-        await expect(fixture.store.listRuns({ status: "queued" })).resolves.toMatchObject({
+        await expect(
+          fixture.store.listRuns({ status: "queued" }),
+        ).resolves.toMatchObject({
           runs: [{ runId: "run-1" }, { runId: "run-2" }, { runId: "run-3" }],
         });
       } finally {

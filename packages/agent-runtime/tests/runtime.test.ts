@@ -35,7 +35,10 @@ describe("AgentRuntime", () => {
     expect(run.finishedAt).toBeDefined();
     expect(run.result).toMatchObject({
       status: "done",
-      messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "hi" }],
+      messages: [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: "hi" },
+      ],
       steps: 1,
     });
     expect(
@@ -58,9 +61,7 @@ describe("AgentRuntime", () => {
 
     expect(run.status).toBe("waiting");
     expect(run.finishedAt).toBeUndefined();
-    expect((await store.listEvents("run-1")).at(-1)?.type).toBe(
-      "run_waiting",
-    );
+    expect((await store.listEvents("run-1")).at(-1)?.type).toBe("run_waiting");
   });
 
   it("maps a blocked Turn without completing the Run", async () => {
@@ -72,9 +73,7 @@ describe("AgentRuntime", () => {
 
     expect(run.status).toBe("blocked");
     expect(run.finishedAt).toBeUndefined();
-    expect((await store.listEvents("run-1")).at(-1)?.type).toBe(
-      "run_blocked",
-    );
+    expect((await store.listEvents("run-1")).at(-1)?.type).toBe("run_blocked");
   });
 
   it("maps a model exception to a failed Run", async () => {

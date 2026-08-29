@@ -6,9 +6,9 @@ export {
   RunVersionConflictError,
 } from "./errors.js";
 export type { ListEventsOptions } from "./event-query.js";
-export type { ListRunsOptions, RunPage } from "./run-query.js";
 export { JsonFileRunStore } from "./json-file-run-store.js";
 export { MemoryRunStore } from "./memory-run-store.js";
 export type { StoreProvider } from "./provider.js";
+export type { ListRunsOptions, RunPage } from "./run-query.js";
 export type { RunStore } from "./run-store.js";
 export * from "./sqlite/index.js";

@@ -11,8 +11,12 @@ import {
   type ListEventsOptions,
   validateListEventsOptions,
 } from "../event-query.js";
+import {
+  type ListRunsOptions,
+  paginateRuns,
+  type RunPage,
+} from "../run-query.js";
 import type { RunLease, RunStore } from "../run-store.js";
-import { paginateRuns, type ListRunsOptions, type RunPage } from "../run-query.js";
 import type { SqliteStoreConfig } from "./config.js";
 import { openSqliteDatabase, type SqliteDatabase } from "./database.js";
 import { agentRuns, runtimeEvents } from "./schema.js";
@@ -169,7 +173,10 @@ export class SqliteRunStore implements RunStore {
   }
 
   public async listRuns(options: ListRunsOptions = {}): Promise<RunPage> {
-    return paginateRuns(this.database.db.select().from(agentRuns).all().map(toRun), options);
+    return paginateRuns(
+      this.database.db.select().from(agentRuns).all().map(toRun),
+      options,
+    );
   }
 
   /** Atomically claims a Run whose lease is absent or expired. */

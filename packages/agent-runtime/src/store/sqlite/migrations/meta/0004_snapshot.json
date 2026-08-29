@@ -150,22 +150,15 @@
           "name": "runtime_events_run_id_agent_runs_run_id_fk",
           "tableFrom": "runtime_events",
           "tableTo": "agent_runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "run_id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["run_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "runtime_events_run_id_sequence_pk": {
-          "columns": [
-            "run_id",
-            "sequence"
-          ],
+          "columns": ["run_id", "sequence"],
           "name": "runtime_events_run_id_sequence_pk"
         }
       },

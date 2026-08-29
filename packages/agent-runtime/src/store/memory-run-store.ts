@@ -7,7 +7,11 @@ import {
   RunVersionConflictError,
 } from "./errors.js";
 import { filterEvents, type ListEventsOptions } from "./event-query.js";
-import { paginateRuns, type ListRunsOptions, type RunPage } from "./run-query.js";
+import {
+  type ListRunsOptions,
+  paginateRuns,
+  type RunPage,
+} from "./run-query.js";
 import type { RunStore } from "./run-store.js";
 
 /* 使用结构化复制隔离调用方对象，避免外部引用修改 Store 内部状态。 */
@@ -96,7 +100,11 @@ export class MemoryRunStore implements RunStore {
     const current = this.runs.get(runId);
     if (current === undefined) throw new RunNotFoundError(runId);
     if (current.version !== expectedVersion) {
-      throw new RunVersionConflictError(runId, expectedVersion, current.version);
+      throw new RunVersionConflictError(
+        runId,
+        expectedVersion,
+        current.version,
+      );
     }
     if (next.runId !== runId)
       throw new Error(`AgentRun id mismatch: ${runId} -> ${next.runId}`);
