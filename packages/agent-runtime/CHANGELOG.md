@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## agent-runtime-0.3.0 - 2026-08-29
+#### Bug Fixes
+- **(runtime)** complete lifecycle events - (eb8bd7c) - colyerdeng
+#### Features
+- **(runtime)** complete durable run storage - (6193269) - colyerdeng
+#### Style
+- lint code - (7d4a403) - colyerdeng
+
+- - -
+
 ## agent-runtime-0.2.0 - 2026-08-28
 #### Bug Fixes
 - update ci workflow - (05fa853) - colyerdeng

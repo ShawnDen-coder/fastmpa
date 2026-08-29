@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.4.0 - 2026-08-29
+### Package updates
+- agent-runtime bumped to agent-runtime-0.3.0
+### Global changes
+#### Bug Fixes
+- **(runtime)** complete lifecycle events - (eb8bd7c) - colyerdeng
+- update ci - (a9298e7) - shawndeng
+#### Features
+- **(runtime)** complete durable run storage - (6193269) - colyerdeng
+
+- - -
+
 ## 0.3.0 - 2026-08-28
 ### Package updates
 - agent-core bumped to agent-core-0.3.0
