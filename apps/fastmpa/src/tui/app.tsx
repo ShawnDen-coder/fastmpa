@@ -207,6 +207,10 @@ export function FastMpaTui({
       }
       return;
     }
+    if ((key.return && key.shift) || (key.ctrl && value === "j")) {
+      setInput((current) => `${current}\n`);
+      return;
+    }
     if (key.upArrow || key.downArrow) {
       if (focus === "logs") {
         const filteredLogs = filteredLogEntries(
