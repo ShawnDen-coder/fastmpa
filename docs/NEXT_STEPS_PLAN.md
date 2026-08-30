@@ -25,6 +25,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Application 提供 500 条日志 Ring Buffer、实时订阅和 JSONL 文件输出；TUI 支持 `Ctrl+L` 折叠日志面板。
 - [x] TUI 日志支持最低级别 `1/2/3/4`、当前 Run 过滤 `Ctrl+E`，并显示日志文件绝对路径。
 - [x] 日志区域拥有独立焦点；方向键滚动时暂停自动跟随，恢复显示日志时回到最新记录；右栏方向键选择 Run。
+- [x] 右栏快捷键按选中 Run 执行：Ctrl+A 批准 waiting Run，Ctrl+X 拒绝审批或取消活动 Run。
 - [x] 模型上下文限制为最近 50 条 user/assistant 消息，并从 user 轮次边界截取。
 - [x] 临时 SQLite E2E 覆盖 Workspace/Conversation 创建、三轮连续对话、范围切换、重启恢复。
 - [x] `fastmpa`（无参数）与 `fastmpa chat` 进入同一持续工作台；`fastmpa run` 保持单次 JSON 输出。

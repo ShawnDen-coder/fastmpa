@@ -36,7 +36,11 @@ export function FastMpaTui({
     "workspace" | "conversation" | "rename" | undefined
   >();
   const { exit } = useApp();
-  const approval = snapshot?.runs.find((run) => {
+  const approval = [
+    snapshot?.runs[selectedRunIndex],
+    ...(snapshot?.runs ?? []),
+  ].find((run) => {
+    if (!run) return false;
     if (run.status !== "waiting") return false;
     const details = run.error?.details;
     return (
@@ -131,11 +135,11 @@ export function FastMpaTui({
       } else exit();
       return;
     }
-    if (approval && key.ctrl && (value === "a" || value === "x")) {
+    if (approval && key.ctrl && value === "a") {
       const details = approval.error?.details as { approvalId: string };
       void application
         .dispatch({
-          type: value === "a" ? "approve" : "reject",
+          type: "approve",
           runId: approval.runId,
           approvalId: details.approvalId,
         })
@@ -143,6 +147,24 @@ export function FastMpaTui({
         .catch((reason: unknown) =>
           setError(reason instanceof Error ? reason.message : String(reason)),
         );
+      return;
+    }
+    if (key.ctrl && value === "x") {
+      if (approval) {
+        const details = approval.error?.details as { approvalId: string };
+        void application.dispatch({
+          type: "reject",
+          runId: approval.runId,
+          approvalId: details.approvalId,
+        });
+      } else {
+        const activeRun = snapshot?.runs[selectedRunIndex];
+        if (
+          activeRun &&
+          (activeRun.status === "running" || activeRun.status === "queued")
+        )
+          void application.dispatch({ type: "cancel", runId: activeRun.runId });
+      }
       return;
     }
     if (key.upArrow || key.downArrow) {
