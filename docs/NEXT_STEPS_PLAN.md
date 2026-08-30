@@ -23,6 +23,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Core 与 Application 测试覆盖流式 delta、最终消息和运行上下文。
 - [x] TUI 订阅实时事件，在当前 Conversation 中显示流式文本和工具执行指示。
 - [x] TUI 提供 `Ctrl+K` 命令面板入口；`Ctrl+L` 打开日志面板，`Esc` 返回 Conversation。
+- [x] TUI 将 Conversation、InlineTool、ApprovalCard、RunDetails、StatusBar 和 CommandPalette 拆为独立组件；`Ctrl+D` 打开选中 Run 详情。
 
 本轮未声称完成整个 V1 计划：正式的 conversation-first 单区布局、覆盖式 Run Details/Approval 卡片、日志的独立全屏视图与完整过滤器、消息失败后的 Retry/Edit/Discard，以及 40/80/120 列布局验收仍需后续批次实现。
 

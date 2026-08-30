@@ -6,6 +6,11 @@ import type {
   ApplicationSnapshot,
   FastMpaApplication,
 } from "../application.js";
+import { ApprovalCard } from "./approval-card.js";
+import { CommandPalette } from "./command-palette.js";
+import { ConversationView } from "./conversation-view.js";
+import { RunDetails } from "./run-details.js";
+import { StatusBar } from "./status-bar.js";
 
 export function FastMpaTui({
   application,
@@ -36,6 +41,7 @@ export function FastMpaTui({
   const [selectedRunIndex, setSelectedRunIndex] = React.useState(0);
   const [logOffset, setLogOffset] = React.useState(0);
   const [logFollow, setLogFollow] = React.useState(true);
+  const [detailsVisible, setDetailsVisible] = React.useState(false);
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
@@ -165,7 +171,8 @@ export function FastMpaTui({
       if (dialog) {
         setDialog(undefined);
         setInput("");
-      } else if (logsVisible) setLogsVisible(false);
+      } else if (detailsVisible) setDetailsVisible(false);
+      else if (logsVisible) setLogsVisible(false);
       else exit();
       return;
     }
@@ -192,6 +199,10 @@ export function FastMpaTui({
         .catch((reason: unknown) =>
           setError(reason instanceof Error ? reason.message : String(reason)),
         );
+      return;
+    }
+    if (key.ctrl && value === "d") {
+      if (snapshot?.runs[selectedRunIndex]) setDetailsVisible(true);
       return;
     }
     if (key.ctrl && value === "x") {
@@ -370,18 +381,11 @@ export function FastMpaTui({
             </Text>
           ))}
         </Box>
-        <Box width="50%" flexDirection="column">
-          <Text color="green">
-            Continuous Conversation [{focus === "middle" ? "focus" : ""}]
-          </Text>
-          {snapshot?.messages.map((message) => (
-            <Text key={message.id}>
-              {message.senderId}: {message.body}
-            </Text>
-          ))}
-          {liveTool ? <Text color="cyan">● {liveTool}…</Text> : null}
-          {streamingText ? <Text color="green">{streamingText}</Text> : null}
-        </Box>
+        <ConversationView
+          messages={snapshot?.messages ?? []}
+          streamingText={streamingText}
+          liveTool={liveTool}
+        />
         <Box width="25%" flexDirection="column">
           <Text color="yellow">
             Runs / Approval / Schedule [{focus === "right" ? "focus" : ""}]
@@ -443,16 +447,25 @@ export function FastMpaTui({
           : {input}
         </Text>
       ) : null}
-      <Text color="gray">
-        {selectedWorkspaceId ?? "default"} /{" "}
-        {selectedConversationId ?? "default"} ·{" "}
-        {composerStatus(snapshot, queuedCount, Boolean(error))}
-        {"\n"}&gt; {input}
-      </Text>
+      <StatusBar
+        workspace={selectedWorkspaceId ?? "default"}
+        conversation={selectedConversationId ?? "default"}
+        status={composerStatus(snapshot, queuedCount, Boolean(error))}
+      />
+      <Text color="gray">&gt; {input}</Text>
       {approval ? (
-        <Text color="yellow">
-          Approval required: Ctrl+A approve, Ctrl+X reject
-        </Text>
+        <ApprovalCard
+          toolName={approval.error?.name ?? "tool"}
+          approvalId={
+            typeof approval.error?.details === "object" &&
+            approval.error.details !== null
+              ? (approval.error.details as { approvalId: string }).approvalId
+              : ""
+          }
+        />
+      ) : null}
+      {detailsVisible && snapshot?.runs[selectedRunIndex] ? (
+        <RunDetails run={snapshot.runs[selectedRunIndex]} />
       ) : null}
       {error ? <Text color="red">Error: {error}</Text> : null}
       {confirmExit ? (
@@ -460,12 +473,7 @@ export function FastMpaTui({
           Unsent messages are queued locally and will be lost. Exit? [y/N]
         </Text>
       ) : null}
-      {commandPalette ? (
-        <Text color="cyan">
-          Commands: [w] Workspace [c] Conversation [r] Runs [l] Logs [n] New
-          item [Esc/Ctrl+K] Close
-        </Text>
-      ) : null}
+      {commandPalette ? <CommandPalette /> : null}
     </Box>
   );
 }
