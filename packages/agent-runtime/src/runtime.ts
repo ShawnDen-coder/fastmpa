@@ -5,7 +5,10 @@ import {
   type TurnResult,
 } from "@shawnden-coder/agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors.js";
-import { LeaseRuntimeWorker } from "./lease-worker.js";
+import {
+  LeaseRuntimeWorker,
+  type LeaseRuntimeLiveEvent,
+} from "./lease-worker.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
 import { mapTurnStatusToRunStatus } from "./status.js";
@@ -43,8 +46,11 @@ export interface RuntimeDependencies {
   readonly pollIntervalMs?: number;
   readonly onWorkerError?: (error: unknown) => void;
   readonly onWorkerRun?: (run: AgentRun) => void;
+  readonly onLiveEvent?: (event: RuntimeLiveEvent) => void;
   readonly logger?: Logger;
 }
+
+export type RuntimeLiveEvent = LeaseRuntimeLiveEvent;
 
 interface ExecutionContext {
   readonly controller: AbortController;
@@ -87,6 +93,7 @@ export class AgentRuntime {
         resolver: dependencies.resolver,
         clock: this.clock,
         logger: this.logger,
+        onLiveEvent: dependencies.onLiveEvent,
       });
       this.workerLoop = new RuntimeWorkerLoop({
         worker: this.leaseWorker,

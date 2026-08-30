@@ -4,6 +4,7 @@ import {
   createLogger,
   type Logger,
   type ModelAdapter,
+  type StreamingModelAdapter,
 } from "@shawnden-coder/agent-core";
 import {
   type AgentRun,
@@ -14,6 +15,7 @@ import {
   type RunDependencyResolver,
   type RunStatus,
   type RuntimeTooling,
+  type RuntimeLiveEvent,
   ScheduleRunner,
   SqliteApprovalStore,
   type SqliteDatabase,
@@ -94,6 +96,7 @@ export type CommandResult = {
   readonly created?: boolean;
 };
 export type ApplicationEventListener = (snapshot: ApplicationSnapshot) => void;
+export type ApplicationEvent = RuntimeLiveEvent;
 export interface FastMpaApplication {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -103,13 +106,14 @@ export interface FastMpaApplication {
   }): Promise<ApplicationSnapshot>;
   dispatch(command: ApplicationCommand): Promise<CommandResult>;
   subscribe(listener: ApplicationEventListener): () => void;
+  subscribeEvents(listener: (event: ApplicationEvent) => void): () => void;
   getRecentLogs(limit?: number): readonly ApplicationLogEntry[];
   subscribeLogs(listener: (entry: ApplicationLogEntry) => void): () => void;
   getLogPath(): string;
 }
 export interface FastMpaApplicationOptions {
   readonly databasePath: string;
-  readonly model?: ModelAdapter;
+  readonly model?: ModelAdapter | StreamingModelAdapter;
   readonly tooling?: RuntimeTooling;
   readonly ownerId?: string;
   readonly logger?: Logger;
@@ -166,6 +170,9 @@ export async function createApplication(
       projector.project(run);
       void publish();
     },
+    onLiveEvent: (event) => {
+      for (const listener of eventListeners) listener(event);
+    },
   });
   const scheduler = new AgentScheduler({
     repository,
@@ -186,6 +193,7 @@ export async function createApplication(
     logger: logger.child({ component: "runtime-scheduler" }),
   });
   const listeners = new Set<ApplicationEventListener>();
+  const eventListeners = new Set<(event: ApplicationEvent) => void>();
   const conversationRuns = new ConversationRunCoordinator();
   let started = false;
   const app: FastMpaApplication = {
@@ -386,6 +394,10 @@ export async function createApplication(
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    subscribeEvents(listener) {
+      eventListeners.add(listener);
+      return () => eventListeners.delete(listener);
     },
     getRecentLogs(limit = 100) {
       return logStore?.getRecent(limit) ?? [];

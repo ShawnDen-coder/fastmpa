@@ -2,6 +2,7 @@ import {
   type Logger,
   runTurn,
   type TurnResult,
+  type TurnLiveEvent,
 } from "@shawnden-coder/agent-core";
 import { RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
@@ -31,7 +32,14 @@ export interface LeaseRuntimeWorkerOptions {
   /** 默认每半个 lease 续租一次。 */
   readonly heartbeatIntervalMs?: number;
   readonly logger?: Logger;
+  readonly onLiveEvent?: (event: LeaseRuntimeLiveEvent) => void;
 }
+
+export type LeaseRuntimeLiveEvent = TurnLiveEvent & {
+  readonly runId: string;
+  readonly attempt: number;
+  readonly context?: AgentRun["context"];
+};
 
 /**
  * 执行持久化 queued Run 的单 Worker。
@@ -129,13 +137,20 @@ export class LeaseRuntimeWorker {
       while (!leaseLost) {
         const result = await runTurn(
           { ...persisted.turn, signal: controller.signal },
-          {
+        {
             model,
             tools,
             logger: this.options.logger?.child({
               runId,
               attempt: current.attempt,
             }),
+            onLiveEvent: (event) =>
+              this.options.onLiveEvent?.({
+                ...event,
+                runId,
+                attempt: current.attempt,
+                context: current.context,
+              }),
           },
         );
         if (leaseLost) return this.store.get(runId);

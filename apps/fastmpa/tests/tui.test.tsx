@@ -25,6 +25,7 @@ describe("FastMpaTui", () => {
       }),
       dispatch: async () => ({}),
       subscribe: () => () => undefined,
+      subscribeEvents: () => () => undefined,
       getRecentLogs: () => [],
       subscribeLogs: () => () => undefined,
       getLogPath: () => "fastmpa.log",

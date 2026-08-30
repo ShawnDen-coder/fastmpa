@@ -7,6 +7,36 @@ import {
 } from "../src/application.js";
 
 describe("FastMpaApplication", () => {
+  it("publishes live streaming events enriched with run context", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const events: string[] = [];
+    const app = await createApplication({
+      databasePath: join(directory, "state.sqlite"),
+      model: {
+        complete: async () => ({ type: "text" as const, content: "fallback" }),
+        async *stream() {
+          yield { type: "text.delta" as const, delta: "实时" };
+          yield { type: "text.delta" as const, delta: "回复" };
+        },
+      },
+    });
+    app.subscribeEvents((event) => {
+      if (event.type === "text.delta") events.push(`${event.runId}:${event.delta}`);
+    });
+    await app.start();
+    const result = await app.dispatch({
+      type: "submit",
+      workspaceId: "default",
+      conversationId: "default",
+      body: "流式测试",
+    });
+
+    expect(result.run?.status).toBe("completed");
+    expect(events).toEqual([`${result.run?.runId}:实时`, `${result.run?.runId}:回复`]);
+    await app.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
+
   it("supports a persistent workspace conversation across switching and restart", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const databasePath = join(directory, "state.sqlite");

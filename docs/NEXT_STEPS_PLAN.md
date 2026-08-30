@@ -14,6 +14,14 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 
 ## Workspace 工作台推进状态（2026-08-30）
 
+### 本批增量：实时事件链
+
+- [x] Core 支持可选 `StreamingModelAdapter`；不支持流式的适配器继续走 `complete()`。
+- [x] Core 通过 `TurnLiveEvent` 发出文本 delta、工具开始/审批/完成和 turn 完成事件。
+- [x] Runtime 为实时事件附加 `runId`、attempt 和 RunContext；delta 只保留在内存，不写 SQLite 或 RuntimeEvent。
+- [x] Application 通过 `subscribeEvents()` 向 TUI 暴露 UI 无关的实时事件。
+- [x] Core 与 Application 测试覆盖流式 delta、最终消息和运行上下文。
+
 - [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
 - [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。

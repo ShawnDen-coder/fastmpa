@@ -37,3 +37,16 @@ export interface ModelAdapter {
     options?: ModelRequestOptions,
   ): Promise<ModelResponse>;
 }
+
+export type ModelStreamEvent =
+  | { readonly type: "text.delta"; readonly delta: string }
+  | { readonly type: "tool.call"; readonly call: ToolCall }
+  | { readonly type: "completed"; readonly response: ModelResponse };
+
+/** Optional incremental model protocol. Adapters may continue to implement only complete(). */
+export interface StreamingModelAdapter extends ModelAdapter {
+  stream(
+    input: ModelInput,
+    options?: ModelRequestOptions,
+  ): AsyncIterable<ModelStreamEvent>;
+}

@@ -93,7 +93,10 @@ import { TurnContext } from "./context/context";
 import { AgentCoreError } from "./errors";
 import { CancellationGuard, checkGuards, StepLimitGuard } from "./guards";
 import { type Logger, logger } from "./logger";
-import type { ModelAdapter } from "./model/adapter";
+import type {
+  ModelAdapter,
+  StreamingModelAdapter,
+} from "./model/adapter";
 import { ModelExecutionError } from "./model/errors";
 import { ToolExecutionError } from "./tools/errors";
 import { ToolExecutor } from "./tools/executor";
@@ -110,6 +113,7 @@ export interface RunTurnOptions {
   readonly tools: ToolRegistry;
   /** Runtime 可以注入带 agentId/runId/turnId 的 child logger。 */
   readonly logger?: Logger;
+  readonly onLiveEvent?: (event: import("./types/turn").TurnLiveEvent) => void;
 }
 
 /** 执行一次有限的模型请求、工具执行循环。 */
@@ -124,6 +128,8 @@ export async function runTurn(
   const executor = new ToolExecutor(options.tools);
   const maxSteps = input.maxSteps ?? 8;
   const log = options.logger ?? logger;
+  const finish = (steps: number, status: TurnStatus, error?: Error) =>
+    finishTurn(log, context, events, steps, status, error, options.onLiveEvent);
 
   log.info({ maxSteps, messageCount: input.messages.length }, "turn started");
 
@@ -139,14 +145,7 @@ export async function runTurn(
 
     if (!guardResult.allowed) {
       log.warn({ step, status: guardResult.status }, "turn stopped by guard");
-      return finishTurn(
-        log,
-        context,
-        events,
-        step,
-        guardResult.status,
-        guardResult.error,
-      );
+      return finish(step, guardResult.status, guardResult.error);
     }
 
     try {
@@ -156,10 +155,7 @@ export async function runTurn(
         "model requested",
       );
       // ModelAdapter 只负责请求模型，不负责执行工具。
-      const response = await options.model.complete(
-        context.toModelInput(options.tools.definitions()),
-        { signal: input.signal },
-      );
+      const response = await requestModel(options.model, context.toModelInput(options.tools.definitions()), input.signal, options.onLiveEvent);
 
       // ModelResponse 是判别联合类型，按 type 分支处理三种响应。
       switch (response.type) {
@@ -169,7 +165,7 @@ export async function runTurn(
             "model returned final text",
           );
           context.addAssistantMessage(response.content);
-          return finishTurn(log, context, events, step + 1, "done");
+          return finish(step + 1, "done");
 
         case "status":
           log.info(
@@ -177,7 +173,7 @@ export async function runTurn(
             "model returned turn status",
           );
           if (response.content) context.addAssistantMessage(response.content);
-          return finishTurn(log, context, events, step + 1, response.status);
+          return finish(step + 1, response.status);
 
         case "tool_calls":
           // 必须先保存 assistant 的 tool_calls，随后追加 tool 结果，消息顺序才符合模型协议。
@@ -192,14 +188,7 @@ export async function runTurn(
               signal: input.signal,
             });
             if (!toolGuardResult.allowed) {
-              return finishTurn(
-                log,
-                context,
-                events,
-                step + 1,
-                toolGuardResult.status,
-                toolGuardResult.error,
-              );
+              return finish(step + 1, toolGuardResult.status, toolGuardResult.error);
             }
 
             events.push({
@@ -212,6 +201,11 @@ export async function runTurn(
               { step, toolCallId: toolCall.id, toolName: toolCall.name },
               "tool called",
             );
+            options.onLiveEvent?.({
+              type: "tool.started",
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+            });
 
             // 工具失败也会返回 ToolResult，不会因为单个工具失败而直接中断整个 Turn。
             const result = await executor.execute(toolCall, {
@@ -220,10 +214,18 @@ export async function runTurn(
             context.addToolResult(result);
 
             if (!result.ok && result.error.code === "approval_required") {
-              return finishTurn(
-                log,
-                context,
-                events,
+              const approvalId =
+                typeof result.error.details === "object" &&
+                result.error.details !== null
+                  ? (result.error.details as { approvalId?: unknown }).approvalId
+                  : undefined;
+              if (typeof approvalId === "string")
+                options.onLiveEvent?.({
+                  type: "tool.approval_required",
+                  toolCallId: toolCall.id,
+                  approvalId,
+                });
+              return finish(
                 step + 1,
                 "waiting",
                 new ToolExecutionError(
@@ -236,14 +238,7 @@ export async function runTurn(
             }
 
             if (!result.ok && result.error.code === "cancelled") {
-              return finishTurn(
-                log,
-                context,
-                events,
-                step + 1,
-                "cancelled",
-                cancellationError(result.error),
-              );
+              return finish(step + 1, "cancelled", cancellationError(result.error));
             }
 
             events.push({
@@ -261,6 +256,11 @@ export async function runTurn(
               },
               "tool finished",
             );
+            options.onLiveEvent?.({
+              type: "tool.completed",
+              toolCallId: toolCall.id,
+              isError: !result.ok,
+            });
           }
           // 工具结果已经写入 Context，下一轮循环会把结果交给模型继续推理。
           break;
@@ -271,28 +271,41 @@ export async function runTurn(
         (error instanceof ModelExecutionError && error.code === "cancelled")
       ) {
         log.warn({ step }, "turn cancelled during operation");
-        return finishTurn(
-          log,
-          context,
-          events,
-          step + 1,
-          "cancelled",
-          cancellationError(error),
-        );
+        return finish(step + 1, "cancelled", cancellationError(error));
       }
 
       // 模型请求或流程异常统一转换为 AgentCoreError，供 Runtime 判断和统计。
       log.error({ step, err: normalizeError(error) }, "turn failed");
-      return finishTurn(
-        log,
-        context,
-        events,
-        step + 1,
-        "failed",
-        toTurnError(error),
-      );
+      return finish(step + 1, "failed", toTurnError(error));
     }
   }
+}
+
+async function requestModel(
+  model: ModelAdapter,
+  input: import("./types/turn").ModelInput,
+  signal: import("./types/turn").CancellationSignal | undefined,
+  onLiveEvent: RunTurnOptions["onLiveEvent"],
+): Promise<import("./model/adapter").ModelResponse> {
+  if (!("stream" in model) || typeof model.stream !== "function")
+    return model.complete(input, { signal });
+
+  let text = "";
+  const toolCalls: import("./types/tool").ToolCall[] = [];
+  let completed: import("./model/adapter").ModelResponse | undefined;
+  for await (const event of (model as StreamingModelAdapter).stream(input, {
+    signal,
+  })) {
+    if (event.type === "text.delta") {
+      text += event.delta;
+      onLiveEvent?.(event);
+    } else if (event.type === "tool.call") toolCalls.push(event.call);
+    else completed = event.response;
+  }
+  if (completed) return completed;
+  if (toolCalls.length > 0)
+    return { type: "tool_calls", content: text, toolCalls };
+  return { type: "text", content: text };
 }
 
 function normalizeError(error: unknown): Error {
@@ -320,15 +333,18 @@ function finishTurn(
   steps: number,
   status: TurnStatus,
   error?: Error,
+  onLiveEvent?: RunTurnOptions["onLiveEvent"],
 ): TurnResult {
   // 所有正常结束、异常结束和预算结束路径都经过这里，保证结果和日志格式一致。
   events.push({ type: "turn_finished", status });
   log.info({ status, steps }, "turn finished");
-  return {
+  const result = {
     status,
     messages: context.messages,
     events,
     steps,
     ...(error ? { error } : {}),
   };
+  onLiveEvent?.({ type: "turn.completed", result });
+  return result;
 }

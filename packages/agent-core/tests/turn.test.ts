@@ -13,6 +13,32 @@ function input(content = "请求") {
 }
 
 describe("runTurn", () => {
+  it("使用 streaming adapter 发出 delta 和完成事件，同时只持久化最终文本到结果", async () => {
+    const live: string[] = [];
+    const model = {
+      complete: async () => ({ type: "text" as const, content: "fallback" }),
+      async *stream() {
+        yield { type: "text.delta" as const, delta: "你好" };
+        yield { type: "text.delta" as const, delta: "，世界" };
+      },
+    };
+    const result = await runTurn(input(), {
+      model,
+      tools: new ToolRegistry(),
+      onLiveEvent: (event) => {
+        if (event.type === "text.delta") live.push(event.delta);
+        if (event.type === "turn.completed")
+          expect(event.result.messages.at(-1)?.content).toBe("你好，世界");
+      },
+    });
+
+    expect(live).toEqual(["你好", "，世界"]);
+    expect(result.messages.at(-1)).toEqual({
+      role: "assistant",
+      content: "你好，世界",
+    });
+  });
+
   it("将 approval_required 工具结果转换为 waiting", async () => {
     const registry = new ToolRegistry();
     registry.register({

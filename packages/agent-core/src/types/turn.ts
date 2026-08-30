@@ -69,6 +69,25 @@ export type TurnEvent =
   /** Turn 进入终止状态，status 表示本次 Turn 的最终结果。 */
   | { readonly type: "turn_finished"; readonly status: TurnStatus };
 
+export type TurnLiveEvent =
+  | { readonly type: "text.delta"; readonly delta: string }
+  | {
+      readonly type: "tool.started";
+      readonly toolCallId: string;
+      readonly toolName: string;
+    }
+  | {
+      readonly type: "tool.approval_required";
+      readonly toolCallId: string;
+      readonly approvalId: string;
+    }
+  | {
+      readonly type: "tool.completed";
+      readonly toolCallId: string;
+      readonly isError: boolean;
+    }
+  | { readonly type: "turn.completed"; readonly result: TurnResult };
+
 export interface TurnResult {
   readonly status: TurnStatus;
   readonly messages: readonly Message[];
