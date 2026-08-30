@@ -1,4 +1,4 @@
-# tool-pipeline
+# Runtime Tool Pipeline
 
 FastMPA 的统一 Tool 调用边界。所有 TAPD、ShotGrid、MCP 等外部动作必须经过本包的校验、策略、审批、幂等和审计流程。
 
@@ -50,8 +50,4 @@ if (decision.status === "approval_required")
 store.close()
 ```
 
-完整审批示例见 [`examples/tool-pipeline-approval.ts`](../../examples/tool-pipeline-approval.ts)：
-
-```bash
-pnpm --filter fastmpa-examples exec vite-node tool-pipeline-approval.ts
-```
+应用层通过 `FastMpaApplication` 的批准/拒绝命令驱动审批恢复。

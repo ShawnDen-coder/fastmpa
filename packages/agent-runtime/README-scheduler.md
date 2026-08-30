@@ -1,4 +1,4 @@
-# agent-scheduler
+# Runtime Scheduler
 
 FastMPA 的 Agent 调度边界，参考 Cumora 的唤醒、Inbox/Agenda triage 和 Runtime dispatch 逻辑。
 
@@ -33,7 +33,7 @@ tests/            # 调度与去重测试
 - `@shawnden-coder/agent-runtime`：提供 Run 入队接口
 - `pnpm test`、`pnpm typecheck`、`pnpm build`
 
-`AgentContext` 当前由 Persona、工具名、Attention 和 Wake 来源组成。`ScheduleRunner` 只负责周期扫描和唤醒，不包含 TAPD/ShotGrid 业务规则；Schedule 定义由 Workspace Repository 持有，当前 Repository 仍是内存实现。多进程部署可把 ClaimStore 替换为 SQLite 实现。
+`AgentContext` 当前由 Persona、工具名、Attention 和 Wake 来源组成。`ScheduleRunner` 只负责周期扫描和唤醒，不包含 TAPD/ShotGrid 业务规则；Schedule 定义由 Workspace Repository 持有。多进程部署可把 ClaimStore 替换为 SQLite 实现。
 
 传入 `dispatch: signal => scheduler.dispatch(signal)` 后调用 `start()` 即可自动派发到 Runtime；不传时可使用 `tick()` 手动观察每次到期信号。
 
@@ -55,8 +55,4 @@ const signal = scheduler.notifySchedule({
 })
 ```
 
-SQLite Workspace 的最小示例见 [`examples/agent-scheduler-wakeup.ts`](../../examples/agent-scheduler-wakeup.ts)：
-
-```bash
-pnpm --filter fastmpa-examples exec vite-node agent-scheduler-wakeup.ts
-```
+应用层通过 `FastMpaApplication` 的 `schedule.create` 命令创建并持久化计划。
