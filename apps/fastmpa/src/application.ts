@@ -284,6 +284,8 @@ export async function createApplication(
           throw new Error(`Workspace not found: ${command.workspaceId}`);
         const agentId = command.agentId ?? "demo-agent";
         const id = command.conversationId ?? randomUUID();
+        if (repository.getConversation(command.workspaceId, id))
+          throw new Error(`Conversation already exists: ${id}`);
         ensureWorkspace(command.workspaceId, id, agentId);
         repository.saveConversation({
           id,

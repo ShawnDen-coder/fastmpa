@@ -7,6 +7,56 @@ import {
 } from "../src/application.js";
 
 describe("FastMpaApplication", () => {
+  it("supports a persistent workspace conversation across switching and restart", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const databasePath = join(directory, "state.sqlite");
+    const first = await createApplication({ databasePath });
+    await first.start();
+    await first.dispatch({
+      type: "workspace.create",
+      workspaceId: "project-a",
+      name: "Project A",
+    });
+    await first.dispatch({
+      type: "conversation.create",
+      workspaceId: "project-a",
+      conversationId: "conversation-a",
+      title: "Daily work",
+    });
+    for (const body of ["one", "two", "three"])
+      await first.dispatch({
+        type: "submit",
+        workspaceId: "project-a",
+        conversationId: "conversation-a",
+        body,
+      });
+    const selected = await first.getSnapshot({
+      workspaceId: "project-a",
+      conversationId: "conversation-a",
+    });
+    expect(
+      selected.messages.filter((item) => item.senderId === "human"),
+    ).toHaveLength(3);
+    expect(selected.runs).toHaveLength(3);
+    expect(
+      (await first.getSnapshot({ workspaceId: "default" })).messages,
+    ).toEqual([]);
+    await first.stop();
+
+    const second = await createApplication({ databasePath });
+    await second.start();
+    const restored = await second.getSnapshot({
+      workspaceId: "project-a",
+      conversationId: "conversation-a",
+    });
+    expect(restored.workspaces).toContainEqual(
+      expect.objectContaining({ id: "project-a", name: "Project A" }),
+    );
+    expect(restored.messages.map((item) => item.body)).toContain("three");
+    await second.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
+
   it("trims model context to the latest complete user/assistant boundary", () => {
     const messages = Array.from({ length: 52 }, (_, index) => ({
       role: (index % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
