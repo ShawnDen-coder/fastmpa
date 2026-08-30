@@ -111,7 +111,7 @@ body {
 .desktop-layout {
   position: relative;
   display: grid;
-  grid-template-columns: 72px 320px minmax(0, 1fr);
+  grid-template-columns: 72px 320px 5px minmax(0, 1fr);
   height: calc(100vh - 44px);
 }
 .rail {
@@ -153,6 +153,19 @@ body {
   padding: 28px 18px;
   background: #f8fafc;
   border-right: 1px solid #dfe6ef;
+}
+.pane-resizer {
+  width: 5px;
+  margin-left: -3px;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 1;
+}
+.pane-resizer:hover,
+.pane-resizer:focus-visible {
+  background: #b8d2f0;
+  outline: 0;
 }
 .pane-heading,
 .chat-header,

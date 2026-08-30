@@ -9,8 +9,10 @@ import type { DesktopInfo } from "../shared/desktop-api.js";
 interface ShellState {
   readonly page: string;
   readonly inspectorRunId?: string;
+  readonly conversationListWidth: number;
   readonly setPage: (page: string) => void;
   readonly setInspectorRunId: (runId?: string) => void;
+  readonly setConversationListWidth: (width: number) => void;
 }
 
 interface SelectionState {
@@ -73,8 +75,11 @@ interface ConversationState {
 export const useShellStore = create<ShellState>((set) => ({
   page: "Conversations",
   inspectorRunId: undefined,
+  conversationListWidth: 320,
   setPage: (page) => set({ page }),
   setInspectorRunId: (inspectorRunId) => set({ inspectorRunId }),
+  setConversationListWidth: (width) =>
+    set({ conversationListWidth: Math.min(520, Math.max(240, width)) }),
 }));
 
 export const useSelectionStore = create<SelectionState>((set) => ({

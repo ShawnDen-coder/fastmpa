@@ -75,6 +75,7 @@ describe("shellStore", () => {
     useShellStore.setState({
       page: "Conversations",
       inspectorRunId: undefined,
+      conversationListWidth: 320,
     }),
   );
 
@@ -83,6 +84,13 @@ describe("shellStore", () => {
     expect(useShellStore.getState().inspectorRunId).toBe("run-1");
     useShellStore.getState().setInspectorRunId(undefined);
     expect(useShellStore.getState().inspectorRunId).toBeUndefined();
+  });
+
+  it("clamps the resizable conversation list to the supported range", () => {
+    useShellStore.getState().setConversationListWidth(100);
+    expect(useShellStore.getState().conversationListWidth).toBe(240);
+    useShellStore.getState().setConversationListWidth(700);
+    expect(useShellStore.getState().conversationListWidth).toBe(520);
   });
 });
 

@@ -206,6 +206,12 @@ function App(): React.JSX.Element {
   const setPage = useShellStore((state) => state.setPage);
   const inspectorRunId = useShellStore((state) => state.inspectorRunId);
   const setInspectorRunId = useShellStore((state) => state.setInspectorRunId);
+  const conversationListWidth = useShellStore(
+    (state) => state.conversationListWidth,
+  );
+  const setConversationListWidth = useShellStore(
+    (state) => state.setConversationListWidth,
+  );
   const selectedWorkspaceId = useSelectionStore((state) => state.workspaceId);
   const setSelectedWorkspaceId = useSelectionStore(
     (state) => state.setWorkspaceId,
@@ -432,6 +438,22 @@ function App(): React.JSX.Element {
     void dispatchMessage(next);
   }, [conversationKey, dequeue, dispatchMessage, sending, sendQueue]);
 
+  function resizeConversationList(
+    event: React.PointerEvent<HTMLButtonElement>,
+  ): void {
+    const startX = event.clientX;
+    const startWidth = conversationListWidth;
+    const handleMove = (moveEvent: PointerEvent): void => {
+      setConversationListWidth(startWidth + moveEvent.clientX - startX);
+    };
+    const handleUp = (): void => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp, { once: true });
+  }
+
   return (
     <main className="app-shell">
       <header className="title-bar">
@@ -487,7 +509,12 @@ function App(): React.JSX.Element {
           Rename
         </button>
       </header>
-      <div className="desktop-layout">
+      <div
+        className="desktop-layout"
+        style={{
+          gridTemplateColumns: `72px ${conversationListWidth}px 5px minmax(0, 1fr)`,
+        }}
+      >
         <nav className="rail" aria-label="Primary navigation">
           <div className="rail-logo">F</div>
           {pages.map((item) => (
@@ -582,6 +609,12 @@ function App(): React.JSX.Element {
             })}
           </div>
         </aside>
+        <button
+          type="button"
+          className="pane-resizer"
+          aria-label="Resize conversation list"
+          onPointerDown={resizeConversationList}
+        />
         <section className="chat-pane">
           <div className="chat-header">
             <div>
