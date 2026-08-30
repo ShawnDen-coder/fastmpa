@@ -411,6 +411,21 @@ body {
   margin-left: 8px;
   background: #c85a5a;
 }
+.run-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.secondary-button {
+  padding: 6px 10px;
+  border: 1px solid #cdd8e6;
+  border-radius: 7px;
+  color: #607086;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
 .eyebrow {
   color: #3276d8;
   font-size: 12px;

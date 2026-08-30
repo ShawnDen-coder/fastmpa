@@ -50,6 +50,10 @@ function RunCard({
 }): React.JSX.Element {
   const pendingApprovalId =
     run.status === "waiting" ? approvalId(run) : undefined;
+  const canCancel = ["queued", "running", "retrying", "waiting"].includes(
+    run.status,
+  );
+  const canRetry = ["failed", "cancelled", "interrupted"].includes(run.status);
   return (
     <article className="run-card">
       <Card
@@ -91,6 +95,36 @@ function RunCard({
           </div>
         </div>
       )}
+      <div className="run-actions">
+        {canRetry && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              void window.fastMpa.application.dispatch({
+                type: "retry",
+                runId: run.runId,
+              })
+            }
+          >
+            Retry
+          </button>
+        )}
+        {canCancel && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              void window.fastMpa.application.dispatch({
+                type: "cancel",
+                runId: run.runId,
+              })
+            }
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </article>
   );
 }
