@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
+import type { ApplicationEvent } from "../application.js";
 import { PageView } from "./page-view.js";
 import {
   useApplicationStore,
@@ -29,6 +30,67 @@ const pages = [
   "Logs",
   "Settings",
 ];
+
+function ToolEventCard({
+  event,
+}: {
+  readonly event: ApplicationEvent;
+}): React.JSX.Element | null {
+  if (event.type === "tool.started") {
+    return (
+      <div className="tool-card">
+        <span>Tool</span>
+        <strong>{event.toolName}</strong>
+        <small>Running</small>
+      </div>
+    );
+  }
+  if (event.type === "tool.completed") {
+    return (
+      <div className="tool-card">
+        <span>Tool</span>
+        <strong>{event.toolCallId.slice(0, 8)}</strong>
+        <small>{event.isError ? "Failed" : "Completed"}</small>
+      </div>
+    );
+  }
+  if (event.type !== "tool.approval_required") return null;
+  return (
+    <div className="tool-card approval-inline">
+      <span>Approval required</span>
+      <strong>{event.toolCallId.slice(0, 8)}</strong>
+      <small>Review this tool call before the run can continue.</small>
+      <div className="run-actions">
+        <button
+          type="button"
+          className="approve-button"
+          onClick={() =>
+            void window.fastMpa.application.dispatch({
+              type: "approve",
+              runId: event.runId,
+              approvalId: event.approvalId,
+            })
+          }
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          className="reject-button"
+          onClick={() =>
+            void window.fastMpa.application.dispatch({
+              type: "reject",
+              runId: event.runId,
+              approvalId: event.approvalId,
+            })
+          }
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function App(): React.JSX.Element {
   const snapshot = useApplicationStore((state) => state.snapshot);
@@ -184,6 +246,21 @@ function App(): React.JSX.Element {
         (message) => message.conversationId === conversationId,
       ) ?? [],
     [snapshot, conversationId],
+  );
+  const toolEvents = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          conversationKey !== undefined &&
+          event.context?.workspaceId &&
+          event.context.conversationId &&
+          `${event.context.workspaceId}:${event.context.conversationId}` ===
+            conversationKey &&
+          (event.type === "tool.started" ||
+            event.type === "tool.approval_required" ||
+            event.type === "tool.completed"),
+      ),
+    [conversationKey, events],
   );
 
   const dispatchMessage = useCallback(
@@ -446,6 +523,9 @@ function App(): React.JSX.Element {
                   )}
                 />
               )}
+              {toolEvents.slice(-8).map((event) => (
+                <ToolEventCard key={JSON.stringify(event)} event={event} />
+              ))}
               {!messagesAtLatest && messages.length > 0 && (
                 <button
                   type="button"

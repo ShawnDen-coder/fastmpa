@@ -353,6 +353,41 @@ body {
   background: #3276d8;
   animation: pulse 1s infinite;
 }
+.tool-card {
+  max-width: 760px;
+  margin: 0 0 14px auto;
+  padding: 12px 14px;
+  border: 1px solid #d8e1ec;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+.tool-card span,
+.tool-card strong,
+.tool-card small {
+  display: block;
+}
+.tool-card span {
+  color: #607086;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.tool-card strong {
+  margin-top: 3px;
+  color: #263445;
+}
+.tool-card small {
+  margin-top: 4px;
+  color: #78879a;
+}
+.approval-inline {
+  border-color: #f1d58e;
+  background: #fff9e8;
+}
+.approval-inline span,
+.approval-inline small {
+  color: #9b7a2f;
+}
 @keyframes pulse {
   50% {
     opacity: 0.25;
