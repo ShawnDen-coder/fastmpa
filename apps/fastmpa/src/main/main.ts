@@ -30,7 +30,7 @@ import {
 
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: "fastmpa",
+    scheme: "app",
     privileges: { standard: true, secure: true, supportFetchAPI: true },
   },
 ]);
@@ -119,7 +119,7 @@ function createWindow(): BrowserWindow {
         if (process.env.FASTMPA_DEVTOOLS === "1")
           window.webContents.openDevTools({ mode: "detach" });
       });
-  else void window.loadURL("fastmpa://app/index.html");
+  else void window.loadURL("app://fastmpa/index.html");
   return window;
 }
 
@@ -230,7 +230,7 @@ function broadcast(channel: string, value: unknown): void {
 
 function registerAppProtocol(): void {
   const rendererRoot = resolve(import.meta.dirname, "../renderer");
-  protocol.handle("fastmpa", (request) => {
+  protocol.handle("app", (request) => {
     const filePath = resolveRendererPath(
       rendererRoot,
       new URL(request.url).pathname,
