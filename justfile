@@ -10,6 +10,11 @@ default:
 init:
     pnpm install
 
+# Load .env, build the desktop entrypoints, and start Electron development mode
+dev:
+    pnpm --filter fastmpa build
+    pnpm --filter fastmpa dev
+
 # Run Biome checks without modifying files
 check:
     pnpm check

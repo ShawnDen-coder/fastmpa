@@ -63,12 +63,11 @@ pnpm --filter fastmpa exec electron .
 
 ### 开发环境（支持热更新）
 
-执行下面一条命令即可启动 Vite Renderer dev server 和 Electron：
+执行下面一条命令即可自动加载根目录 `.env`，启动 Vite Renderer dev server 和 Electron：
 
 ```powershell
 pnpm install
-pnpm --filter fastmpa build
-pnpm --filter fastmpa dev
+just dev
 ```
 
 开发模式会自动打开 DevTools。修改 `apps/fastmpa/src/renderer` 下的组件会通过 React Fast Refresh 热更新；修改 Main 或 Preload 后，停止开发命令，重新执行 `build` 再启动。
