@@ -19,7 +19,16 @@ function log(sequence: number) {
 }
 
 describe("logStore", () => {
-  beforeEach(() => useLogStore.setState({ entries: [] }));
+  beforeEach(() =>
+    useLogStore.setState({
+      entries: [],
+      level: "all",
+      workspaceId: "all",
+      conversationId: "all",
+      runId: "all",
+      followLatest: true,
+    }),
+  );
 
   it("keeps at most 500 live entries", () => {
     for (let sequence = 1; sequence <= 501; sequence += 1)
@@ -38,6 +47,23 @@ describe("logStore", () => {
     expect(
       useLogStore.getState().entries.map((entry) => entry.sequence),
     ).toEqual([1, 2, 3, 4]);
+  });
+
+  it("persists log filters and follow-latest state in the store", () => {
+    const store = useLogStore.getState();
+    store.setLevel("warn");
+    store.setWorkspaceId("workspace-a");
+    store.setConversationId("conversation-a");
+    store.setRunId("run-a");
+    store.setFollowLatest(false);
+
+    expect(useLogStore.getState()).toMatchObject({
+      level: "warn",
+      workspaceId: "workspace-a",
+      conversationId: "conversation-a",
+      runId: "run-a",
+      followLatest: false,
+    });
   });
 });
 

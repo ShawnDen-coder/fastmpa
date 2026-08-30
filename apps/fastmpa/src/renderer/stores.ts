@@ -26,8 +26,18 @@ interface SelectionState {
 
 interface LogState {
   readonly entries: readonly ApplicationLogEntry[];
+  readonly level: "all" | ApplicationLogEntry["level"];
+  readonly workspaceId: string;
+  readonly conversationId: string;
+  readonly runId: string;
+  readonly followLatest: boolean;
   readonly append: (entry: ApplicationLogEntry) => void;
   readonly mergeHistory: (entries: readonly ApplicationLogEntry[]) => void;
+  readonly setLevel: (level: "all" | ApplicationLogEntry["level"]) => void;
+  readonly setWorkspaceId: (workspaceId: string) => void;
+  readonly setConversationId: (conversationId: string) => void;
+  readonly setRunId: (runId: string) => void;
+  readonly setFollowLatest: (followLatest: boolean) => void;
 }
 
 interface RuntimeState {
@@ -74,6 +84,11 @@ export const useSelectionStore = create<SelectionState>((set) => ({
 
 export const useLogStore = create<LogState>((set, get) => ({
   entries: [],
+  level: "all",
+  workspaceId: "all",
+  conversationId: "all",
+  runId: "all",
+  followLatest: true,
   append: (entry) =>
     set((state) => ({ entries: [...state.entries.slice(-499), entry] })),
   mergeHistory: (entries) => {
@@ -86,6 +101,11 @@ export const useLogStore = create<LogState>((set, get) => ({
         .slice(-500),
     });
   },
+  setLevel: (level) => set({ level }),
+  setWorkspaceId: (workspaceId) => set({ workspaceId }),
+  setConversationId: (conversationId) => set({ conversationId }),
+  setRunId: (runId) => set({ runId }),
+  setFollowLatest: (followLatest) => set({ followLatest }),
 }));
 
 export const useRuntimeStore = create<RuntimeState>((set) => ({

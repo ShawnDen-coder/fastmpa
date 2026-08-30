@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Virtuoso } from "react-virtuoso";
 import type {
   ApplicationEvent,
@@ -6,6 +6,7 @@ import type {
   ApplicationSnapshot,
 } from "../application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
+import { useLogStore } from "./stores.js";
 
 interface PageViewProps {
   readonly page: string;
@@ -194,13 +195,16 @@ function LogPage({
 }: {
   readonly logs: readonly ApplicationLogEntry[];
 }): React.JSX.Element {
-  const [level, setLevel] = useState<"all" | ApplicationLogEntry["level"]>(
-    "all",
-  );
-  const [workspaceId, setWorkspaceId] = useState("all");
-  const [conversationId, setConversationId] = useState("all");
-  const [runId, setRunId] = useState("all");
-  const [followLatest, setFollowLatest] = useState(true);
+  const level = useLogStore((state) => state.level);
+  const workspaceId = useLogStore((state) => state.workspaceId);
+  const conversationId = useLogStore((state) => state.conversationId);
+  const runId = useLogStore((state) => state.runId);
+  const followLatest = useLogStore((state) => state.followLatest);
+  const setLevel = useLogStore((state) => state.setLevel);
+  const setWorkspaceId = useLogStore((state) => state.setWorkspaceId);
+  const setConversationId = useLogStore((state) => state.setConversationId);
+  const setRunId = useLogStore((state) => state.setRunId);
+  const setFollowLatest = useLogStore((state) => state.setFollowLatest);
   const contextValues = (field: string): string[] =>
     [...new Set(logs.map((entry) => entry.context[field]).filter(Boolean))].map(
       String,
