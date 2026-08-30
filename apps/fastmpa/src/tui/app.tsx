@@ -50,7 +50,7 @@ export function FastMpaTui({
       exit();
       return;
     }
-    if (approval && (value === "a" || value === "r")) {
+    if (approval && key.ctrl && (value === "a" || value === "x")) {
       const details = approval.error?.details as { approvalId: string };
       void application
         .dispatch({
@@ -133,7 +133,7 @@ export function FastMpaTui({
       <Text color="gray">&gt; {input}</Text>
       {approval ? (
         <Text color="yellow">
-          Approval required: press a to approve or r to reject
+          Approval required: Ctrl+A approve, Ctrl+X reject
         </Text>
       ) : null}
       {error ? <Text color="red">Error: {error}</Text> : null}

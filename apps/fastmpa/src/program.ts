@@ -1,6 +1,7 @@
 import { createLogger } from "@shawnden-coder/agent-core";
 import { Command } from "commander";
 import { bootstrap } from "./bootstrap.js";
+import { launchTui } from "./launch-tui.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -9,6 +10,11 @@ export function createProgram(): Command {
     .name("fastmpa")
     .description("FastMPA agent workspace")
     .version("0.1.0");
+
+  program
+    .command("chat")
+    .description("进入持续对话工作台")
+    .action(async () => launchTui());
 
   program
     .command("doctor")
