@@ -110,6 +110,11 @@ export function FastMpaTui({
         setCommandPalette(false);
         return;
       }
+      if (value === "w" || value === "c" || value === "r") {
+        setFocus(value === "w" ? "left" : value === "c" ? "middle" : "right");
+        setCommandPalette(false);
+        return;
+      }
       if (value === "n") {
         setDialog(focus === "left" ? "workspace" : "conversation");
         setCommandPalette(false);
@@ -457,7 +462,8 @@ export function FastMpaTui({
       ) : null}
       {commandPalette ? (
         <Text color="cyan">
-          Commands: [l] Logs [n] New item [Esc/Ctrl+K] Close
+          Commands: [w] Workspace [c] Conversation [r] Runs [l] Logs [n] New
+          item [Esc/Ctrl+K] Close
         </Text>
       ) : null}
     </Box>
