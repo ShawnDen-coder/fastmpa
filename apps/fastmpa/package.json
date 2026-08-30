@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "FastMPA Windows Desktop application",
+  "author": "FastMPA contributors",
+  "repository": "https://github.com/ShawnDen-coder/fastmpa.git",
   "main": "dist/main/main.mjs",
   "files": ["dist", "resources"],
   "scripts": {
@@ -46,6 +49,7 @@
     "icon": "resources/icon.ico",
     "asar": true,
     "npmRebuild": true,
+    "publish": null,
     "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
     "files": ["dist/**/*", "resources/**/*", "package.json"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
