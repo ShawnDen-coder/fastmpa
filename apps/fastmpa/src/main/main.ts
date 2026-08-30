@@ -1,9 +1,4 @@
-import {
-  copyFileSync,
-  existsSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -283,13 +278,18 @@ async function start(): Promise<void> {
 
 async function prepareLegacyDatabase(databasePath: string): Promise<boolean> {
   const legacyPath = join(process.cwd(), "fastmpa.sqlite");
-  if (legacyPath === databasePath || !existsSync(legacyPath) || existsSync(databasePath))
+  if (
+    legacyPath === databasePath ||
+    !existsSync(legacyPath) ||
+    existsSync(databasePath)
+  )
     return true;
   const choice = await dialog.showMessageBox({
     type: "question",
     title: "FastMPA data found",
     message: "An existing FastMPA database was found in the old workspace.",
-    detail: "Import it into this Desktop installation, start fresh, or cancel startup.",
+    detail:
+      "Import it into this Desktop installation, start fresh, or cancel startup.",
     buttons: ["Import existing data", "Start fresh", "Cancel"],
     defaultId: 0,
     cancelId: 2,
@@ -312,7 +312,9 @@ async function shutdown(): Promise<void> {
   if (currentApplication) {
     const drained = await Promise.race([
       currentApplication.stop().then(() => true),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 15_000)),
+      new Promise<boolean>((resolve) =>
+        setTimeout(() => resolve(false), 15_000),
+      ),
     ]);
     if (!drained) {
       const snapshot = await currentApplication.getSnapshot();

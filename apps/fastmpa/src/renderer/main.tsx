@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from "react";
+import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso } from "react-virtuoso";
@@ -132,26 +132,29 @@ function App(): React.JSX.Element {
     [snapshot, conversationId],
   );
 
-  async function dispatchMessage(body: string): Promise<void> {
-    if (!workspace || !conversationId) return;
-    setSending(true);
-    setSendError(undefined);
-    try {
-      await window.fastMpa.application.dispatch({
-        type: "submit",
-        workspaceId: workspace.id,
-        conversationId,
-        body,
-        agentId: activeAgentId,
-      });
-    } catch (error: unknown) {
-      setSendError(
-        error instanceof Error ? error.message : "Message failed to send",
-      );
-    } finally {
-      setSending(false);
-    }
-  }
+  const dispatchMessage = useCallback(
+    async (body: string): Promise<void> => {
+      if (!workspace || !conversationId) return;
+      setSending(true);
+      setSendError(undefined);
+      try {
+        await window.fastMpa.application.dispatch({
+          type: "submit",
+          workspaceId: workspace.id,
+          conversationId,
+          body,
+          agentId: activeAgentId,
+        });
+      } catch (error: unknown) {
+        setSendError(
+          error instanceof Error ? error.message : "Message failed to send",
+        );
+      } finally {
+        setSending(false);
+      }
+    },
+    [activeAgentId, conversationId, workspace],
+  );
 
   async function submit(): Promise<void> {
     if (!draft.trim() || !workspace || !conversationId) return;
@@ -169,7 +172,7 @@ function App(): React.JSX.Element {
     const [next, ...remaining] = sendQueue;
     setSendQueue(remaining);
     void dispatchMessage(next);
-  }, [sending, sendQueue]);
+  }, [dispatchMessage, sending, sendQueue]);
 
   return (
     <main className="app-shell">
@@ -293,25 +296,28 @@ function App(): React.JSX.Element {
               );
               const status = run?.status ?? (unread ? "waiting" : "active");
               return (
-              <button
-                type="button"
-                className={
-                  conversation.id === conversationId
-                    ? "conversation-item selected"
-                    : "conversation-item"
-                }
-                key={conversation.id}
-                onClick={() => setSelectedConversationId(conversation.id)}
-              >
-                <span className="conversation-dot" />
-                <span>
-                  <strong>
-                    {conversation.title ?? "Untitled conversation"}
-                  </strong>
-                  <small>{lastMessage?.body ?? "No messages yet"}</small>
-                </span>
-                <span className={`conversation-status status-${status}`} title={status} />
-              </button>
+                <button
+                  type="button"
+                  className={
+                    conversation.id === conversationId
+                      ? "conversation-item selected"
+                      : "conversation-item"
+                  }
+                  key={conversation.id}
+                  onClick={() => setSelectedConversationId(conversation.id)}
+                >
+                  <span className="conversation-dot" />
+                  <span>
+                    <strong>
+                      {conversation.title ?? "Untitled conversation"}
+                    </strong>
+                    <small>{lastMessage?.body ?? "No messages yet"}</small>
+                  </span>
+                  <span
+                    className={`conversation-status status-${status}`}
+                    title={status}
+                  />
+                </button>
               );
             })}
           </div>
@@ -431,9 +437,7 @@ function App(): React.JSX.Element {
                     ))}
                   </select>
                 </label>
-                {sendQueue.length > 0 && (
-                  <span>{sendQueue.length} queued</span>
-                )}
+                {sendQueue.length > 0 && <span>{sendQueue.length} queued</span>}
               </div>
               {sendError && (
                 <div className="composer-error" role="alert">
@@ -491,8 +495,10 @@ function App(): React.JSX.Element {
                   <div className="inspector-events">
                     {events
                       .filter((event) => event.runId === run.runId)
-                      .map((event, index) => (
-                        <div key={`${event.type}-${index}`}>
+                      .map((event) => (
+                        <div
+                          key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+                        >
                           <strong>{event.type}</strong>
                           <small>{JSON.stringify(event)}</small>
                         </div>

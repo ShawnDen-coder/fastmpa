@@ -6,12 +6,16 @@ export function resolveRendererPath(
 ): string | undefined {
   let requestedPath: string;
   try {
-    requestedPath = decodeURIComponent(pathname).replace(/^\/+/, "") || "index.html";
+    requestedPath =
+      decodeURIComponent(pathname).replace(/^\/+/, "") || "index.html";
   } catch {
     return undefined;
   }
   const filePath = resolve(rendererRoot, requestedPath);
-  if (filePath !== rendererRoot && !filePath.startsWith(`${rendererRoot}${sep}`))
+  if (
+    filePath !== rendererRoot &&
+    !filePath.startsWith(`${rendererRoot}${sep}`)
+  )
     return undefined;
   return filePath;
 }

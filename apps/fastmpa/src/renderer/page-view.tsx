@@ -211,8 +211,10 @@ function LogPage({
         const context = entry.context;
         return (
           (level === "all" || entry.level === level) &&
-          (workspaceId === "all" || String(context.workspaceId) === workspaceId) &&
-          (conversationId === "all" || String(context.conversationId) === conversationId) &&
+          (workspaceId === "all" ||
+            String(context.workspaceId) === workspaceId) &&
+          (conversationId === "all" ||
+            String(context.conversationId) === conversationId) &&
           (runId === "all" || String(context.runId) === runId)
         );
       }),
@@ -258,7 +260,12 @@ function LogPage({
               <option value="error">Error</option>
             </select>
           </label>
-          {filter("Workspace", workspaceId, setWorkspaceId, contextValues("workspaceId"))}
+          {filter(
+            "Workspace",
+            workspaceId,
+            setWorkspaceId,
+            contextValues("workspaceId"),
+          )}
           {filter(
             "Conversation",
             conversationId,
@@ -353,8 +360,7 @@ export function PageView({
         ))}
       </div>
     );
-  if (page === "Logs")
-    return <LogPage logs={logs} />;
+  if (page === "Logs") return <LogPage logs={logs} />;
   return (
     <div className="settings-grid">
       <Card
