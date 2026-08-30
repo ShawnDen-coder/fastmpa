@@ -43,6 +43,16 @@ assert(
   "better-sqlite3 is not unpacked from asar",
 );
 assert(manifest.build.files?.includes("resources/**/*"), "resources are not packaged");
+for (const pattern of [
+  "dist/main/**/*",
+  "dist/preload/**/*",
+  "dist/renderer/**/*",
+])
+  assert(manifest.build.files?.includes(pattern), `packaged input is missing: ${pattern}`);
+assert(
+  !manifest.build.files?.includes("dist/**/*"),
+  "packaged inputs include recursive build output",
+);
 assert(
   manifest.build.directories?.output === "release",
   "Windows artifacts are not written to release",
