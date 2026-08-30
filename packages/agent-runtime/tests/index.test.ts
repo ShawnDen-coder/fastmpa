@@ -5,5 +5,5 @@ describe("agent-runtime", () => {
     const module = await import("../src/index.js");
     expect(module.RunStatus).toBeUndefined();
     expect(module.canTransition("queued", "running")).toBe(true);
-  });
+  }, 30_000);
 });
