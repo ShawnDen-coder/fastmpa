@@ -57,6 +57,7 @@ export function FastMpaTui({
     React.useState<string>();
   const [selectedAgentId, setSelectedAgentId] = React.useState("demo-agent");
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
+  const [logComponentFilter, setLogComponentFilter] = React.useState<string>();
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [confirmExit, setConfirmExit] = React.useState(false);
   const [selectedRunIndex, setSelectedRunIndex] = React.useState(0);
@@ -351,6 +352,28 @@ export function FastMpaTui({
       } else exit();
       return;
     }
+    if (focus === "logs" && value === "v") {
+      const components = [
+        ...new Set(
+          filteredLogEntries(
+            logs,
+            minimumLogLevel,
+            currentRunOnly,
+            snapshot,
+            selectedRunIndex,
+          ).map((entry) => entry.component),
+        ),
+      ];
+      setLogComponentFilter((current) => {
+        const index = current ? components.indexOf(current) : -1;
+        return index + 1 < components.length
+          ? components[index + 1]
+          : undefined;
+      });
+      setLogFollow(true);
+      setLogOffset(0);
+      return;
+    }
     if (key.ctrl && value === "c") {
       const activeRun = snapshot?.runs.find(
         (run) => run.status === "running" || run.status === "queued",
@@ -435,6 +458,7 @@ export function FastMpaTui({
           currentRunOnly,
           snapshot,
           selectedRunIndex,
+          logComponentFilter,
         );
         const maximum = Math.max(0, filteredLogs.length - 8);
         setLogFollow(false);
@@ -561,6 +585,7 @@ export function FastMpaTui({
           messages={snapshot?.messages ?? []}
           streamingText={activeConversationUi.streamingText}
           liveTool={activeConversationUi.liveTool}
+          queuedCount={activeConversationUi.queuedCount}
         />
       ) : null}
       {!logsVisible && focus !== "middle" ? (
@@ -604,6 +629,7 @@ export function FastMpaTui({
             messages={snapshot?.messages ?? []}
             streamingText={activeConversationUi.streamingText}
             liveTool={activeConversationUi.liveTool}
+            queuedCount={activeConversationUi.queuedCount}
           />
           <Box width="25%" flexDirection="column">
             <AuxiliaryViewPanel snapshot={snapshot} view={auxiliaryView} />
@@ -622,6 +648,7 @@ export function FastMpaTui({
           follow={logFollow}
           workspaceId={selectedWorkspaceId}
           conversationId={selectedConversationId}
+          componentFilter={logComponentFilter}
         />
       ) : null}
       {dialog ? (
@@ -703,6 +730,7 @@ function filteredLogEntries(
   currentRunOnly: boolean,
   snapshot: ApplicationSnapshot | undefined,
   selectedRunIndex: number,
+  componentFilter?: string,
 ): readonly ApplicationLogEntry[] {
   const runId = snapshot?.runs[selectedRunIndex]?.runId;
   return logs
@@ -715,5 +743,9 @@ function filteredLogEntries(
       (entry) =>
         !currentRunOnly ||
         (runId !== undefined && entry.context.runId === runId),
+    )
+    .filter(
+      (entry) =>
+        componentFilter === undefined || entry.component === componentFilter,
     );
 }

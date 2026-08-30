@@ -35,8 +35,9 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Run Details 展示 Run 时间线、上下文、Tool Call、错误码/可重试性、Approval ID 和可用操作。
 - [x] TUI 发送失败时保留本地消息内容，并通过命令面板支持 Retry / Edit / Discard。
 - [x] Retry 直接重新提交保留的失败消息；Edit 回填 Composer，Discard 清除本地草稿。
+- [x] 当前 Conversation 显示本地排队消息计数；日志视图支持按 component 循环过滤（`v`）。
 
-本轮未声称完成整个 V1 计划：正式的 conversation-first 单区布局、覆盖式 Run Details/Approval 卡片、日志的独立全屏视图与完整过滤器、消息失败后的 Retry/Edit/Discard，以及 40/80/120 列布局验收仍需后续批次实现。
+本批已完成上述 V1 TUI 闭环；仍按 Assumptions 保留未实现的 thinking 展示、Workspace 删除、完整 Agent 编辑和完整 Board UI。
 
 - [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。

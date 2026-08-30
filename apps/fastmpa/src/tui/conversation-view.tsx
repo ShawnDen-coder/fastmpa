@@ -7,10 +7,12 @@ export function ConversationView({
   messages,
   streamingText,
   liveTool,
+  queuedCount,
 }: {
   readonly messages: readonly Message[];
   readonly streamingText: string;
   readonly liveTool?: string;
+  readonly queuedCount: number;
 }): React.ReactElement {
   return (
     <Box width="50%" flexDirection="column">
@@ -22,6 +24,9 @@ export function ConversationView({
       ))}
       {liveTool ? <InlineTool toolName={liveTool} status="running" /> : null}
       {streamingText ? <Text color="green">{streamingText}</Text> : null}
+      {queuedCount > 0 ? (
+        <Text color="yellow">Queued messages: {queuedCount}</Text>
+      ) : null}
     </Box>
   );
 }

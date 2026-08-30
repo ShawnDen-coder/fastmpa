@@ -16,6 +16,7 @@ export function LogView({
   follow,
   workspaceId,
   conversationId,
+  componentFilter,
 }: {
   readonly entries: readonly ApplicationLogEntry[];
   readonly snapshot?: ApplicationSnapshot;
@@ -27,6 +28,7 @@ export function LogView({
   readonly follow: boolean;
   readonly workspaceId?: string;
   readonly conversationId?: string;
+  readonly componentFilter?: string;
 }): React.ReactElement {
   const runId = snapshot?.runs[selectedRunIndex]?.runId;
   const filtered = entries
@@ -49,13 +51,17 @@ export function LogView({
         !currentRunOnly ||
         (runId !== undefined && entry.context.runId === runId),
     );
-  const end = Math.max(0, filtered.length - offset);
+  const componentFiltered = componentFilter
+    ? filtered.filter((entry) => entry.component === componentFilter)
+    : filtered;
+  const end = Math.max(0, componentFiltered.length - offset);
   return (
     <Box flexDirection="column" borderStyle="single" borderColor="gray">
       <Text color="gray">
-        Logs · {path} · {follow ? "follow" : "paused"}
+        Logs · {path} · {follow ? "follow" : "paused"} · component:{" "}
+        {componentFilter ?? "all"}
       </Text>
-      {filtered.slice(Math.max(0, end - 16), end).map((entry) => (
+      {componentFiltered.slice(Math.max(0, end - 16), end).map((entry) => (
         <Text
           key={entry.sequence}
           color={
