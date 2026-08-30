@@ -172,6 +172,9 @@ body {
   outline: 0;
   background: #fff;
 }
+.agent-filter {
+  margin-bottom: 12px;
+}
 .conversation-items {
   display: grid;
   gap: 6px;
@@ -186,6 +189,19 @@ body {
   text-align: left;
   background: transparent;
   cursor: pointer;
+}
+.conversation-status {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #48a878;
+}
+.conversation-status.status-waiting {
+  background: #d69b2d;
+}
+.conversation-status.status-failed {
+  background: #c44d4d;
 }
 .conversation-item.selected,
 .conversation-item:hover {

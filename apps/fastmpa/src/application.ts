@@ -83,6 +83,7 @@ export interface ApplicationSnapshot {
     id: string;
     workspaceId: string;
     title?: string;
+    participantIds: readonly string[];
   }[];
   readonly participants: readonly Participant[];
   readonly messages: readonly Message[];

@@ -31,6 +31,7 @@ function App(): React.JSX.Element {
     useState<string>();
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const [search, setSearch] = useState("");
+  const [agentFilter, setAgentFilter] = useState("all");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendQueue, setSendQueue] = useState<readonly string[]>([]);
@@ -87,6 +88,8 @@ function App(): React.JSX.Element {
     snapshot?.conversations.filter(
       (conversation) =>
         conversation.workspaceId === workspace?.id &&
+        (agentFilter === "all" ||
+          conversation.participantIds.includes(agentFilter)) &&
         (conversation.title ?? "Untitled conversation")
           .toLowerCase()
           .includes(search.toLowerCase()),
@@ -246,8 +249,32 @@ function App(): React.JSX.Element {
             placeholder="Search conversations"
             aria-label="Search conversations"
           />
+          <select
+            className="search-input agent-filter"
+            value={agentFilter}
+            onChange={(event) => setAgentFilter(event.target.value)}
+            aria-label="Filter conversations by agent"
+          >
+            <option value="all">All agents</option>
+            {agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
           <div className="conversation-items">
-            {conversations.map((conversation) => (
+            {conversations.map((conversation) => {
+              const lastMessage = snapshot?.messages
+                .filter((message) => message.conversationId === conversation.id)
+                .at(-1);
+              const run = snapshot?.runs.find(
+                (item) => item.context?.conversationId === conversation.id,
+              );
+              const unread = snapshot?.attention?.inbox.some(
+                (message) => message.conversationId === conversation.id,
+              );
+              const status = run?.status ?? (unread ? "waiting" : "active");
+              return (
               <button
                 type="button"
                 className={
@@ -263,10 +290,12 @@ function App(): React.JSX.Element {
                   <strong>
                     {conversation.title ?? "Untitled conversation"}
                   </strong>
-                  <small>Conversation</small>
+                  <small>{lastMessage?.body ?? "No messages yet"}</small>
                 </span>
+                <span className={`conversation-status status-${status}`} title={status} />
               </button>
-            ))}
+              );
+            })}
           </div>
         </aside>
         <section className="chat-pane">
