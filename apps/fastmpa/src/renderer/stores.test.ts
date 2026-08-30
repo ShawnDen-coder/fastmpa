@@ -4,6 +4,7 @@ import {
   useConversationStore,
   useLogStore,
   useRuntimeStore,
+  useShellStore,
 } from "./stores.js";
 
 function log(sequence: number) {
@@ -37,6 +38,22 @@ describe("logStore", () => {
     expect(
       useLogStore.getState().entries.map((entry) => entry.sequence),
     ).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe("shellStore", () => {
+  beforeEach(() =>
+    useShellStore.setState({
+      page: "Conversations",
+      inspectorRunId: undefined,
+    }),
+  );
+
+  it("keeps inspector selection in shell UI state", () => {
+    useShellStore.getState().setInspectorRunId("run-1");
+    expect(useShellStore.getState().inspectorRunId).toBe("run-1");
+    useShellStore.getState().setInspectorRunId(undefined);
+    expect(useShellStore.getState().inspectorRunId).toBeUndefined();
   });
 });
 

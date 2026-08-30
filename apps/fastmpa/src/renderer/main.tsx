@@ -204,6 +204,8 @@ function App(): React.JSX.Element {
   const setClosing = useApplicationStore((state) => state.setClosing);
   const page = useShellStore((state) => state.page);
   const setPage = useShellStore((state) => state.setPage);
+  const inspectorRunId = useShellStore((state) => state.inspectorRunId);
+  const setInspectorRunId = useShellStore((state) => state.setInspectorRunId);
   const selectedWorkspaceId = useSelectionStore((state) => state.workspaceId);
   const setSelectedWorkspaceId = useSelectionStore(
     (state) => state.setWorkspaceId,
@@ -234,7 +236,6 @@ function App(): React.JSX.Element {
   );
   const appendTextDelta = useRuntimeStore((state) => state.appendTextDelta);
   const clearStreaming = useRuntimeStore((state) => state.clearStreaming);
-  const [inspectorRunId, setInspectorRunId] = useState<string>();
   const messageListRef = useRef<VirtuosoHandle>(null);
   const [messagesAtLatest, setMessagesAtLatest] = useState(true);
 

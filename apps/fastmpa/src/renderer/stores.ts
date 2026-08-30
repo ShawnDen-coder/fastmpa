@@ -8,7 +8,9 @@ import type { DesktopInfo } from "../shared/desktop-api.js";
 
 interface ShellState {
   readonly page: string;
+  readonly inspectorRunId?: string;
   readonly setPage: (page: string) => void;
+  readonly setInspectorRunId: (runId?: string) => void;
 }
 
 interface SelectionState {
@@ -55,7 +57,9 @@ interface ConversationState {
 
 export const useShellStore = create<ShellState>((set) => ({
   page: "Conversations",
+  inspectorRunId: undefined,
   setPage: (page) => set({ page }),
+  setInspectorRunId: (inspectorRunId) => set({ inspectorRunId }),
 }));
 
 export const useSelectionStore = create<SelectionState>((set) => ({
