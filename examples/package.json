@@ -9,10 +9,6 @@
   "dependencies": {
     "@shawnden-coder/agent-core": "workspace:*",
     "@shawnden-coder/agent-runtime": "workspace:*",
-    "agent-scheduler": "workspace:*",
-    "apm": "workspace:*",
-    "integrations": "workspace:*",
-    "tool-pipeline": "workspace:*",
     "workspace": "workspace:*"
   },
   "devDependencies": {

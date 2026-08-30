@@ -4,12 +4,10 @@
 
 This repository is a pnpm TypeScript monorepo. Reusable libraries live under
 `packages/`: `agent-core` owns the Turn/Tool loop, `agent-runtime` owns durable
-Runs and leases, `workspace` owns collaboration facts and Attention views,
-`agent-scheduler` owns notification and dispatch, `tool-pipeline` owns policy,
-approval, idempotency and audit, and `integrations` contains TAPD adapters.
+Runs, leases, notification, dispatch, tool policy, approval, idempotency and
+audit, and `workspace` owns collaboration facts and Attention views.
 The private executable is `apps/fastmpa`; architecture and learning plans are
-under `docs/`. Keep platform-specific rules in the appropriate integration or
-APM layer rather than in Core.
+under `docs/`. Keep platform-specific rules out of Core.
 
 ## Build, Test, and Development Commands
 
@@ -33,8 +31,7 @@ Run one member while iterating, for example `pnpm --filter fastmpa test` or
 Use TypeScript, two-space indentation, double quotes, semicolons, and explicit
 return types for exported APIs. Biome is the source of truth for formatting and
 linting. Use `camelCase` for variables/functions, `PascalCase` for classes and
-interfaces, and kebab-case package directories (for example
-`packages/tool-pipeline`). Prefer small modules with named exports and keep
+interfaces, and kebab-case package directories. Prefer small modules with named exports and keep
 cross-package imports pointed at package exports, not internal source paths.
 
 ## Testing Guidelines
