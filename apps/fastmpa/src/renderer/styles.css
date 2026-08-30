@@ -130,6 +130,26 @@ body {
   color: #c85a5a;
   font-size: 12px;
 }
+.composer-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #718096;
+  font-size: 12px;
+}
+.composer-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.composer-options select {
+  border: 1px solid #dfe6ef;
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: #fff;
+  color: #34445a;
+  font: inherit;
+}
 .pane-heading h2,
 .chat-header h2 {
   margin: 2px 0 22px;

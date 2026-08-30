@@ -29,9 +29,11 @@ function App(): React.JSX.Element {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
     useState<string>();
+  const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendQueue, setSendQueue] = useState<readonly string[]>([]);
   const [sendError, setSendError] = useState<string>();
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
@@ -89,6 +91,13 @@ function App(): React.JSX.Element {
           .toLowerCase()
           .includes(search.toLowerCase()),
     ) ?? [];
+  const agents =
+    snapshot?.participants.filter(
+      (participant) =>
+        participant.workspaceId === workspace?.id &&
+        participant.kind === "agent",
+    ) ?? [];
+  const activeAgentId = selectedAgentId ?? agents[0]?.id ?? "demo-agent";
   const conversationId = selectedConversationId ?? conversations[0]?.id;
   useEffect(() => {
     if (conversationId === undefined) setStreamingText("");
@@ -102,8 +111,8 @@ function App(): React.JSX.Element {
     [snapshot, conversationId],
   );
 
-  async function submit(): Promise<void> {
-    if (!draft.trim() || !workspace || !conversationId || sending) return;
+  async function dispatchMessage(body: string): Promise<void> {
+    if (!workspace || !conversationId) return;
     setSending(true);
     setSendError(undefined);
     try {
@@ -111,9 +120,9 @@ function App(): React.JSX.Element {
         type: "submit",
         workspaceId: workspace.id,
         conversationId,
-        body: draft.trim(),
+        body,
+        agentId: activeAgentId,
       });
-      setDraft("");
     } catch (error: unknown) {
       setSendError(
         error instanceof Error ? error.message : "Message failed to send",
@@ -122,6 +131,24 @@ function App(): React.JSX.Element {
       setSending(false);
     }
   }
+
+  async function submit(): Promise<void> {
+    if (!draft.trim() || !workspace || !conversationId) return;
+    const body = draft.trim();
+    setDraft("");
+    if (sending) {
+      setSendQueue((current) => [...current, body]);
+      return;
+    }
+    await dispatchMessage(body);
+  }
+
+  useEffect(() => {
+    if (sending || sendQueue.length === 0) return;
+    const [next, ...remaining] = sendQueue;
+    setSendQueue(remaining);
+    void dispatchMessage(next);
+  }, [sending, sendQueue]);
 
   return (
     <main className="app-shell">
@@ -339,6 +366,28 @@ function App(): React.JSX.Element {
                 placeholder="Message FastMPA…"
                 rows={3}
               />
+              <div className="composer-options">
+                <label>
+                  Agent
+                  <select
+                    value={activeAgentId}
+                    onChange={(event) => setSelectedAgentId(event.target.value)}
+                    disabled={agents.length === 0 || sending}
+                  >
+                    {agents.length === 0 && (
+                      <option value="demo-agent">Default agent</option>
+                    )}
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {sendQueue.length > 0 && (
+                  <span>{sendQueue.length} queued</span>
+                )}
+              </div>
               {sendError && (
                 <div className="composer-error" role="alert">
                   {sendError}
