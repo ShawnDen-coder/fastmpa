@@ -11,7 +11,7 @@ node apps/fastmpa/dist/index.js run "整理今天的任务"
 node apps/fastmpa/dist/index.js
 ```
 
-默认使用演示 Agent 和本地无副作用工具。生产工具应作为 Runtime Tool Pipeline 的受控实现注入，并遵循审批、幂等和审计边界。
+默认使用演示 Agent 和本地无副作用工具。生产工具应作为 Runtime Tooling 的受控实现注入，并遵循审批、幂等和审计边界。
 
 ## Commands
 

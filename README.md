@@ -20,14 +20,14 @@ FastMPA 的目标不是提供一个只会回答问题的聊天机器人，也不
 2. Workspace 保存消息、卡片、日程和读取边界，并为目标 Agent 生成 Inbox/Agenda 视图。
 3. Agent Scheduler 接收变化提醒，加载待处理上下文并判断是否值得启动主 Agent。
 4. Agent Runtime 执行一次 Turn，结合身份、记忆、Skills、Inbox 和 Agenda 决定行动。
-5. Tool Pipeline 经过验证、权限和审计后，回复消息、更新项目对象或操作外部平台。
+5. Tooling 经过验证、权限和审计后，回复消息、更新项目对象或操作外部平台。
 6. 成功处理后推进读取边界并把结果写回 Workspace，形成可追踪、可继续协作的闭环。
 
 ```text
 Workspace
   → Agent Scheduler
   → Agent Runtime / Core Turn
-  → Tool Pipeline
+  → Tooling
   → Workspace / APM / Integrations
 ```
 

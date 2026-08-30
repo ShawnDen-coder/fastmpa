@@ -8,4 +8,4 @@ node apps/fastmpa/dist/index.js doctor
 node apps/fastmpa/dist/index.js run "整理今天的任务"
 ```
 
-Runtime 内置调度与 Tool Pipeline，外部平台适配器应作为未来扩展注入，并继续遵循审批、幂等和审计边界。
+Runtime 内置调度与 Tooling，外部平台适配器应作为未来扩展注入，并继续遵循审批、幂等和审计边界。

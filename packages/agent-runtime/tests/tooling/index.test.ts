@@ -2,13 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { SqliteApprovalStore } from "../../src/tool-pipeline/approval-store.js";
-import { ToolPipeline } from "../../src/tool-pipeline/pipeline.js";
+import { SqliteApprovalStore } from "../../src/tooling/approval-store.js";
+import { ToolPipeline } from "../../src/tooling/pipeline.js";
 import {
   type RegisteredTool,
   ToolRegistry,
   toCoreToolRegistry,
-} from "../../src/tool-pipeline/registry.js";
+} from "../../src/tooling/registry.js";
 
 function writeTool(): RegisteredTool {
   return {
@@ -22,7 +22,7 @@ function writeTool(): RegisteredTool {
   };
 }
 
-describe("tool-pipeline", () => {
+describe("tooling", () => {
   it("projects registered tools into the Core registry", async () => {
     const pipelineRegistry = new ToolRegistry();
     pipelineRegistry.register({

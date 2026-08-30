@@ -1,4 +1,4 @@
-# Runtime Tool Pipeline
+# Runtime Tooling
 
 FastMPA 的统一 Tool 调用边界。所有 TAPD、ShotGrid、MCP 等外部动作必须经过本包的校验、策略、审批、幂等和审计流程。
 

@@ -53,5 +53,5 @@ CLI output or screenshots when changing user-visible behavior.
 
 Never commit credentials. Real TAPD access uses environment variables such as
 `TAPD_API_USER` and `TAPD_API_PASSWORD`; fixtures belong in
-`apps/fastmpa/fixtures/`. External writes must go through Tool Pipeline
+`apps/fastmpa/fixtures/`. External writes must go through Runtime Tooling
 approval, idempotency, old-value checks, and audit logging.

@@ -7,11 +7,11 @@ FastMPA 不是重新设计一套通用 Agent 编排平台，而是在 Cumora 的
 ```text
 Participant + Workspace
   → Agent Scheduler
-  → Runtime/Core + Tool Pipeline
+  → Runtime/Core + Tooling
   → APM + Integrations
 ```
 
-`agent-core`、`agent-runtime`、Workspace、Scheduler、Tool Pipeline 和 TAPD Adapter 已有第一版实现。当前重点是用 TAPD North Star 场景验证“检查—报告—审批—恢复—写入—回执”的完整闭环，再推进周期任务与真实平台接入。
+`agent-core`、`agent-runtime`、Workspace、Scheduler、Tooling 和平台适配器已有第一版实现。当前重点是先稳定本地任务、审批、调度和恢复闭环，再推进真实平台接入。
 
 ## 文档索引
 

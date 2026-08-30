@@ -402,4 +402,4 @@ const runtime = new AgentRuntime(store, {
 生产环境默认使用系统时钟；测试环境使用固定时钟，避免真实时间导致断言不稳定。`runId` 仍由调用方提供，因此暂不增加 ID Generator。
 ## 八、完成后的下一步
 
-Runtime 已稳定，下一步先完成 Workspace 的 Attention 查询，再由单一 Agent Scheduler 融合 Notify、Triage 与 Dispatch。APM、Tool Pipeline 安全能力和平台 Integrations 按 Roadmap 后续接入。Runtime 只负责执行、持久化和恢复，不承担“谁应该处理工作”或“业务动作是否允许”的职责。
+Runtime 已稳定，Scheduler 已在 Runtime 内融合 Notify、Triage 与 Dispatch；Tooling 负责工具安全边界。旧 APM 和平台适配器按 Roadmap 后续接入。Runtime 只负责执行、持久化和恢复，不承担具体业务规则。
