@@ -61,22 +61,6 @@ importers:
         specifier: ^4.1.5
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.12))
 
-  examples:
-    dependencies:
-      '@shawnden-coder/agent-core':
-        specifier: workspace:*
-        version: link:../packages/agent-core
-      '@shawnden-coder/agent-runtime':
-        specifier: workspace:*
-        version: link:../packages/agent-runtime
-      workspace:
-        specifier: workspace:*
-        version: link:../packages/workspace
-    devDependencies:
-      vite-node:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/node@26.4.0)(lightningcss@1.33.0)(supports-color@8.1.1)(tsx@4.23.12)
-
   packages/agent-core:
     dependencies:
       pino:
