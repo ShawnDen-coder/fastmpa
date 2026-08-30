@@ -80,7 +80,7 @@ add-lib name:
     just add-member {{name}} ts-lib packages
 
 
-# Add a Vite-built TypeScript CLI under apps/.
+# Add a Vite-built TypeScript desktop app under apps/.
 add-cli name:
     just add-member {{name}} ts-cli apps
 
