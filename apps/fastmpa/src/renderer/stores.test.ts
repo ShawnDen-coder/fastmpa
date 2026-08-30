@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useConversationStore, useLogStore } from "./stores.js";
+import type { ApplicationEvent } from "../application.js";
+import {
+  useConversationStore,
+  useLogStore,
+  useRuntimeStore,
+} from "./stores.js";
 
 function log(sequence: number) {
   return {
@@ -53,5 +58,42 @@ describe("conversationStore", () => {
     expect(
       useConversationStore.getState().sendQueues["workspace-b:conversation-b"],
     ).toEqual(["second"]);
+  });
+});
+
+describe("runtimeStore", () => {
+  beforeEach(() =>
+    useRuntimeStore.setState({ events: [], streamingByConversation: {} }),
+  );
+
+  it("caps live events and keeps streaming text by conversation", () => {
+    const store = useRuntimeStore.getState();
+    const event = {
+      type: "tool.started",
+      toolCallId: "tool-1",
+      toolName: "demo",
+      runId: "run-1",
+      attempt: 1,
+    } as ApplicationEvent;
+    for (let index = 0; index < 201; index += 1)
+      store.appendEvent({
+        ...event,
+        toolCallId: `tool-${index}`,
+      } as ApplicationEvent);
+    store.appendTextDelta("workspace:conversation", "Hello");
+    store.appendTextDelta("workspace:conversation", " world");
+
+    expect(useRuntimeStore.getState().events).toHaveLength(200);
+    expect(
+      useRuntimeStore.getState().streamingByConversation[
+        "workspace:conversation"
+      ],
+    ).toBe("Hello world");
+    store.clearStreaming("workspace:conversation");
+    expect(
+      useRuntimeStore.getState().streamingByConversation[
+        "workspace:conversation"
+      ],
+    ).toBeUndefined();
   });
 });
