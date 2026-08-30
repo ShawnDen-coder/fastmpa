@@ -512,7 +512,9 @@ function App(): React.JSX.Element {
       <div
         className="desktop-layout"
         style={{
-          gridTemplateColumns: `72px ${conversationListWidth}px 5px minmax(0, 1fr)`,
+          gridTemplateColumns: inspectorRunId
+            ? `72px ${conversationListWidth}px 5px minmax(0, 1fr) 420px`
+            : `72px ${conversationListWidth}px 5px minmax(0, 1fr)`,
         }}
       >
         <nav className="rail" aria-label="Primary navigation">

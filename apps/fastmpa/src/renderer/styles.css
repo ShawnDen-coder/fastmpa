@@ -540,13 +540,10 @@ body {
   flex-direction: column;
 }
 .inspector-pane {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   width: 420px;
-  min-width: 320px;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
   border-left: 1px solid #e7edf4;
   background: #fbfcfe;
@@ -555,6 +552,11 @@ body {
 
 @media (max-width: 1100px) {
   .inspector-pane {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    bottom: 0;
     width: min(420px, calc(100vw - 72px));
     box-shadow: -12px 0 30px rgb(24 34 48 / 12%);
   }
