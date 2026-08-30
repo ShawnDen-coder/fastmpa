@@ -26,6 +26,7 @@ describe("logStore", () => {
       workspaceId: "all",
       conversationId: "all",
       runId: "all",
+      component: "all",
       followLatest: true,
     }),
   );
@@ -55,6 +56,7 @@ describe("logStore", () => {
     store.setWorkspaceId("workspace-a");
     store.setConversationId("conversation-a");
     store.setRunId("run-a");
+    store.setComponent("runtime");
     store.setFollowLatest(false);
 
     expect(useLogStore.getState()).toMatchObject({
@@ -62,6 +64,7 @@ describe("logStore", () => {
       workspaceId: "workspace-a",
       conversationId: "conversation-a",
       runId: "run-a",
+      component: "runtime",
       followLatest: false,
     });
   });

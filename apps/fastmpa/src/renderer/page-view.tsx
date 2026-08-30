@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Virtuoso } from "react-virtuoso";
 import type {
   ApplicationEvent,
@@ -199,11 +199,13 @@ function LogPage({
   const workspaceId = useLogStore((state) => state.workspaceId);
   const conversationId = useLogStore((state) => state.conversationId);
   const runId = useLogStore((state) => state.runId);
+  const component = useLogStore((state) => state.component);
   const followLatest = useLogStore((state) => state.followLatest);
   const setLevel = useLogStore((state) => state.setLevel);
   const setWorkspaceId = useLogStore((state) => state.setWorkspaceId);
   const setConversationId = useLogStore((state) => state.setConversationId);
   const setRunId = useLogStore((state) => state.setRunId);
+  const setComponent = useLogStore((state) => state.setComponent);
   const setFollowLatest = useLogStore((state) => state.setFollowLatest);
   const contextValues = (field: string): string[] =>
     [...new Set(logs.map((entry) => entry.context[field]).filter(Boolean))].map(
@@ -219,11 +221,29 @@ function LogPage({
             String(context.workspaceId) === workspaceId) &&
           (conversationId === "all" ||
             String(context.conversationId) === conversationId) &&
-          (runId === "all" || String(context.runId) === runId)
+          (runId === "all" || String(context.runId) === runId) &&
+          (component === "all" || entry.component === component)
         );
       }),
-    [conversationId, level, logs, runId, workspaceId],
+    [component, conversationId, level, logs, runId, workspaceId],
   );
+  const componentValues = contextValues("component");
+  useEffect(() => {
+    const cycleComponent = (event: KeyboardEvent): void => {
+      if (
+        event.key.toLowerCase() !== "v" ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLSelectElement ||
+        event.target instanceof HTMLTextAreaElement
+      )
+        return;
+      const values = ["all", ...componentValues];
+      const index = values.indexOf(component);
+      setComponent(values[(index + 1) % values.length] ?? "all");
+    };
+    window.addEventListener("keydown", cycleComponent);
+    return () => window.removeEventListener("keydown", cycleComponent);
+  }, [component, componentValues, setComponent]);
   const filter = (
     label: string,
     value: string,
@@ -277,6 +297,7 @@ function LogPage({
             contextValues("conversationId"),
           )}
           {filter("Run", runId, setRunId, contextValues("runId"))}
+          {filter("Component", component, setComponent, componentValues)}
           <label className="follow-toggle">
             <input
               type="checkbox"

@@ -30,6 +30,7 @@ interface LogState {
   readonly workspaceId: string;
   readonly conversationId: string;
   readonly runId: string;
+  readonly component: string;
   readonly followLatest: boolean;
   readonly append: (entry: ApplicationLogEntry) => void;
   readonly mergeHistory: (entries: readonly ApplicationLogEntry[]) => void;
@@ -37,6 +38,7 @@ interface LogState {
   readonly setWorkspaceId: (workspaceId: string) => void;
   readonly setConversationId: (conversationId: string) => void;
   readonly setRunId: (runId: string) => void;
+  readonly setComponent: (component: string) => void;
   readonly setFollowLatest: (followLatest: boolean) => void;
 }
 
@@ -88,6 +90,7 @@ export const useLogStore = create<LogState>((set, get) => ({
   workspaceId: "all",
   conversationId: "all",
   runId: "all",
+  component: "all",
   followLatest: true,
   append: (entry) =>
     set((state) => ({ entries: [...state.entries.slice(-499), entry] })),
@@ -105,6 +108,7 @@ export const useLogStore = create<LogState>((set, get) => ({
   setWorkspaceId: (workspaceId) => set({ workspaceId }),
   setConversationId: (conversationId) => set({ conversationId }),
   setRunId: (runId) => set({ runId }),
+  setComponent: (component) => set({ component }),
   setFollowLatest: (followLatest) => set({ followLatest }),
 }));
 
