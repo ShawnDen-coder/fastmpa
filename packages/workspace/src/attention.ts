@@ -32,7 +32,11 @@ export function loadInbox(
       );
       return repository
         .listMessages(workspaceId, conversation.id)
-        .filter((message) => message.sequence > cursor.lastSequence);
+        .filter(
+          (message) =>
+            message.sequence > cursor.lastSequence &&
+            message.senderId !== agentId,
+        );
     })
     .sort(
       (left, right) =>

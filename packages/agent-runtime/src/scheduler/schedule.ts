@@ -1,3 +1,4 @@
+import type { Logger } from "@shawnden-coder/agent-core";
 import type { Schedule, WorkspaceRepository } from "workspace";
 import type { AgentScheduler, WakeSignal } from "./scheduler.js";
 
@@ -10,6 +11,7 @@ export interface ScheduleRunnerOptions {
   readonly now?: () => number;
   readonly setInterval?: typeof setInterval;
   readonly clearInterval?: typeof clearInterval;
+  readonly logger?: Logger;
 }
 
 /**
@@ -21,6 +23,7 @@ export class ScheduleRunner {
   private readonly startInterval: typeof setInterval;
   private readonly stopInterval: typeof clearInterval;
   private timer: ReturnType<typeof setInterval> | undefined;
+  private cycle: Promise<readonly WakeSignal[]> | undefined;
 
   public constructor(private readonly options: ScheduleRunnerOptions) {
     this.now = options.now ?? Date.now;
@@ -33,6 +36,13 @@ export class ScheduleRunner {
       throw new Error("Schedule intervalMs must be a positive integer");
     if (!Number.isFinite(schedule.nextRunAt))
       throw new Error("Schedule nextRunAt must be a finite timestamp");
+    if (
+      !this.options.repository.getParticipant(
+        schedule.workspaceId,
+        schedule.agentId,
+      )
+    )
+      throw new Error(`Schedule agent not found: ${schedule.agentId}`);
     this.options.repository.saveSchedule(schedule);
   }
 
@@ -53,7 +63,12 @@ export class ScheduleRunner {
   public tick(at = this.now()): readonly WakeSignal[] {
     const signals: WakeSignal[] = [];
     for (const schedule of this.options.repository.listSchedules()) {
-      if (schedule.enabled === false || schedule.nextRunAt > at) continue;
+      if (
+        schedule.enabled === false ||
+        schedule.nextRunAt > at ||
+        (schedule.nextAttemptAt !== undefined && schedule.nextAttemptAt > at)
+      )
+        continue;
       signals.push(
         this.options.scheduler.notifySchedule({
           scheduleId: schedule.id,
@@ -70,14 +85,24 @@ export class ScheduleRunner {
   public async tickAndDispatch(
     at = this.now(),
   ): Promise<readonly WakeSignal[]> {
+    // 同一时间只允许一个派发 cycle，停止时可等待它完成，保证 SQLite 仍然有效。
+    if (this.cycle) return this.cycle;
+    this.cycle = this.dispatchCycle(at).finally(() => {
+      this.cycle = undefined;
+    });
+    return this.cycle;
+  }
+
+  private async dispatchCycle(at: number): Promise<readonly WakeSignal[]> {
     const signals = this.tick(at);
     if (!this.options.dispatch) return signals;
     await Promise.all(
       signals.map(async (signal) => {
         try {
-          await this.options.dispatch?.(signal);
-          this.advance(signal, at);
+          const result = await this.options.dispatch?.(signal);
+          this.advance(signal, at, result);
         } catch (error) {
+          this.fail(signal, at, error);
           this.options.onError?.(error);
         }
       }),
@@ -97,13 +122,17 @@ export class ScheduleRunner {
     }, pollIntervalMs);
   }
 
-  public stop(): void {
-    if (!this.timer) return;
-    this.stopInterval(this.timer);
-    this.timer = undefined;
+  public async stop(): Promise<void> {
+    // 停止新扫描后 drain 当前派发；失败状态会在 dispatchCycle 中持久化。
+    if (this.timer) {
+      this.stopInterval(this.timer);
+      this.timer = undefined;
+    }
+    await this.cycle;
   }
 
-  private advance(signal: WakeSignal, at: number): void {
+  private advance(signal: WakeSignal, at: number, result: unknown): void {
+    // 只有 occurrence 未被其他执行者推进时才更新，保证重试/重放幂等。
     if (signal.scheduledFor === undefined) return;
     const schedule = this.options.repository.getSchedule(
       signal.workspaceId,
@@ -114,6 +143,43 @@ export class ScheduleRunner {
     let nextRunAt = schedule.nextRunAt;
     do nextRunAt += schedule.intervalMs;
     while (nextRunAt <= at);
-    this.options.repository.saveSchedule({ ...schedule, nextRunAt });
+    const runId = isRun(result) ? result.runId : undefined;
+    this.options.repository.saveSchedule({
+      ...schedule,
+      nextRunAt,
+      ...(runId ? { lastRunId: runId } : {}),
+      lastRunAt: at,
+      lastError: undefined,
+      consecutiveFailures: 0,
+      nextAttemptAt: undefined,
+    });
   }
+
+  private fail(signal: WakeSignal, at: number, error: unknown): void {
+    // 失败不推进 occurrence，只把下一次尝试延后并持久化指数退避。
+    if (signal.scheduledFor === undefined) return;
+    const schedule = this.options.repository.getSchedule(
+      signal.workspaceId,
+      signal.sourceRef.id,
+    );
+    if (!schedule || schedule.nextRunAt !== signal.scheduledFor) return;
+    const failures = (schedule.consecutiveFailures ?? 0) + 1;
+    const delay = Math.min(60_000, 1_000 * 2 ** (failures - 1));
+    const message = error instanceof Error ? error.message : String(error);
+    this.options.repository.saveSchedule({
+      ...schedule,
+      lastRunAt: at,
+      lastError: message,
+      consecutiveFailures: failures,
+      nextAttemptAt: at + delay,
+    });
+  }
+}
+
+function isRun(value: unknown): value is { readonly runId: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { runId?: unknown }).runId === "string"
+  );
 }

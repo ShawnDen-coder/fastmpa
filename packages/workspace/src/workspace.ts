@@ -23,9 +23,18 @@ export function sendMessage(
     input.conversationId,
   );
   requireParticipant(repository, input.workspaceId, input.senderId);
+  if (!conversation.participantIds.includes(input.senderId))
+    throw new Error(
+      `Sender ${input.senderId} is not in conversation ${conversation.id}`,
+    );
   const mentions = input.mentions ?? [];
-  for (const participantId of mentions)
+  for (const participantId of mentions) {
     requireParticipant(repository, input.workspaceId, participantId);
+    if (!conversation.participantIds.includes(participantId))
+      throw new Error(
+        `Mention ${participantId} is not in conversation ${conversation.id}`,
+      );
+  }
   const previous = repository.listMessages(input.workspaceId, conversation.id);
   const message: Message = {
     ...input,

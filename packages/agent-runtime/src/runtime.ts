@@ -1,12 +1,14 @@
+import type { Logger } from "@shawnden-coder/agent-core";
 import {
+  logger as coreLogger,
   runTurn,
   type TurnResult,
-  type TurnStatus,
 } from "@shawnden-coder/agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors.js";
 import { LeaseRuntimeWorker } from "./lease-worker.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
+import { mapTurnStatusToRunStatus } from "./status.js";
 import { RunStoreError } from "./store/errors.js";
 import type {
   ListEventsOptions,
@@ -32,13 +34,6 @@ import { systemClock } from "./types/index.js";
 import { RuntimeWorkerLoop } from "./worker-loop.js";
 
 type RunExecutionInput = StartRunInput | ResumeRunInput;
-type TurnRunStatus =
-  | "completed"
-  | "waiting"
-  | "blocked"
-  | "cancelled"
-  | "failed";
-
 export interface RuntimeDependencies {
   /** 可注入的时间来源；默认使用系统时钟。 */
   readonly clock?: Clock;
@@ -48,6 +43,7 @@ export interface RuntimeDependencies {
   readonly pollIntervalMs?: number;
   readonly onWorkerError?: (error: unknown) => void;
   readonly onWorkerRun?: (run: AgentRun) => void;
+  readonly logger?: Logger;
 }
 
 interface ExecutionContext {
@@ -73,11 +69,15 @@ export class AgentRuntime {
   private readonly clock: Clock;
   private readonly leaseWorker?: LeaseRuntimeWorker;
   private readonly workerLoop?: RuntimeWorkerLoop;
+  private readonly logger: Logger;
 
   public constructor(
     private readonly store: RunStore,
     dependencies: RuntimeDependencies = {},
   ) {
+    this.logger = (dependencies.logger ?? coreLogger).child({
+      component: "agent-runtime",
+    });
     this.clock = dependencies.clock ?? systemClock;
     if (dependencies.resolver) {
       const leaseStore = requireLeaseStore(store);
@@ -86,6 +86,7 @@ export class AgentRuntime {
         leaseMs: dependencies.leaseMs ?? 30_000,
         resolver: dependencies.resolver,
         clock: this.clock,
+        logger: this.logger,
       });
       this.workerLoop = new RuntimeWorkerLoop({
         worker: this.leaseWorker,
@@ -93,6 +94,7 @@ export class AgentRuntime {
         pollIntervalMs: dependencies.pollIntervalMs,
         onError: dependencies.onWorkerError,
         onRun: dependencies.onWorkerRun,
+        logger: this.logger.child({ component: "runtime-worker" }),
       });
     }
   }
@@ -150,10 +152,12 @@ export class AgentRuntime {
     if (!this.workerLoop)
       throw new Error("Durable runtime resolver is not configured");
     this.workerLoop.start();
+    this.logger.info("runtime workers started");
   }
 
   public async stopWorkers(): Promise<void> {
-    this.workerLoop?.stop();
+    await this.workerLoop?.stop();
+    this.logger.info("runtime workers stopped");
   }
 
   /** Internal orchestration hook; application code should normally enqueue. */
@@ -435,7 +439,7 @@ export class AgentRuntime {
     running = current;
     sequence = Math.max(sequence, (events.at(-1)?.sequence ?? -1) + 1);
 
-    const status = mapTurnStatus(result.status);
+    const status = mapTurnStatusToRunStatus(result.status);
     const resultPatch = {
       result: toPersistedTurnResult(result),
       ...(result.error === undefined
@@ -493,6 +497,7 @@ export class AgentRuntime {
           )
         ).run;
     }
+    throw new Error(`Unhandled mapped Run status: ${status}`);
   }
 
   private async failRun(
@@ -631,22 +636,6 @@ function toPersistedRunInput(input: StartRunInput): PersistedRunInput {
       : { retryPolicy: input.retryPolicy }),
   };
 }
-function mapTurnStatus(status: TurnStatus): TurnRunStatus {
-  switch (status) {
-    case "done":
-      return "completed";
-    case "waiting":
-    case "needs_clarification":
-      return "waiting";
-    case "blocked":
-      return "blocked";
-    case "cancelled":
-      return "cancelled";
-    case "failed":
-      return "failed";
-  }
-}
-
 function toPersistedTurnResult(result: TurnResult): PersistedTurnResult {
   return {
     status: result.status,

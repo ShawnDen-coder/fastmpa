@@ -1,11 +1,12 @@
 import {
+  type Logger,
   runTurn,
   type TurnResult,
-  type TurnStatus,
 } from "@shawnden-coder/agent-core";
 import { RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
+import { isTerminalRunStatus, mapTurnStatusToRunStatus } from "./status.js";
 import { DuplicateRunError } from "./store/errors.js";
 import { type RunLeaseStore, RunNotFoundError } from "./store/index.js";
 import {
@@ -22,13 +23,6 @@ import {
   systemClock,
 } from "./types/index.js";
 
-type TurnRunStatus =
-  | "completed"
-  | "waiting"
-  | "blocked"
-  | "cancelled"
-  | "failed";
-
 export interface LeaseRuntimeWorkerOptions {
   readonly ownerId: string;
   readonly leaseMs: number;
@@ -36,6 +30,7 @@ export interface LeaseRuntimeWorkerOptions {
   readonly clock?: Clock;
   /** 默认每半个 lease 续租一次。 */
   readonly heartbeatIntervalMs?: number;
+  readonly logger?: Logger;
 }
 
 /**
@@ -134,7 +129,14 @@ export class LeaseRuntimeWorker {
       while (!leaseLost) {
         const result = await runTurn(
           { ...persisted.turn, signal: controller.signal },
-          { model, tools },
+          {
+            model,
+            tools,
+            logger: this.options.logger?.child({
+              runId,
+              attempt: current.attempt,
+            }),
+          },
         );
         if (leaseLost) return this.store.get(runId);
         if (!(await this.appendTurnEvents(runId, result)))
@@ -179,7 +181,7 @@ export class LeaseRuntimeWorker {
     } catch (error) {
       if (leaseLost) return this.store.get(runId);
       const latest = await this.store.get(runId);
-      if (!latest || isTerminal(latest.status)) return latest;
+      if (!latest || isTerminalRunStatus(latest.status)) return latest;
       return this.fail(latest, error);
     } finally {
       stopHeartbeat();
@@ -330,7 +332,7 @@ export class LeaseRuntimeWorker {
     current: AgentRun,
     result: TurnResult,
   ): Promise<AgentRun | undefined> {
-    const status = mapTurnStatus(result.status);
+    const status = mapTurnStatusToRunStatus(result.status);
     const patch = {
       result: toPersistedTurnResult(result),
       ...(result.error === undefined
@@ -449,22 +451,6 @@ function requirePersistedDependencies(
   };
 }
 
-function mapTurnStatus(status: TurnStatus): TurnRunStatus {
-  switch (status) {
-    case "done":
-      return "completed";
-    case "waiting":
-    case "needs_clarification":
-      return "waiting";
-    case "blocked":
-      return "blocked";
-    case "cancelled":
-      return "cancelled";
-    case "failed":
-      return "failed";
-  }
-}
-
 function toPersistedTurnResult(result: TurnResult): PersistedTurnResult {
   return {
     status: result.status,
@@ -488,10 +474,4 @@ function serializeRunError(error: unknown): SerializedRunError {
       : {}),
     ...(details.details === undefined ? {} : { details: details.details }),
   };
-}
-
-function isTerminal(status: RunStatus): boolean {
-  return (
-    status === "completed" || status === "cancelled" || status === "failed"
-  );
 }

@@ -8,6 +8,7 @@ export * from "./lifecycle.js";
 export * from "./retry.js";
 export * from "./runtime.js";
 export * from "./scheduler/index.js";
+export * from "./status.js";
 export * from "./store/index.js";
 export * from "./tooling/index.js";
 export * from "./types/index.js";

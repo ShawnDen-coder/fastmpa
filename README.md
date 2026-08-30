@@ -48,3 +48,9 @@ FastMPA 主要解决以下问题：
 FastMPA 通过统一 Workspace、Runtime Scheduler、可恢复执行和受控 Tooling，将“回答问题”扩展为“持续协助用户完成项目任务”。
 
 项目路线与学习实施计划见 [docs](docs/README.md)。
+
+## 日志
+
+Application 创建唯一 root Pino logger，并向 Core、Runtime、Scheduler 和 Tooling 注入 child logger。默认日志只包含组件、关联 ID、状态、耗时、计数和错误，不写入消息正文、工具参数、工具结果或模型响应；密码、token、authorization、apiKey、cookie 和 secret 会被 redacted。
+
+`FASTMPA_LOG_LEVEL` 控制级别，默认 `info`；`FASTMPA_LOG_PATH` 可指定日志文件，默认与 SQLite 文件同目录的 `fastmpa.log`。TUI 默认只写 JSONL 文件，CLI 日志写 stderr，`run` 的 JSON 结果保持纯 stdout。V1 不轮转日志，生产环境请使用外部轮转工具。

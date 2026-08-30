@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { ModelAdapter } from "@shawnden-coder/agent-core";
+import { dirname, join } from "node:path";
+import {
+  createLogger,
+  type Logger,
+  type ModelAdapter,
+} from "@shawnden-coder/agent-core";
 import {
   type AgentRun,
   AgentRuntime,
@@ -7,6 +12,7 @@ import {
   DefaultRuntimeTooling,
   openSqliteDatabase,
   type RunDependencyResolver,
+  type RunStatus,
   type RuntimeTooling,
   ScheduleRunner,
   SqliteApprovalStore,
@@ -58,9 +64,10 @@ export interface ApplicationSnapshot {
   }[];
   readonly participants: readonly Participant[];
   readonly messages: readonly Message[];
-  readonly runs: readonly AgentRun[];
+  readonly runs: readonly (AgentRun & { readonly phase: RunPhase })[];
   readonly schedules: readonly import("workspace").Schedule[];
 }
+export type RunPhase = "pending" | "active" | "waiting" | "terminal";
 export type CommandResult = {
   readonly run?: AgentRun;
   readonly created?: boolean;
@@ -78,11 +85,25 @@ export interface FastMpaApplicationOptions {
   readonly model?: ModelAdapter;
   readonly tooling?: RuntimeTooling;
   readonly ownerId?: string;
+  readonly logger?: Logger;
+  readonly logPath?: string;
+  readonly prettyLogs?: boolean;
 }
 
 export async function createApplication(
   options: FastMpaApplicationOptions,
 ): Promise<FastMpaApplication> {
+  const logger =
+    options.logger ??
+    createLogger(undefined, {
+      component: "application",
+      logPath:
+        options.logPath ??
+        process.env.FASTMPA_LOG_PATH ??
+        join(dirname(options.databasePath), "fastmpa.log"),
+      pretty: options.prettyLogs ?? false,
+    });
+  // Application 持有唯一 root logger，下面的 Runtime/Scheduler 只消费 child logger。
   const database = await openSqliteDatabase({
     filePath: options.databasePath,
     migrationsFolder: false,
@@ -90,7 +111,7 @@ export async function createApplication(
   const repository: WorkspaceRepository =
     SqliteWorkspaceRepository.fromDatabase(database.client);
   const runStore = SqliteRunStore.fromDatabase(database);
-  const projector = new CompletionProjector(database.client, repository);
+  const projector = new CompletionProjector(repository);
   const model = options.model ?? {
     complete: async () => ({
       type: "text" as const,
@@ -109,6 +130,7 @@ export async function createApplication(
     ownerId: options.ownerId ?? `fastmpa-${process.pid}`,
     leaseMs: 30_000,
     resolver,
+    logger,
     onWorkerRun: (run) => {
       projector.project(run);
       void publish();
@@ -129,7 +151,8 @@ export async function createApplication(
       await publish();
       return run;
     },
-    onError: (error) => void error,
+    onError: (error) => logger.warn({ err: error }, "schedule dispatch failed"),
+    logger: logger.child({ component: "runtime-scheduler" }),
   });
   const listeners = new Set<ApplicationEventListener>();
   let started = false;
@@ -137,6 +160,7 @@ export async function createApplication(
     async start() {
       if (started) return;
       started = true;
+      logger.info("application started");
       worker.startWorkers();
       scheduleRunner.start();
       const persistedRuns = (await runStore.listRuns()).runs;
@@ -146,11 +170,13 @@ export async function createApplication(
     async stop() {
       if (!started) return;
       started = false;
-      scheduleRunner.stop();
+      // 必须先 drain 调度和 Worker，再关闭共享 SQLite 连接。
+      await scheduleRunner.stop();
       await worker.stopWorkers();
       runStore.close();
       (repository as SqliteWorkspaceRepository).close();
       database.client.close();
+      logger.info("application stopped");
     },
     async getSnapshot() {
       const workspaces = repository.listWorkspaceIds?.() ?? ["default"];
@@ -167,7 +193,7 @@ export async function createApplication(
           repository.listParticipants(workspaceId),
         ),
         messages,
-        runs: (await runStore.listRuns()).runs,
+        runs: (await runStore.listRuns()).runs.map(withPhase),
         schedules: repository.listSchedules(),
       };
     },
@@ -213,7 +239,7 @@ export async function createApplication(
       }
       if (command.type === "schedule.create") {
         const id = command.scheduleId ?? randomUUID();
-        repository.saveSchedule({
+        scheduleRunner.upsert({
           id,
           workspaceId: command.workspaceId,
           agentId: command.agentId,
@@ -321,7 +347,39 @@ export async function createApplication(
         participantIds: ["human", agentId],
         createdAt: new Date().toISOString(),
       });
+    else {
+      const conversation = repository.getConversation(
+        workspaceId,
+        conversationId,
+      );
+      if (conversation && !conversation.participantIds.includes(agentId))
+        repository.saveConversation({
+          ...conversation,
+          participantIds: [...conversation.participantIds, agentId],
+        });
+    }
   }
+}
+
+function withPhase(run: AgentRun): AgentRun & { readonly phase: RunPhase } {
+  let phase: RunPhase;
+  switch (run.status as RunStatus) {
+    case "queued":
+      phase = "pending";
+      break;
+    case "running":
+    case "retrying":
+      phase = "active";
+      break;
+    case "waiting":
+    case "blocked":
+    case "interrupted":
+      phase = "waiting";
+      break;
+    default:
+      phase = "terminal";
+  }
+  return { ...run, phase };
 }
 
 function createDefaultTooling(

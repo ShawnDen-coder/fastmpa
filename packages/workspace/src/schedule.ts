@@ -7,6 +7,11 @@ export interface Schedule {
   readonly nextRunAt: number;
   readonly instruction: string;
   readonly enabled?: boolean;
+  readonly lastRunAt?: number;
+  readonly lastRunId?: string;
+  readonly lastError?: string;
+  readonly consecutiveFailures?: number;
+  readonly nextAttemptAt?: number;
   readonly createdAt: string;
 }
 

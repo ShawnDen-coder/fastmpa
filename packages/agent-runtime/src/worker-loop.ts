@@ -1,3 +1,4 @@
+import type { Logger } from "@shawnden-coder/agent-core";
 import type { RunLeaseStore } from "./store/index.js";
 import type { AgentRun } from "./types/index.js";
 
@@ -15,6 +16,7 @@ export interface RuntimeWorkerLoopOptions {
   readonly clearInterval?: typeof clearInterval;
   readonly onError?: (error: unknown) => void;
   readonly onRun?: (run: AgentRun) => void;
+  readonly logger?: Logger;
 }
 
 /**
@@ -53,13 +55,17 @@ export class RuntimeWorkerLoop {
     }, pollIntervalMs);
   }
 
-  public stop(): void {
-    if (!this.timer) return;
-    this.stopInterval(this.timer);
-    this.timer = undefined;
+  public async stop(): Promise<void> {
+    // 先取消定时器，阻止新的 tick；已有 cycle 仍需完整执行后才能关闭 Store。
+    if (this.timer) {
+      this.stopInterval(this.timer);
+      this.timer = undefined;
+    }
+    await this.cycle;
   }
 
   private async runCycle(): Promise<readonly string[]> {
+    // 恢复过期租约和消费 queued Run 属于同一个非重入 cycle，避免重复领取。
     const batchSize = this.options.batchSize ?? 10;
     if (!Number.isInteger(batchSize) || batchSize < 1)
       throw new Error("Runtime worker batchSize must be a positive integer");

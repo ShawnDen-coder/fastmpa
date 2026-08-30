@@ -1,3 +1,4 @@
+import { createLogger } from "@shawnden-coder/agent-core";
 import { Command } from "commander";
 import { bootstrap } from "./bootstrap.js";
 
@@ -15,10 +16,17 @@ export function createProgram(): Command {
     .action(async () => {
       const app = await bootstrap({
         databasePath: process.env.FASTMPA_DB ?? "fastmpa.sqlite",
+        logger: createLogger(undefined, {
+          component: "application",
+          pretty: true,
+        }),
       });
-      await app.start();
-      console.log("SQLite: ok\nDemo Agent: ok");
-      await app.stop();
+      try {
+        await app.start();
+        console.log("SQLite: ok\nDemo Agent: ok");
+      } finally {
+        await app.stop();
+      }
     });
 
   program
@@ -28,22 +36,29 @@ export function createProgram(): Command {
     .action(async (task: string, options: { agent: string }) => {
       const app = await bootstrap({
         databasePath: process.env.FASTMPA_DB ?? "fastmpa.sqlite",
+        logger: createLogger(undefined, {
+          component: "application",
+          pretty: true,
+        }),
       });
-      await app.start();
-      console.log(
-        JSON.stringify(
-          await app.dispatch({
-            type: "submit",
-            workspaceId: "default",
-            conversationId: "default",
-            body: task,
-            agentId: options.agent,
-          }),
-          null,
-          2,
-        ),
-      );
-      await app.stop();
+      try {
+        await app.start();
+        console.log(
+          JSON.stringify(
+            await app.dispatch({
+              type: "submit",
+              workspaceId: "default",
+              conversationId: "default",
+              body: task,
+              agentId: options.agent,
+            }),
+            null,
+            2,
+          ),
+        );
+      } finally {
+        await app.stop();
+      }
     });
 
   return program;
