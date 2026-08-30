@@ -53,12 +53,11 @@ export function FastMpaTui({
         next.selectedConversationId ?? next.conversations[0]?.id,
       );
     });
-    setLogs(application.getRecentLogs?.(100) ?? []);
+    setLogs(application.getRecentLogs(100));
     const unsubscribeSnapshot = application.subscribe(setSnapshot);
-    const unsubscribeLogs =
-      application.subscribeLogs?.((entry) =>
-        setLogs((current) => [...current.slice(-99), entry]),
-      ) ?? (() => undefined);
+    const unsubscribeLogs = application.subscribeLogs((entry) =>
+      setLogs((current) => [...current.slice(-99), entry]),
+    );
     return () => {
       unsubscribeSnapshot();
       unsubscribeLogs();
@@ -161,9 +160,7 @@ export function FastMpaTui({
           Math.min(maximum, Math.max(0, offset + (key.upArrow ? 1 : -1))),
         );
       } else if (focus === "left") {
-        const workspaces = (snapshot?.workspaces ?? []).map((item) =>
-          typeof item === "string" ? { id: item, name: item } : item,
-        );
+        const workspaces = snapshot?.workspaces ?? [];
         const current = Math.max(
           0,
           workspaces.findIndex((item) => item.id === selectedWorkspaceId),
@@ -225,8 +222,8 @@ export function FastMpaTui({
         .then((next) => {
           if (dialog === "workspace") {
             const created = next.workspaces.at(-1);
-            const id = typeof created === "string" ? created : created?.id;
-            if (id) {
+            if (created) {
+              const id = created.id;
               setSelectedWorkspaceId(id);
               return application.getSnapshot({ workspaceId: id });
             }
@@ -272,8 +269,7 @@ export function FastMpaTui({
             Workspace / Conversation [{focus === "left" ? "focus" : ""}]
           </Text>
           {(snapshot?.workspaces ?? []).map((item) => {
-            const workspace =
-              typeof item === "string" ? { id: item, name: item } : item;
+            const workspace = item;
             return (
               <React.Fragment key={workspace.id}>
                 <Text
@@ -333,7 +329,7 @@ export function FastMpaTui({
       {logsVisible ? (
         <Box flexDirection="column" borderStyle="single" borderColor="gray">
           <Text color="gray">
-            Live Logs {application.getLogPath?.() ?? ""} [on]
+            Live Logs {application.getLogPath()} [on]
             {focus === "logs" ? " [focus]" : ""}
             {logFollow ? " [follow]" : " [paused]"}
             {currentRunOnly ? " [current run]" : ""}
@@ -397,7 +393,7 @@ export function FastMpaTui({
 
 function workspaceId(snapshot: ApplicationSnapshot): string | undefined {
   const first = snapshot.workspaces[0];
-  return typeof first === "string" ? first : first?.id;
+  return first?.id;
 }
 
 function composerStatus(

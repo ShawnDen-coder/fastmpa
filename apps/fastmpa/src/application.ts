@@ -73,8 +73,7 @@ export type ApplicationCommand =
       scheduleId: string;
     };
 export interface ApplicationSnapshot {
-  /** String entries remain accepted for lightweight legacy test doubles. */
-  readonly workspaces: readonly (Workspace | string)[];
+  readonly workspaces: readonly Workspace[];
   readonly selectedWorkspaceId?: string;
   readonly selectedConversationId?: string;
   readonly attention?: AttentionSnapshot;
@@ -104,9 +103,9 @@ export interface FastMpaApplication {
   }): Promise<ApplicationSnapshot>;
   dispatch(command: ApplicationCommand): Promise<CommandResult>;
   subscribe(listener: ApplicationEventListener): () => void;
-  getRecentLogs?(limit?: number): readonly ApplicationLogEntry[];
-  subscribeLogs?(listener: (entry: ApplicationLogEntry) => void): () => void;
-  getLogPath?(): string;
+  getRecentLogs(limit?: number): readonly ApplicationLogEntry[];
+  subscribeLogs(listener: (entry: ApplicationLogEntry) => void): () => void;
+  getLogPath(): string;
 }
 export interface FastMpaApplicationOptions {
   readonly databasePath: string;
