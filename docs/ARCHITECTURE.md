@@ -123,6 +123,10 @@ by Application on `workspaceId:conversationId`, so switching the visible
 conversation does not cancel background work or mix its history into another
 conversation.
 
+Snapshots also include the selected Workspace's Attention summary. Unsent
+composer entries are process-local; attempting to exit while they exist asks
+for confirmation and never writes them as durable messages.
+
 When a Run is waiting for approval, the Application coordinator keeps that
 conversation's queue occupied until the approval is resolved. Other
 conversations remain independent.

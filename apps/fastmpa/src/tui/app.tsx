@@ -28,6 +28,7 @@ export function FastMpaTui({
   const [queuedCount, setQueuedCount] = React.useState(0);
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
+  const [confirmExit, setConfirmExit] = React.useState(false);
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
@@ -71,6 +72,11 @@ export function FastMpaTui({
     [application],
   );
   useInput((value, key) => {
+    if (confirmExit) {
+      if (value.toLowerCase() === "y") exit();
+      else if (value.toLowerCase() === "n" || key.escape) setConfirmExit(false);
+      return;
+    }
     if (key.ctrl && value === "l") {
       setLogsVisible((visible) => !visible);
       return;
@@ -116,6 +122,8 @@ export function FastMpaTui({
       );
       if (activeRun) {
         void application.dispatch({ type: "cancel", runId: activeRun.runId });
+      } else if (queuedCount > 0) {
+        setConfirmExit(true);
       } else exit();
       return;
     }
@@ -336,7 +344,7 @@ export function FastMpaTui({
       <Text color="gray">
         {selectedWorkspaceId ?? "default"} /{" "}
         {selectedConversationId ?? "default"} ·{" "}
-        {composerStatus(snapshot, queuedCount)}
+        {composerStatus(snapshot, queuedCount, Boolean(error))}
         {"\n"}&gt; {input}
       </Text>
       {approval ? (
@@ -345,6 +353,11 @@ export function FastMpaTui({
         </Text>
       ) : null}
       {error ? <Text color="red">Error: {error}</Text> : null}
+      {confirmExit ? (
+        <Text color="yellow">
+          Unsent messages are queued locally and will be lost. Exit? [y/N]
+        </Text>
+      ) : null}
     </Box>
   );
 }
@@ -357,7 +370,9 @@ function workspaceId(snapshot: ApplicationSnapshot): string | undefined {
 function composerStatus(
   snapshot: ApplicationSnapshot | undefined,
   queuedCount: number,
+  hasError: boolean,
 ): "ready" | "queued" | "submitting" | "waiting" | "error" {
+  if (hasError) return "error";
   if (queuedCount > 1) return "queued";
   if (queuedCount === 1) return "submitting";
   if (snapshot?.runs.some((run) => run.status === "waiting")) return "waiting";

@@ -22,6 +22,8 @@ import {
   ToolPipeline,
 } from "@shawnden-coder/agent-runtime";
 import {
+  type AttentionSnapshot,
+  loadAttention,
   type Message,
   type Participant,
   SqliteWorkspaceRepository,
@@ -75,6 +77,7 @@ export interface ApplicationSnapshot {
   readonly workspaces: readonly (Workspace | string)[];
   readonly selectedWorkspaceId?: string;
   readonly selectedConversationId?: string;
+  readonly attention?: AttentionSnapshot;
   readonly conversations: readonly {
     id: string;
     workspaceId: string;
@@ -237,6 +240,9 @@ export async function createApplication(
         workspaces,
         selectedWorkspaceId,
         selectedConversationId,
+        attention: selectedWorkspaceId
+          ? loadAttention(repository, selectedWorkspaceId, "demo-agent")
+          : undefined,
         conversations,
         participants: selectedWorkspaceId
           ? repository.listParticipants(selectedWorkspaceId)

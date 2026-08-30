@@ -18,6 +18,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
 - [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
 - [x] Application Snapshot 支持按 Workspace/Conversation 选择范围读取。
+- [x] Snapshot 携带当前 Workspace 的 Attention 摘要；TUI 退出时对未发送本地队列显示确认。
 - [x] 增加 ConversationRunCoordinator，保证同一 Conversation 的 submit 串行；不同 Conversation 可并行，失败后队列继续。
 - [x] 审批 waiting Run 会占用当前 Conversation 队列，直到批准、拒绝或取消后才释放后续消息。
 - [x] 完成三栏 TUI 的三栏焦点、Workspace/Conversation 选择、创建/重命名、队列状态和审批快捷键基础交互。
