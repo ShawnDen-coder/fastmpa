@@ -12,7 +12,7 @@ flowchart LR
     APP[FastMpaApplication\ncommands, snapshots, subscriptions]
     CORE[agent-core\nTurn / Model / Tool protocols]
     RUNTIME[agent-runtime\nRun / queue / lease / recovery\nTooling / approval / audit]
-    WORKSPACE[workspace\nconversation / message / attention\nboard / schedule facts]
+    WORKSPACE[workspace\nWorkspace / conversation / message / attention\nboard / schedule facts]
     DB[(SQLite\nshared application state)]
     EXT[Application Orchestrator\nWorkspace facts → Runtime enqueue]
     PROJ[CompletionProjector\nreply + cursor + receipt]
@@ -94,3 +94,14 @@ stateDiagram-v2
 The persisted Run is the only execution lease. Workspace `ReadCursor` is a
 durable projection of completed message work and is replayed during Application
 startup to compensate for an interrupted projection.
+
+## Continuous workspace model
+
+`Workspace` is a durable collaboration fact with an immutable ID and mutable
+display name. It is not a directory and does not own Runtime execution queues.
+`Conversation` is the continuous-dialogue boundary; each submitted turn still
+creates one persisted `Run`. Application snapshots may be filtered by
+`workspaceId` and `conversationId`, so the TUI can switch selection without
+loading unrelated messages or runs into the active view. Historical records are
+backfilled with a Workspace record when SQLite starts; the legacy `default`
+workspace is displayed as `Default Workspace`.

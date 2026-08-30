@@ -26,11 +26,21 @@ import {
   type Participant,
   SqliteWorkspaceRepository,
   sendMessage,
+  type Workspace,
   type WorkspaceRepository,
 } from "workspace";
 import { CompletionProjector } from "./orchestrator.js";
 
 export type ApplicationCommand =
+  | { type: "workspace.create"; name: string; workspaceId?: string }
+  | { type: "workspace.rename"; workspaceId: string; name: string }
+  | {
+      type: "conversation.create";
+      workspaceId: string;
+      title?: string;
+      conversationId?: string;
+      agentId?: string;
+    }
   | {
       type: "submit";
       workspaceId: string;
@@ -56,7 +66,10 @@ export type ApplicationCommand =
       scheduleId: string;
     };
 export interface ApplicationSnapshot {
-  readonly workspaces: readonly string[];
+  /** String entries remain accepted for lightweight legacy test doubles. */
+  readonly workspaces: readonly (Workspace | string)[];
+  readonly selectedWorkspaceId?: string;
+  readonly selectedConversationId?: string;
   readonly conversations: readonly {
     id: string;
     workspaceId: string;
@@ -76,7 +89,10 @@ export type ApplicationEventListener = (snapshot: ApplicationSnapshot) => void;
 export interface FastMpaApplication {
   start(): Promise<void>;
   stop(): Promise<void>;
-  getSnapshot(): Promise<ApplicationSnapshot>;
+  getSnapshot(query?: {
+    workspaceId?: string;
+    conversationId?: string;
+  }): Promise<ApplicationSnapshot>;
   dispatch(command: ApplicationCommand): Promise<CommandResult>;
   subscribe(listener: ApplicationEventListener): () => void;
 }
@@ -178,26 +194,92 @@ export async function createApplication(
       database.client.close();
       logger.info("application stopped");
     },
-    async getSnapshot() {
-      const workspaces = repository.listWorkspaceIds?.() ?? ["default"];
-      const conversations = workspaces.flatMap((workspaceId) =>
-        repository.listConversations(workspaceId),
-      );
+    async getSnapshot(query = {}) {
+      const now = new Date().toISOString();
+      if (!repository.getWorkspace("default"))
+        repository.saveWorkspace({
+          id: "default",
+          name: "Default Workspace",
+          createdAt: now,
+          updatedAt: now,
+        });
+      const workspaces = repository.listWorkspaces();
+      const selectedWorkspaceId = query.workspaceId ?? workspaces[0]?.id;
+      const selectedConversationId = query.conversationId;
+      const conversations = selectedWorkspaceId
+        ? repository
+            .listConversations(selectedWorkspaceId)
+            .filter(
+              (conversation) =>
+                !selectedConversationId ||
+                conversation.id === selectedConversationId,
+            )
+        : [];
       const messages = conversations.flatMap((conversation) =>
         repository.listMessages(conversation.workspaceId, conversation.id),
       );
       return {
         workspaces,
+        selectedWorkspaceId,
+        selectedConversationId,
         conversations,
-        participants: workspaces.flatMap((workspaceId) =>
-          repository.listParticipants(workspaceId),
-        ),
+        participants: selectedWorkspaceId
+          ? repository.listParticipants(selectedWorkspaceId)
+          : [],
         messages,
-        runs: (await runStore.listRuns()).runs.map(withPhase),
-        schedules: repository.listSchedules(),
+        runs: (await runStore.listRuns()).runs
+          .filter(
+            (run) =>
+              !selectedWorkspaceId ||
+              run.context?.workspaceId === selectedWorkspaceId,
+          )
+          .map(withPhase),
+        schedules: repository.listSchedules(selectedWorkspaceId),
       };
     },
     async dispatch(command) {
+      if (command.type === "workspace.create") {
+        const id = command.workspaceId ?? randomUUID();
+        if (repository.getWorkspace(id))
+          throw new Error(`Workspace already exists: ${id}`);
+        const now = new Date().toISOString();
+        repository.saveWorkspace({
+          id,
+          name: command.name,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await publish();
+        return { created: true };
+      }
+      if (command.type === "workspace.rename") {
+        const workspace = repository.getWorkspace(command.workspaceId);
+        if (!workspace)
+          throw new Error(`Workspace not found: ${command.workspaceId}`);
+        repository.saveWorkspace({
+          ...workspace,
+          name: command.name,
+          updatedAt: new Date().toISOString(),
+        });
+        await publish();
+        return {};
+      }
+      if (command.type === "conversation.create") {
+        if (!repository.getWorkspace(command.workspaceId))
+          throw new Error(`Workspace not found: ${command.workspaceId}`);
+        const agentId = command.agentId ?? "demo-agent";
+        const id = command.conversationId ?? randomUUID();
+        ensureWorkspace(command.workspaceId, id, agentId);
+        repository.saveConversation({
+          id,
+          workspaceId: command.workspaceId,
+          title: command.title,
+          participantIds: ["human", agentId],
+          createdAt: new Date().toISOString(),
+        });
+        await publish();
+        return { created: true };
+      }
       if (command.type === "cancel")
         return publishResult({ run: await worker.cancel(command.runId) });
       if (command.type === "retry") {

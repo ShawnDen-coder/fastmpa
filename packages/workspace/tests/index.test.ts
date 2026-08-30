@@ -8,6 +8,35 @@ import { InMemoryWorkspaceRepository } from "../src/testing.js";
 import { sendMessage } from "../src/workspace.js";
 
 describe("workspace", () => {
+  it("creates, renames, and stably lists workspace facts", () => {
+    const repository = new InMemoryWorkspaceRepository();
+    repository.saveWorkspace({
+      id: "workspace-b",
+      name: "B",
+      createdAt: "2026-01-02T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    repository.saveWorkspace({
+      id: "workspace-a",
+      name: "A",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(repository.listWorkspaces().map((item) => item.id)).toEqual([
+      "workspace-a",
+      "workspace-b",
+    ]);
+    const renamed = repository.getWorkspace("workspace-a");
+    if (!renamed) throw new Error("workspace was not saved");
+    repository.saveWorkspace({
+      ...renamed,
+      name: "Renamed",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    });
+    expect(repository.getWorkspace("workspace-a")?.id).toBe("workspace-a");
+    expect(repository.getWorkspace("workspace-a")?.name).toBe("Renamed");
+  });
+
   it("keeps attention scoped to a workspace and read cursor", () => {
     const repository = new InMemoryWorkspaceRepository();
     repository.saveParticipant({
@@ -223,6 +252,7 @@ describe("workspace", () => {
     first.close();
 
     const second = new SqliteWorkspaceRepository(databasePath);
+    expect(second.getWorkspace("a")?.name).toBe("a");
     expect(second.getParticipant("a", "agent-1")?.name).toBe("TAPD Agent");
     expect(
       second.listMessages("a", "conversation-1").map((item) => item.id),
@@ -234,6 +264,30 @@ describe("workspace", () => {
     expect(
       second.getReadCursor("a", "agent-1", "conversation-1").lastSequence,
     ).toBe(1);
+    second.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("preserves an explicitly stored workspace name across SQLite instances", () => {
+    const directory = mkdtempSync(join(tmpdir(), "fastmpa-workspace-"));
+    const databasePath = join(directory, "workspace.sqlite");
+    const first = new SqliteWorkspaceRepository(databasePath);
+    first.saveWorkspace({
+      id: "a",
+      name: "Project A",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    });
+    first.close();
+    const second = new SqliteWorkspaceRepository(databasePath);
+    expect(second.listWorkspaces()).toEqual([
+      {
+        id: "a",
+        name: "Project A",
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
     second.close();
     rmSync(directory, { recursive: true, force: true });
   });

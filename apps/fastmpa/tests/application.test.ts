@@ -4,6 +4,38 @@ import { describe, expect, it } from "vitest";
 import { createApplication } from "../src/application.js";
 
 describe("FastMpaApplication", () => {
+  it("creates, renames, and filters workspace snapshots", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const app = await createApplication({
+      databasePath: join(directory, "state.sqlite"),
+    });
+    await app.start();
+    await app.dispatch({
+      type: "workspace.create",
+      workspaceId: "project-a",
+      name: "Project A",
+    });
+    await app.dispatch({
+      type: "workspace.rename",
+      workspaceId: "project-a",
+      name: "Renamed Project",
+    });
+    const snapshot = await app.getSnapshot({ workspaceId: "project-a" });
+    expect(snapshot.selectedWorkspaceId).toBe("project-a");
+    expect(snapshot.workspaces).toContainEqual(
+      expect.objectContaining({ id: "project-a", name: "Renamed Project" }),
+    );
+    await expect(
+      app.dispatch({
+        type: "conversation.create",
+        workspaceId: "missing",
+        conversationId: "conversation-1",
+      }),
+    ).rejects.toThrow("Workspace not found");
+    await app.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
+
   it("persists a submitted task, run, and assistant reply", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({

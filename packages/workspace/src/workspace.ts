@@ -3,6 +3,13 @@ import type { Card } from "./board.js";
 import type { Conversation, Message } from "./conversation.js";
 import type { WorkspaceRepository } from "./repository.js";
 
+export interface Workspace {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SendMessageInput {
   id: string;
   workspaceId: string;

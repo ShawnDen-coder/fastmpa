@@ -2,8 +2,12 @@ import type { Board, Card, Column } from "./board.js";
 import type { Conversation, Message, ReadCursor } from "./conversation.js";
 import type { Participant } from "./participant.js";
 import type { Schedule } from "./schedule.js";
+import type { Workspace } from "./workspace.js";
 
 export interface WorkspaceRepository {
+  saveWorkspace(workspace: Workspace): void;
+  getWorkspace(workspaceId: string): Workspace | undefined;
+  listWorkspaces(): readonly Workspace[];
   saveParticipant(participant: Participant): void;
   getParticipant(
     workspaceId: string,
@@ -39,6 +43,7 @@ export interface WorkspaceRepository {
 const key = (workspaceId: string, id: string) => `${workspaceId}:${id}`;
 
 export class InMemoryWorkspaceRepository implements WorkspaceRepository {
+  private readonly workspaces = new Map<string, Workspace>();
   private readonly participants = new Map<string, Participant>();
   private readonly conversations = new Map<string, Conversation>();
   private readonly messages = new Map<string, Message[]>();
@@ -47,6 +52,20 @@ export class InMemoryWorkspaceRepository implements WorkspaceRepository {
   private readonly cards = new Map<string, Card>();
   private readonly cursors = new Map<string, ReadCursor>();
   private readonly schedules = new Map<string, Schedule>();
+
+  saveWorkspace(workspace: Workspace): void {
+    this.workspaces.set(workspace.id, workspace);
+  }
+  getWorkspace(workspaceId: string): Workspace | undefined {
+    return this.workspaces.get(workspaceId);
+  }
+  listWorkspaces(): readonly Workspace[] {
+    return [...this.workspaces.values()].sort(
+      (left, right) =>
+        left.createdAt.localeCompare(right.createdAt) ||
+        left.id.localeCompare(right.id),
+    );
+  }
 
   saveParticipant(participant: Participant): void {
     this.participants.set(
@@ -166,6 +185,7 @@ export class InMemoryWorkspaceRepository implements WorkspaceRepository {
   }
   listWorkspaceIds(): readonly string[] {
     const ids = new Set<string>();
+    for (const value of this.workspaces.values()) ids.add(value.id);
     for (const value of this.participants.values()) ids.add(value.workspaceId);
     for (const value of this.conversations.values()) ids.add(value.workspaceId);
     for (const value of this.schedules.values()) ids.add(value.workspaceId);

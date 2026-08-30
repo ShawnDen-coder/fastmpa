@@ -6,8 +6,10 @@ import type { Conversation, Message, ReadCursor } from "./conversation.js";
 import type { Participant } from "./participant.js";
 import type { WorkspaceRepository } from "./repository.js";
 import type { Schedule } from "./schedule.js";
+import type { Workspace } from "./workspace.js";
 
 type RecordKind =
+  | "workspace"
   | "participant"
   | "conversation"
   | "message"
@@ -62,10 +64,44 @@ export class SqliteWorkspaceRepository implements WorkspaceRepository {
         PRIMARY KEY (workspace_id, agent_id, conversation_id)
       );
     `);
+    this.ensureWorkspaceRecords();
+  }
+
+  private ensureWorkspaceRecords(): void {
+    const rows = this.database
+      .prepare(
+        `SELECT DISTINCT workspace_id AS workspaceId FROM workspace_records WHERE kind <> 'workspace' UNION SELECT DISTINCT workspace_id AS workspaceId FROM workspace_cursors`,
+      )
+      .all() as { workspaceId: string }[];
+    const now = new Date().toISOString();
+    for (const row of rows) {
+      if (this.getWorkspace(row.workspaceId)) continue;
+      this.saveWorkspace({
+        id: row.workspaceId,
+        name:
+          row.workspaceId === "default" ? "Default Workspace" : row.workspaceId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
   }
 
   close(): void {
     if (this.ownsDatabase) this.database.close();
+  }
+
+  saveWorkspace(value: Workspace): void {
+    this.save("workspace", value.id, value.id, value);
+  }
+  getWorkspace(workspaceId: string): Workspace | undefined {
+    return this.get("workspace", workspaceId, workspaceId);
+  }
+  listWorkspaces(): readonly Workspace[] {
+    return this.listAll<Workspace>("workspace").sort(
+      (left, right) =>
+        left.createdAt.localeCompare(right.createdAt) ||
+        left.id.localeCompare(right.id),
+    );
   }
 
   /** Application-owned shared connections are closed by the application. */

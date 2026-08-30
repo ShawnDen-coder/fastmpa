@@ -11,3 +11,12 @@
 Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构范围。
 
 完成以上事项后，再从模拟工具中选择第一个真实平台适配器；所有外部写操作仍必须经过 Runtime 审批、幂等和审计。
+
+## Workspace 工作台推进状态（2026-08-30）
+
+- [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
+- [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
+- [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
+- [x] Application Snapshot 支持按 Workspace/Conversation 选择范围读取。
+- [ ] 增加 ConversationRunCoordinator，保证同一 Conversation 的 submit 串行。
+- [ ] 完成三栏 TUI 的选择、队列、审批和实时日志面板。
