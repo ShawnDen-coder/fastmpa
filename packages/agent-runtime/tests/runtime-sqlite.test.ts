@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FakeModel, ToolRegistry } from "@shawnden-coder/agent-core";
 import { describe, expect, it } from "vitest";
-import { AgentRuntime, SqliteStoreProvider } from "../src/index.js";
+import { AgentRuntime, SqliteRunStore } from "../src/index.js";
 
 function input(runId: string) {
   return {
@@ -18,16 +18,14 @@ describe("AgentRuntime with SQLite", () => {
   it("persists a completed Run and events across runtime recreation", async () => {
     const directory = await mkdtemp(join(tmpdir(), "fastmpa-runtime-"));
     const filePath = join(directory, "runtime.db");
-    const provider = new SqliteStoreProvider();
-
     try {
-      const firstStore = await provider.create({ filePath });
+      const firstStore = await SqliteRunStore.open({ filePath });
       const firstRuntime = new AgentRuntime(firstStore);
       const completed = await firstRuntime.startRun(input("run-1"));
       const firstEvents = await firstStore.listEvents("run-1");
       firstStore.close();
 
-      const secondStore = await provider.create({ filePath });
+      const secondStore = await SqliteRunStore.open({ filePath });
       const secondRuntime = new AgentRuntime(secondStore);
       const restored = await secondRuntime.getRun("run-1");
       const secondEvents = await secondStore.listEvents("run-1");
