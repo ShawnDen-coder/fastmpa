@@ -9,6 +9,7 @@ import type {
 import { ApprovalCard } from "./approval-card.js";
 import { CommandPalette } from "./command-palette.js";
 import { ConversationView } from "./conversation-view.js";
+import { LogView } from "./log-view.js";
 import { RunDetails } from "./run-details.js";
 import { StatusBar } from "./status-bar.js";
 
@@ -343,99 +344,102 @@ export function FastMpaTui({
     else if (!key.ctrl && !key.meta && value)
       setInput((current) => current + value);
   });
+  const workspaceName =
+    snapshot?.workspaces.find((item) => item.id === selectedWorkspaceId)
+      ?.name ??
+    selectedWorkspaceId ??
+    "default";
+  const conversationName =
+    snapshot?.conversations.find((item) => item.id === selectedConversationId)
+      ?.title ??
+    selectedConversationId ??
+    "default";
+  React.useEffect(() => {
+    if (focus === "logs") setLogsVisible(true);
+  }, [focus]);
   return (
     <Box flexDirection="column">
-      <Box>
-        <Box width="25%" flexDirection="column">
-          <Text color="cyan">
-            Workspace / Conversation [{focus === "left" ? "focus" : ""}]
-          </Text>
-          {(snapshot?.workspaces ?? []).map((item) => {
-            const workspace = item;
-            return (
-              <React.Fragment key={workspace.id}>
-                <Text
-                  color={
-                    workspace.id === selectedWorkspaceId ? "cyan" : undefined
-                  }
-                >
-                  {workspace.id === selectedWorkspaceId ? "> " : "  "}
-                  {workspace.name}
-                </Text>
-                {workspace.id === selectedWorkspaceId
-                  ? snapshot?.conversations.map((conversation) => (
-                      <Text key={conversation.id}>
-                        {conversation.id === selectedConversationId
-                          ? "  > "
-                          : "    "}
-                        {conversation.title ?? conversation.id}
-                      </Text>
-                    ))
-                  : null}
-              </React.Fragment>
-            );
-          })}
-          {snapshot?.participants.map((participant) => (
-            <Text key={participant.id}>
-              {participant.kind}: {participant.name}
-            </Text>
-          ))}
-        </Box>
+      <Text color="cyan">
+        FastMPA · {workspaceName} / {conversationName} · Demo Agent
+      </Text>
+      {!logsVisible && focus === "middle" ? (
         <ConversationView
           messages={snapshot?.messages ?? []}
           streamingText={streamingText}
           liveTool={liveTool}
         />
-        <Box width="25%" flexDirection="column">
-          <Text color="yellow">
-            Runs / Approval / Schedule [{focus === "right" ? "focus" : ""}]
-          </Text>
-          {snapshot?.runs.map((run, index) => (
-            <Text
-              key={run.runId}
-              color={index === selectedRunIndex ? "yellow" : undefined}
-            >
-              {run.runId.slice(0, 12)} {run.status}
+      ) : null}
+      {!logsVisible && focus !== "middle" ? (
+        <Box>
+          <Box width="25%" flexDirection="column">
+            <Text color="cyan">
+              Workspace / Conversation [{focus === "left" ? "focus" : ""}]
             </Text>
-          ))}
-          {snapshot?.schedules.map((schedule) => (
-            <Text key={schedule.id}>schedule {schedule.id.slice(0, 12)}</Text>
-          ))}
-        </Box>
-      </Box>
-      {logsVisible ? (
-        <Box flexDirection="column" borderStyle="single" borderColor="gray">
-          <Text color="gray">
-            Live Logs {application.getLogPath()} [on]
-            {focus === "logs" ? " [focus]" : ""}
-            {logFollow ? " [follow]" : " [paused]"}
-            {currentRunOnly ? " [current run]" : ""}
-          </Text>
-          {(() => {
-            const filtered = filteredLogEntries(
-              logs,
-              minimumLogLevel,
-              currentRunOnly,
-              snapshot,
-              selectedRunIndex,
-            );
-            const end = Math.max(0, filtered.length - logOffset);
-            return filtered.slice(Math.max(0, end - 8), end).map((entry) => (
-              <Text
-                key={entry.sequence}
-                color={
-                  entry.level === "error"
-                    ? "red"
-                    : entry.level === "warn"
-                      ? "yellow"
-                      : "gray"
-                }
-              >
-                {entry.timestamp} {entry.component}: {entry.message}
+            {(snapshot?.workspaces ?? []).map((item) => {
+              const workspace = item;
+              return (
+                <React.Fragment key={workspace.id}>
+                  <Text
+                    color={
+                      workspace.id === selectedWorkspaceId ? "cyan" : undefined
+                    }
+                  >
+                    {workspace.id === selectedWorkspaceId ? "> " : "  "}
+                    {workspace.name}
+                  </Text>
+                  {workspace.id === selectedWorkspaceId
+                    ? snapshot?.conversations.map((conversation) => (
+                        <Text key={conversation.id}>
+                          {conversation.id === selectedConversationId
+                            ? "  > "
+                            : "    "}
+                          {conversation.title ?? conversation.id}
+                        </Text>
+                      ))
+                    : null}
+                </React.Fragment>
+              );
+            })}
+            {snapshot?.participants.map((participant) => (
+              <Text key={participant.id}>
+                {participant.kind}: {participant.name}
               </Text>
-            ));
-          })()}
+            ))}
+          </Box>
+          <ConversationView
+            messages={snapshot?.messages ?? []}
+            streamingText={streamingText}
+            liveTool={liveTool}
+          />
+          <Box width="25%" flexDirection="column">
+            <Text color="yellow">
+              Runs / Approval / Schedule [{focus === "right" ? "focus" : ""}]
+            </Text>
+            {snapshot?.runs.map((run, index) => (
+              <Text
+                key={run.runId}
+                color={index === selectedRunIndex ? "yellow" : undefined}
+              >
+                {run.runId.slice(0, 12)} {run.status}
+              </Text>
+            ))}
+            {snapshot?.schedules.map((schedule) => (
+              <Text key={schedule.id}>schedule {schedule.id.slice(0, 12)}</Text>
+            ))}
+          </Box>
         </Box>
+      ) : null}
+      {logsVisible ? (
+        <LogView
+          entries={logs}
+          snapshot={snapshot}
+          path={application.getLogPath()}
+          minimumLevel={minimumLogLevel}
+          currentRunOnly={currentRunOnly}
+          selectedRunIndex={selectedRunIndex}
+          offset={logOffset}
+          follow={logFollow}
+        />
       ) : null}
       {dialog ? (
         <Text color="cyan">
