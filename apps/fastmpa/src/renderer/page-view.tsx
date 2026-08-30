@@ -29,6 +29,72 @@ function Card({
   );
 }
 
+function approvalId(
+  run: ApplicationSnapshot["runs"][number],
+): string | undefined {
+  const details = run.error?.details;
+  if (
+    typeof details !== "object" ||
+    details === null ||
+    !("approvalId" in details)
+  )
+    return undefined;
+  const value = details.approvalId;
+  return typeof value === "string" ? value : undefined;
+}
+
+function RunCard({
+  run,
+}: {
+  readonly run: ApplicationSnapshot["runs"][number];
+}): React.JSX.Element {
+  const pendingApprovalId =
+    run.status === "waiting" ? approvalId(run) : undefined;
+  return (
+    <article className="run-card">
+      <Card
+        label={run.phase}
+        value={run.status}
+        detail={`${run.runId.slice(0, 8)} · attempt ${run.attempt}`}
+      />
+      {pendingApprovalId && (
+        <div className="approval-card">
+          <strong>Approval required</strong>
+          <small>{pendingApprovalId.slice(0, 8)}</small>
+          <div>
+            <button
+              type="button"
+              className="approve-button"
+              onClick={() =>
+                void window.fastMpa.application.dispatch({
+                  type: "approve",
+                  runId: run.runId,
+                  approvalId: pendingApprovalId,
+                })
+              }
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              className="reject-button"
+              onClick={() =>
+                void window.fastMpa.application.dispatch({
+                  type: "reject",
+                  runId: run.runId,
+                  approvalId: pendingApprovalId,
+                })
+              }
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 export function PageView({
   page,
   snapshot,
@@ -55,12 +121,7 @@ export function PageView({
       <div className="run-page">
         <div className="page-grid">
           {(snapshot?.runs ?? []).map((run) => (
-            <Card
-              key={run.runId}
-              label={run.phase}
-              value={run.status}
-              detail={`${run.runId.slice(0, 8)} · attempt ${run.attempt}`}
-            />
+            <RunCard key={run.runId} run={run} />
           ))}
         </div>
         <div className="event-timeline">
