@@ -3,6 +3,12 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import type { FastMpaApplication } from "../application.js";
 import { bootstrap } from "../bootstrap.js";
 import { desktopChannels } from "../shared/desktop-api.js";
+import {
+  type IpcResponse,
+  invalidPayload,
+  isApplicationCommand,
+  isSnapshotQuery,
+} from "../shared/ipc.js";
 
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
@@ -34,29 +40,97 @@ function createWindow(): BrowserWindow {
 }
 
 function registerIpc(): void {
-  ipcMain.handle(desktopChannels.getSnapshot, (_event, query) =>
-    application?.getSnapshot(query),
-  );
-  ipcMain.handle(desktopChannels.dispatch, (_event, command) =>
-    application?.dispatch(command),
-  );
-  ipcMain.handle(desktopChannels.getRecentLogs, (_event, limit) =>
-    application?.getRecentLogs(limit),
-  );
-  ipcMain.handle(desktopChannels.getInfo, () => ({
-    version: app.getVersion(),
-    platform: process.platform,
-    arch: process.arch,
-  }));
-  ipcMain.handle(desktopChannels.openExternal, (_event, url: string) => {
-    if (!url.startsWith("https://"))
-      throw new Error("Only HTTPS URLs are allowed");
-    return shell.openExternal(url);
+  ipcMain.handle(desktopChannels.getSnapshot, (_event, query) => {
+    if (!isSnapshotQuery(query))
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Invalid snapshot query"),
+      });
+    return respond(() => requireApplication().getSnapshot(query));
   });
-  ipcMain.handle(
-    desktopChannels.revealLogFile,
-    () => application && shell.showItemInFolder(application.getLogPath()),
+  ipcMain.handle(desktopChannels.dispatch, (_event, command) => {
+    if (!isApplicationCommand(command))
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Invalid application command"),
+      });
+    return respond(() => requireApplication().dispatch(command));
+  });
+  ipcMain.handle(desktopChannels.getRecentLogs, (_event, limit: unknown) => {
+    if (
+      limit !== undefined &&
+      (typeof limit !== "number" ||
+        !Number.isInteger(limit) ||
+        limit < 0 ||
+        limit > 500)
+    )
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Invalid log limit"),
+      });
+    return respond(() =>
+      Promise.resolve(
+        requireApplication().getRecentLogs(limit as number | undefined),
+      ),
+    );
+  });
+  ipcMain.handle(desktopChannels.getInfo, () =>
+    Promise.resolve({
+      ok: true,
+      value: {
+        version: app.getVersion(),
+        platform: process.platform,
+        arch: process.arch,
+      },
+    }),
   );
+  ipcMain.handle(desktopChannels.openExternal, (_event, url: unknown) => {
+    if (typeof url !== "string" || !url.startsWith("https://"))
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Only HTTPS URLs are allowed"),
+      });
+    return respond(() => shell.openExternal(url));
+  });
+  ipcMain.handle(desktopChannels.revealLogFile, () =>
+    respond(() => {
+      shell.showItemInFolder(requireApplication().getLogPath());
+    }),
+  );
+}
+
+function requireApplication(): FastMpaApplication {
+  if (!application)
+    throw Object.assign(new Error("Application is not ready"), {
+      code: "NOT_READY",
+    });
+  return application;
+}
+
+async function respond<T>(
+  operation: () => Promise<T> | T,
+): Promise<IpcResponse<T>> {
+  try {
+    return { ok: true, value: await operation() };
+  } catch (error: unknown) {
+    const code =
+      error instanceof Error && "code" in error && error.code === "NOT_READY"
+        ? "NOT_READY"
+        : "APPLICATION_ERROR";
+    return {
+      ok: false,
+      error: {
+        code,
+        message:
+          error instanceof Error ? error.message : "Application request failed",
+      },
+    };
+  }
+}
+
+function broadcast(channel: string, value: unknown): void {
+  for (const window of BrowserWindow.getAllWindows())
+    window.webContents.send(channel, value);
 }
 
 async function start(): Promise<void> {
@@ -71,6 +145,13 @@ async function start(): Promise<void> {
     logPath: join(app.getPath("userData"), "fastmpa.log"),
   });
   registerIpc();
+  application.subscribe((snapshot) =>
+    broadcast(desktopChannels.snapshot, snapshot),
+  );
+  application.subscribeEvents((event) =>
+    broadcast(desktopChannels.event, event),
+  );
+  application.subscribeLogs((entry) => broadcast(desktopChannels.log, entry));
   await application.start();
   mainWindow = createWindow();
   app.on("activate", () => {

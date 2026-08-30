@@ -1,5 +1,6 @@
 import type {
   ApplicationCommand,
+  ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
   CommandResult,
@@ -35,7 +36,7 @@ export type FastMpaDesktopApi = {
     dispatch(command: ApplicationCommand): Promise<CommandResult>;
     getRecentLogs(limit?: number): Promise<readonly ApplicationLogEntry[]>;
     onSnapshot(listener: (snapshot: ApplicationSnapshot) => void): () => void;
-    onEvent(listener: (event: unknown) => void): () => void;
+    onEvent(listener: (event: ApplicationEvent) => void): () => void;
     onLog(listener: (entry: ApplicationLogEntry) => void): () => void;
   };
   readonly desktop: {
