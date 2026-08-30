@@ -288,9 +288,23 @@ body {
   background: #57b890;
 }
 .message-list {
+  position: relative;
   flex: 1;
   overflow: auto;
   padding: 36px 12%;
+}
+.back-latest-button {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  border: 1px solid #c8daf4;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #3276d8;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(24 34 48 / 12%);
+  cursor: pointer;
+  font-size: 12px;
 }
 .message-list > div {
   height: 100%;

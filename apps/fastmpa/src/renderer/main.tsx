@@ -1,7 +1,14 @@
-import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  StrictMode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
 import type {
   ApplicationEvent,
@@ -42,6 +49,8 @@ function App(): React.JSX.Element {
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
   const [inspectorRunId, setInspectorRunId] = useState<string>();
   const [closing, setClosing] = useState(false);
+  const messageListRef = useRef<VirtuosoHandle>(null);
+  const [messagesAtLatest, setMessagesAtLatest] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -359,8 +368,10 @@ function App(): React.JSX.Element {
                 </div>
               ) : (
                 <Virtuoso
+                  ref={messageListRef}
                   data={messages}
-                  followOutput="smooth"
+                  followOutput={messagesAtLatest ? "smooth" : false}
+                  atBottomStateChange={setMessagesAtLatest}
                   itemContent={(_index, message) => (
                     <article
                       className={
@@ -384,6 +395,21 @@ function App(): React.JSX.Element {
                     </article>
                   )}
                 />
+              )}
+              {!messagesAtLatest && messages.length > 0 && (
+                <button
+                  type="button"
+                  className="back-latest-button"
+                  onClick={() => {
+                    messageListRef.current?.scrollToIndex({
+                      index: "LAST",
+                      behavior: "smooth",
+                    });
+                    setMessagesAtLatest(true);
+                  }}
+                >
+                  Back to latest
+                </button>
               )}
               {streamingText && (
                 <article className="message streaming">
