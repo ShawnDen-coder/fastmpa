@@ -223,13 +223,20 @@ export function FastMpaTui({
             : application.getSnapshot({ workspaceId: selectedWorkspaceId }),
         )
         .then((next) => {
-          setSnapshot(next);
           if (dialog === "workspace") {
             const created = next.workspaces.at(-1);
             const id = typeof created === "string" ? created : created?.id;
-            if (id) setSelectedWorkspaceId(id);
+            if (id) {
+              setSelectedWorkspaceId(id);
+              return application.getSnapshot({ workspaceId: id });
+            }
           }
-          if (dialog === "conversation")
+          setSnapshot(next);
+          return next;
+        })
+        .then((next) => {
+          if (dialog === "workspace" && next) setSnapshot(next);
+          if (dialog === "conversation" && next)
             setSelectedConversationId(next.conversations.at(-1)?.id);
         })
         .catch((reason: unknown) =>
