@@ -326,6 +326,22 @@ body {
   overflow: auto;
   padding: 28px 8%;
 }
+.logs-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.logs-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 28px 8% 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef2f7;
+  color: #607086;
+  font-size: 12px;
+}
 .log-item {
   display: grid;
   grid-template-columns: 60px 120px 1fr auto;

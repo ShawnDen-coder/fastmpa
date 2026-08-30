@@ -227,18 +227,30 @@ export function PageView({
     );
   if (page === "Logs")
     return (
-      <div className="log-items">
-        {logs.map((entry) => (
-          <article
-            className={`log-item level-${entry.level}`}
-            key={entry.sequence}
+      <div className="logs-page">
+        <div className="logs-toolbar">
+          <span>Recent application logs</span>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void window.fastMpa.desktop.revealLogFile()}
           >
-            <span>{entry.level}</span>
-            <strong>{entry.component}</strong>
-            <p>{entry.message}</p>
-            <time>{entry.timestamp}</time>
-          </article>
-        ))}
+            Open log file
+          </button>
+        </div>
+        <div className="log-items">
+          {logs.map((entry) => (
+            <article
+              className={`log-item level-${entry.level}`}
+              key={entry.sequence}
+            >
+              <span>{entry.level}</span>
+              <strong>{entry.component}</strong>
+              <p>{entry.message}</p>
+              <time>{entry.timestamp}</time>
+            </article>
+          ))}
+        </div>
       </div>
     );
   return (
