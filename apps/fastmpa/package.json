@@ -52,6 +52,7 @@
     "publish": null,
     "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
     "files": ["dist/**/*", "resources/**/*", "package.json"],
+    "directories": { "output": "release" },
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": { "artifactName": "FastMPA-Setup-${version}.exe" }
   }

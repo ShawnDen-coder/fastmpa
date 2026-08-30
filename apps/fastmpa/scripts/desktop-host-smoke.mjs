@@ -43,6 +43,10 @@ assert(
   "better-sqlite3 is not unpacked from asar",
 );
 assert(manifest.build.files?.includes("resources/**/*"), "resources are not packaged");
+assert(
+  manifest.build.directories?.output === "release",
+  "Windows artifacts are not written to release",
+);
 for (const file of requiredFiles) await access(join(appRoot, file));
 assert(mainSource.includes('contextIsolation: true'), "context isolation is disabled");
 assert(mainSource.includes('nodeIntegration: false'), "node integration is enabled");
