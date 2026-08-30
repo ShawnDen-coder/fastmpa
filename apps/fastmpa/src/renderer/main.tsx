@@ -766,6 +766,7 @@ function App(): React.JSX.Element {
               logs={logs}
               events={events}
               desktopInfo={desktopInfo}
+              workspaceId={selectedWorkspaceId}
               onRunSelect={setInspectorRunId}
             />
           )}
