@@ -31,6 +31,18 @@ const pages = [
   "Settings",
 ];
 
+function runDuration(run: {
+  readonly createdAt: string;
+  readonly startedAt?: string;
+  readonly finishedAt?: string;
+}): string {
+  const start = Date.parse(run.startedAt ?? run.createdAt);
+  const end = Date.parse(run.finishedAt ?? new Date().toISOString());
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start)
+    return "—";
+  return `${Math.round((end - start) / 1000)}s`;
+}
+
 function MarkdownPre({
   children,
 }: {
@@ -792,10 +804,22 @@ function App(): React.JSX.Element {
                     <dd>{run.runId}</dd>
                     <dt>Attempt</dt>
                     <dd>{run.attempt}</dd>
+                    <dt>Duration</dt>
+                    <dd>{runDuration(run)}</dd>
+                    <dt>Agent</dt>
+                    <dd>{run.context?.agentId ?? "—"}</dd>
                     <dt>Workspace</dt>
                     <dd>{run.context?.workspaceId ?? "—"}</dd>
                     <dt>Conversation</dt>
                     <dd>{run.context?.conversationId ?? "—"}</dd>
+                    <dt>Trigger</dt>
+                    <dd>{run.context?.trigger ?? "—"}</dd>
+                    <dt>Source</dt>
+                    <dd>
+                      {run.context?.sourceRef
+                        ? `${run.context.sourceRef.type}:${run.context.sourceRef.id}`
+                        : "—"}
+                    </dd>
                   </dl>
                   {run.error && (
                     <div className="inspector-error" role="alert">
