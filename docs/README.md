@@ -28,15 +28,13 @@ Participant + Workspace
 ### 项目入口
 
 - [项目 README](../README.md) — 产品目标、使用逻辑与常用命令。
-- [最终架构](ARCHITECTURE.md) — 三个核心包、Application、TUI 和 Runtime 边界。
+- [最终架构](ARCHITECTURE.md) — 三个核心包、Electron Desktop、Application 和 Runtime 边界。
 
-### TUI 启动
+### Desktop 启动
 
-从仓库根目录先构建应用，再执行 `node apps/fastmpa/dist/index.js`；执行
-`node apps/fastmpa/dist/index.js chat` 也会进入同一持续 Workspace 工作台。
-开发时可用 `pnpm exec vite-node --root apps/fastmpa
-apps/fastmpa/src/index.ts` 直接运行源码。完整快捷键和配置变量见[项目
-README](../README.md)的“启动 TUI 工作台”。
+从仓库根目录执行 `pnpm --filter fastmpa build` 构建 Electron Main、Preload
+和 Renderer；Windows 安装包使用 `pnpm --filter fastmpa package:win` 生成。
+配置变量见[项目 README](../README.md)的“启动 Windows Desktop”。
 
 ### 可运行示例
 

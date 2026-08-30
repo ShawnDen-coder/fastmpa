@@ -28,7 +28,7 @@ Runtime 负责 Run 生命周期、事件、取消、并发和恢复入口；Core
 
 ```mermaid
 flowchart TB
-    Caller["调用方<br/>CLI / API / Scheduler"] --> Runtime
+    Caller["调用方<br/>Desktop IPC / Scheduler"] --> Runtime
 
     subgraph RuntimePackage["packages/agent-runtime"]
         direction TB

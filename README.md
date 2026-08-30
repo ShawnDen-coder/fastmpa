@@ -49,31 +49,17 @@ FastMPA 通过统一 Workspace、Runtime Scheduler、可恢复执行和受控 To
 
 项目路线与学习实施计划见 [docs](docs/README.md)。
 
-## 启动 TUI 工作台
+## 启动 Windows Desktop
 
 在仓库根目录执行：
 
 ```bash
 pnpm install
 pnpm --filter fastmpa build
-node apps/fastmpa/dist/index.js
+pnpm --filter fastmpa package:win
 ```
 
-无参数启动会进入持续 Workspace 工作台；下面的命令进入同一个 TUI：
-
-```bash
-node apps/fastmpa/dist/index.js chat
-```
-
-开发阶段也可以不构建，直接运行源码：
-
-```bash
-pnpm exec vite-node --root apps/fastmpa apps/fastmpa/src/index.ts
-# 或
-pnpm exec vite-node --root apps/fastmpa apps/fastmpa/src/index.ts chat
-```
-
-TUI 中使用 `Tab` / `Shift+Tab` 切换 Workspace、Conversation、Run 和 Logs 区域；方向键选择或滚动，Enter 发送消息，`Ctrl+N` 创建，`Ctrl+R` 重命名，`Ctrl+L` 折叠日志，`Ctrl+A` 批准，`Ctrl+X` 拒绝审批或取消 Run，`Ctrl+C` 在有活动 Run 时取消、否则退出。
+构建产物包含 Electron Main、Preload 和 Renderer；开发时可使用 Vite 的 Renderer dev server，并由 Electron Main 加载 Desktop shell。
 
 `FASTMPA_DB` 可指定 SQLite 文件，`FASTMPA_LOG_PATH` 可指定 JSONL 日志文件；未设置时默认使用当前目录下的 `fastmpa.sqlite` 和 `fastmpa.log`。
 
@@ -81,11 +67,11 @@ TUI 中使用 `Tab` / `Shift+Tab` 切换 Workspace、Conversation、Run 和 Logs
 
 Application 创建唯一 root Pino logger，并向 Core、Runtime、Scheduler 和 Tooling 注入 child logger。默认日志只包含组件、关联 ID、状态、耗时、计数和错误，不写入消息正文、工具参数、工具结果或模型响应；密码、token、authorization、apiKey、cookie 和 secret 会被 redacted。
 
-`FASTMPA_LOG_LEVEL` 控制级别，默认 `info`；`FASTMPA_LOG_PATH` 可指定日志文件，默认与 SQLite 文件同目录的 `fastmpa.log`。TUI 默认只写 JSONL 文件，CLI 日志写 stderr，`run` 的 JSON 结果保持纯 stdout。V1 不轮转日志，生产环境请使用外部轮转工具。
+`FASTMPA_LOG_LEVEL` 控制级别，默认 `info`；`FASTMPA_LOG_PATH` 可指定日志文件，默认与 SQLite 文件同目录的 `fastmpa.log`。Desktop 日志写入 JSONL 文件，V1 不轮转日志，生产环境请使用外部轮转工具。
 
 ## 本地配置
 
-CLI 启动时会自动读取仓库根目录的 `.env` 文件；已有的系统环境变量优先级更高。建议在 `.env` 中配置本地数据库和日志路径，例如：
+Desktop Main 启动时读取环境变量；已有的系统环境变量优先级更高。建议在 `.env` 中配置本地数据库和日志路径，例如：
 
 ```dotenv
 FASTMPA_DB=./tmp/fastmpa.sqlite

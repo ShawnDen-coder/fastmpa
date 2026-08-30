@@ -7,8 +7,9 @@ UI-independent Application interface in `apps/fastmpa`.
 
 ```mermaid
 flowchart LR
-    TUI[Ink + React TUI]
-    CLI[Commander CLI]
+    DESKTOP[Electron Desktop]
+    MAIN[Electron Main + Preload]
+    RENDERER[React Renderer]
     APP[FastMpaApplication\ncommands, snapshots, subscriptions]
     CORE[agent-core\nTurn / Model / Tool protocols]
     RUNTIME[agent-runtime\nRun / queue / lease / recovery\nTooling / approval / audit]
@@ -18,8 +19,9 @@ flowchart LR
     EXT[Application Orchestrator\nWorkspace facts → Runtime enqueue]
     PROJ[CompletionProjector\nreply + cursor + receipt]
 
-    TUI --> APP
-    CLI --> APP
+    DESKTOP --> MAIN
+    MAIN --> APP
+    RENDERER --> MAIN
     APP --> CORE
     APP --> RUNTIME
     APP --> WORKSPACE
@@ -39,7 +41,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     actor User
-    participant UI as TUI / CLI
+    participant UI as Desktop Renderer
     participant App as Application
     participant WS as Workspace
     participant RT as Runtime Worker
@@ -104,7 +106,7 @@ startup to compensate for an interrupted projection.
 display name. It is not a directory and does not own Runtime execution queues.
 `Conversation` is the continuous-dialogue boundary; each submitted turn still
 creates one persisted `Run`. Application snapshots may be filtered by
-`workspaceId` and `conversationId`, so the TUI can switch selection without
+`workspaceId` and `conversationId`, so the Renderer can switch selection without
 loading unrelated messages or runs into the active view. Historical records are
 backfilled with a Workspace record when SQLite starts; the legacy `default`
 workspace is displayed as `Default Workspace`.
@@ -117,7 +119,7 @@ and model content is not emitted as log context.
 The panel can set a minimum level with `1`–`4` and toggle current-Run filtering
 with `Ctrl+E`; `Ctrl+L` collapses it without changing the composer.
 
-The workspace TUI keeps selection and unsent queue state locally. Selection
+The workspace Renderer keeps selection and unsent queue state locally. Selection
 changes request a filtered Application snapshot; submitted turns are serialized
 by Application on `workspaceId:conversationId`, so switching the visible
 conversation does not cancel background work or mix its history into another

@@ -2,7 +2,7 @@
 
 当前阶段是 V1 基础闭环收敛，按以下五批维护和验收：
 
-1. CLI 使用 Node target 构建，并在 CI 实际运行 `dist/index.js doctor`。
+1. Desktop 使用 Electron Main/Preload/Renderer target 构建，并在 CI 实际运行 host smoke。
 2. Runtime Tooling 统一由 `ToolCatalog`/`RuntimeTooling` 提供，Approval 必须绑定 `runId`。
 3. Application 只使用公共 `AgentRuntime` facade；生产 Run Store 使用 SQLite Lease。
 4. Schedule occurrence 使用稳定 Run ID，Workspace 不包含执行逻辑，调度不再使用 WorkClaim。
@@ -37,7 +37,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Retry 直接重新提交保留的失败消息；Edit 回填 Composer，Discard 清除本地草稿。
 - [x] 当前 Conversation 显示本地排队消息计数；日志视图支持按 component 循环过滤（`v`）。
 
-本批已完成上述 V1 TUI 闭环；仍按 Assumptions 保留未实现的 thinking 展示、Workspace 删除、完整 Agent 编辑和完整 Board UI。
+本批完成 Desktop 重构的基础边界；仍按 Assumptions 保留未实现的 thinking 展示、Workspace 删除、完整 Agent 编辑和完整 Board UI。
 
 - [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
@@ -53,4 +53,4 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] 右栏快捷键按选中 Run 执行：Ctrl+A 批准 waiting Run，Ctrl+X 拒绝审批或取消活动 Run。
 - [x] 模型上下文限制为最近 50 条 user/assistant 消息，并从 user 轮次边界截取。
 - [x] 临时 SQLite E2E 覆盖 Workspace/Conversation 创建、三轮连续对话、范围切换、重启恢复。
-- [x] `fastmpa`（无参数）与 `fastmpa chat` 进入同一持续工作台；`fastmpa run` 保持单次 JSON 输出。
+- [x] Electron Desktop 启动 Main/Preload/Renderer，并由 Application 提供统一业务边界。

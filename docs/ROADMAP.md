@@ -6,13 +6,12 @@ FastMPA 是一个以 Workspace 为协作事实、以 Agent Run 为可恢复执�
 
 1. **核心收敛**：Core 定义 Turn/Model/Tool 协议，Runtime 负责 Run、租约、队列、恢复、重试、通知、调度、工具策略、审批和审计，Workspace 负责会话、消息、看板、Attention 和 Schedule；SQLite 是生产默认存储。
 2. **Application 边界**：`apps/fastmpa/src/application.ts` 组合 Runtime 与 Workspace，提供命令、查询、订阅和生命周期；UI 不得直接访问 Store 或 SQLite。
-3. **V1 TUI**：Commander 路由 `doctor` 与 `run`，Ink + React 提供 Workspace、Conversation、Run 三栏视图和输入操作。
+3. **V1 Desktop**：Electron Main/Preload/Renderer 提供 Windows 桌面 shell，Renderer 只通过类型化 IPC 访问 Application。
 4. **扩展**：在 Runtime 审批、幂等和审计边界内接入 Skills、MCP，再加入 TAPD 等平台适配器。
-5. **V2 Electron**：只有在 TUI 与 Electron 都是实际调用方后，才提取共享 `fastmpa-application` 包；Electron Main 持有 Application 和执行权限，Renderer 只通过类型化 IPC 访问。
 
 ## 当前闭环
 
-`fastmpa run "任务"` 会创建 Workspace Participant/Conversation，写入用户消息，以持久化 message ID 生成 Run ID，持久化并执行 Run，再把 Agent 回复写回 Conversation。Application 只向 RuntimeTooling 注册工具；Skills/MCP 仍属于后续扩展。
+Desktop Application 会创建 Workspace Participant/Conversation，写入用户消息，以持久化 message ID 生成 Run ID，持久化并执行 Run，再把 Agent 回复写回 Conversation。Application 只向 RuntimeTooling 注册工具；Skills/MCP 仍属于后续扩展。
 
 ## 架构约束
 
