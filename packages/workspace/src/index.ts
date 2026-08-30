@@ -1,7 +1,8 @@
-export * from "./attention/index.js";
-export * from "./board/index.js";
-export * from "./conversation/index.js";
-export * from "./participant/index.js";
-export * from "./repository/index.js";
-export * from "./schedule/index.js";
+export * from "./attention.js";
+export * from "./board.js";
+export * from "./conversation.js";
+export * from "./participant.js";
+export type { WorkspaceRepository } from "./repository.js";
+export { SqliteWorkspaceRepository } from "./repository.js";
+export * from "./schedule.js";
 export * from "./workspace.js";

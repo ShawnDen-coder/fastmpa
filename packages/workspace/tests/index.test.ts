@@ -2,11 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadAttention, markConversationRead } from "../src/attention/index.js";
-import {
-  InMemoryWorkspaceRepository,
-  SqliteWorkspaceRepository,
-} from "../src/repository/index.js";
+import { loadAttention, markConversationRead } from "../src/attention.js";
+import { SqliteWorkspaceRepository } from "../src/repository.js";
+import { InMemoryWorkspaceRepository } from "../src/testing.js";
 import { sendMessage } from "../src/workspace.js";
 
 describe("workspace", () => {

@@ -2,6 +2,7 @@
 export interface RunContext {
   readonly agentId: string;
   readonly workspaceId: string;
+  readonly conversationId?: string;
   readonly trigger: "mention" | "assignment" | "schedule" | "manual";
   readonly sourceRef?: {
     readonly type: "message" | "card" | "schedule";

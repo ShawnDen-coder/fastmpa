@@ -6,6 +6,7 @@ import {
 import { RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
+import { DuplicateRunError } from "./store/errors.js";
 import { type RunLeaseStore, RunNotFoundError } from "./store/index.js";
 import {
   type AgentRun,
@@ -81,6 +82,22 @@ export class LeaseRuntimeWorker {
       this.event(input.runId, 0, "run_queued", now),
     );
     return run;
+  }
+
+  /** 幂等入队：同一确定性 Run ID 返回 existing，竞态创建也不会重复执行。 */
+  public async enqueueIdempotent(
+    input: EnqueueRunInput,
+  ): Promise<{ readonly run: AgentRun; readonly created: boolean }> {
+    const existing = await this.store.get(input.runId);
+    if (existing) return { run: existing, created: false };
+    try {
+      return { run: await this.enqueue(input), created: true };
+    } catch (error) {
+      if (!(error instanceof DuplicateRunError)) throw error;
+      const concurrent = await this.store.get(input.runId);
+      if (!concurrent) throw error;
+      return { run: concurrent, created: false };
+    }
   }
 
   /** 尝试领取并执行一个 queued Run；已被其他 Worker 领取时返回 undefined。 */
@@ -194,6 +211,43 @@ export class LeaseRuntimeWorker {
       ),
     );
     return this.run(runId);
+  }
+
+  /** 终止尚未恢复的 queued/waiting/blocked Run，例如用户拒绝审批。 */
+  public async cancelPersistedRun(
+    runId: string,
+  ): Promise<AgentRun | undefined> {
+    const current = await this.store.get(runId);
+    if (
+      !current ||
+      current.status === "completed" ||
+      current.status === "failed" ||
+      current.status === "cancelled"
+    )
+      return current;
+    if (
+      current.status !== "queued" &&
+      current.status !== "waiting" &&
+      current.status !== "blocked"
+    )
+      return current;
+    const events = await this.store.listEvents(runId);
+    return this.store.transitionWithEvent(
+      runId,
+      current.version,
+      {
+        ...current,
+        status: transition(current.status, "cancelled"),
+        version: current.version + 1,
+        finishedAt: this.clock.now(),
+      },
+      this.event(
+        runId,
+        (events.at(-1)?.sequence ?? -1) + 1,
+        "run_cancelled",
+        this.clock.now(),
+      ),
+    );
   }
 
   /** 恢复过期 owner 后立即尝试执行恢复出的 queued Run。 */

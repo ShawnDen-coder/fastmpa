@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DuplicateRunError,
   EventSequenceError,
-  MemoryRunStore,
   RunNotFoundError,
   RunVersionConflictError,
 } from "../src/index.js";
+import { MemoryRunStore } from "../src/testing.js";
 import type { AgentRun, RuntimeEvent } from "../src/types/index.js";
 
 function makeRun(overrides: Partial<AgentRun> = {}): AgentRun {

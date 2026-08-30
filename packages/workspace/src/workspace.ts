@@ -1,7 +1,7 @@
-import type { WorkspaceChange } from "./attention/index.js";
-import type { Card } from "./board/index.js";
-import type { Conversation, Message } from "./conversation/index.js";
-import type { WorkspaceRepository } from "./repository/index.js";
+import type { WorkspaceChange } from "./attention.js";
+import type { Card } from "./board.js";
+import type { Conversation, Message } from "./conversation.js";
+import type { WorkspaceRepository } from "./repository.js";
 
 export interface SendMessageInput {
   id: string;

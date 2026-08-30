@@ -1,5 +1,7 @@
 # agent-runtime
 
+Runtime 是 FastMPA 的唯一执行基础包：持久化 Run、队列、SQLite Lease、恢复、重试、通知/调度，以及 Tool Registry、策略、审批、幂等和审计均在此边界内。生产使用 SQLite；Memory/JSON Store 通过 `@shawnden-coder/agent-runtime/testing` 提供。
+
 FastMPA 的持久化 Agent 执行层：保存 Run/Event，使用 `LeaseRuntimeWorker` 领取并执行 Run，并通过 `RuntimeWorkerLoop` 持续消费队列和恢复过期 Run。
 
 ## 运行方式

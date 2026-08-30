@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { JsonFileRunStore } from "../src/index.js";
+import { JsonFileRunStore } from "../src/testing.js";
 import type { AgentRun, RuntimeEvent } from "../src/types/index.js";
 
 function makeRun(overrides: Partial<AgentRun> = {}): AgentRun {

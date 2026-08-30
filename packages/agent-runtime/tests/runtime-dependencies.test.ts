@@ -1,6 +1,7 @@
 import { FakeModel, ToolRegistry } from "@shawnden-coder/agent-core";
 import { describe, expect, it } from "vitest";
-import { AgentRuntime, MemoryRunStore } from "../src/index.js";
+import { AgentRuntime } from "../src/index.js";
+import { MemoryRunStore } from "../src/testing.js";
 
 const fixedTime = "2026-08-28T00:00:00.000Z";
 
