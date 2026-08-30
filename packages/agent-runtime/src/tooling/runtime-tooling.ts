@@ -4,16 +4,12 @@ import { ToolPipeline } from "./pipeline.js";
 import { defaultToolPolicy } from "./policy.js";
 import { ToolCatalog, toCoreToolRegistry } from "./registry.js";
 
+export type ToolApprovalResult = import("./pipeline.js").PipelineResult;
+
 export interface RuntimeTooling {
   resolveTools(context: RunExecutionContext): CoreToolRegistry;
-  approve(
-    approvalId: string,
-    runId: string,
-  ): Promise<import("./pipeline.js").PipelineResult>;
-  reject(
-    approvalId: string,
-    runId: string,
-  ): import("./pipeline.js").PipelineResult;
+  approve(approvalId: string, runId: string): Promise<ToolApprovalResult>;
+  reject(approvalId: string, runId: string): ToolApprovalResult;
 }
 
 export class DefaultRuntimeTooling implements RuntimeTooling {
