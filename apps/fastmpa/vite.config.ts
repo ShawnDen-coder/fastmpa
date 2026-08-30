@@ -13,11 +13,11 @@ export default defineConfig({
     rollupOptions: {
       external: [
         "commander",
+        "ink",
+        "react",
+        "react/jsx-runtime",
         "@shawnden-coder/agent-runtime",
-        "agent-scheduler",
         "workspace",
-        "integrations",
-        "tool-pipeline",
         "better-sqlite3",
         "drizzle-orm",
         "node:fs/promises",

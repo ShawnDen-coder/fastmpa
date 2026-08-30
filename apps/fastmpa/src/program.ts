@@ -1,71 +1,50 @@
 import { Command } from "commander";
-import {
-  auditRequirementIterations,
-  formatIterationAuditReport,
-  TapdHttpClient,
-} from "integrations";
-import { loadTapdFixture } from "./tapd-fixture.js";
+import { bootstrap } from "./bootstrap.js";
 
 export function createProgram(): Command {
   const program = new Command();
 
-  program.name("fastmpa").description("A command-line tool.").version("0.1.0");
+  program
+    .name("fastmpa")
+    .description("FastMPA agent workspace")
+    .version("0.1.0");
 
   program
-    .command("hello")
-    .description("Print a greeting.")
-    .option("-n, --name <name>", "Name to greet.", "World")
-    .action((options: { name: string }) => {
-      console.log(`Hello, ${options.name}!`);
+    .command("doctor")
+    .description("检查 SQLite 与演示 Agent 配置")
+    .action(async () => {
+      const app = await bootstrap({
+        databasePath: process.env.FASTMPA_DB ?? "fastmpa.sqlite",
+      });
+      await app.start();
+      console.log("SQLite: ok\nDemo Agent: ok");
+      await app.stop();
     });
 
   program
-    .command("tapd-audit")
-    .description(
-      "Audit TAPD requirement iterations from a fixture or TAPD API.",
-    )
-    .option("-f, --file <path>", "TAPD fixture JSON file.")
-    .requiredOption("-p, --project <projectId>", "TAPD project ID.")
-    .requiredOption(
-      "-i, --iteration <iteration>",
-      "Expected TAPD iteration ID.",
-    )
-    .option("--api-user <user>", "TAPD API user; defaults to TAPD_API_USER.")
-    .option(
-      "--api-password <password>",
-      "TAPD API password; defaults to TAPD_API_PASSWORD.",
-    )
-    .option("--base-url <url>", "TAPD API base URL.", "https://api.tapd.cn")
-    .option("--json", "Print the structured report as JSON.")
-    .action(
-      async (options: {
-        file?: string;
-        project: string;
-        iteration: string;
-        apiUser?: string;
-        apiPassword?: string;
-        baseUrl: string;
-        json?: boolean;
-      }) => {
-        const client = options.file
-          ? await loadTapdFixture(options.file)
-          : new TapdHttpClient({
-              apiUser: options.apiUser ?? process.env.TAPD_API_USER ?? "",
-              apiPassword:
-                options.apiPassword ?? process.env.TAPD_API_PASSWORD ?? "",
-              baseUrl: options.baseUrl,
-            });
-        const report = await auditRequirementIterations(client, {
-          projectId: options.project,
-          expectedIteration: options.iteration,
-        });
-        console.log(
-          options.json
-            ? JSON.stringify(report, null, 2)
-            : formatIterationAuditReport(report),
-        );
-      },
-    );
+    .command("run")
+    .argument("<task>", "要提交的任务")
+    .option("-a, --agent <agentId>", "Agent ID", "demo-agent")
+    .action(async (task: string, options: { agent: string }) => {
+      const app = await bootstrap({
+        databasePath: process.env.FASTMPA_DB ?? "fastmpa.sqlite",
+      });
+      await app.start();
+      console.log(
+        JSON.stringify(
+          await app.dispatch({
+            type: "submit",
+            workspaceId: "default",
+            conversationId: "default",
+            body: task,
+            agentId: options.agent,
+          }),
+          null,
+          2,
+        ),
+      );
+      await app.stop();
+    });
 
   return program;
 }
