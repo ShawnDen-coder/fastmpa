@@ -10,38 +10,26 @@ import {
   isApplicationCommand,
   isSnapshotQuery,
 } from "../shared/ipc.js";
+import {
+  defaultWindowState,
+  isWindowStateVisible,
+  parseWindowState,
+  type WindowState,
+} from "./window-state.js";
 
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
 let isQuitting = false;
-
-interface WindowState {
-  readonly x?: number;
-  readonly y?: number;
-  readonly width: number;
-  readonly height: number;
-  readonly isMaximized: boolean;
-}
 
 function windowStatePath(): string {
   return join(app.getPath("userData"), "window-state.json");
 }
 
 function readWindowState(): WindowState {
-  const fallback: WindowState = {
-    width: 1440,
-    height: 900,
-    isMaximized: false,
-  };
   try {
-    const parsed = JSON.parse(
-      readFileSync(windowStatePath(), "utf8"),
-    ) as Partial<WindowState>;
-    if (typeof parsed.width !== "number" || typeof parsed.height !== "number")
-      return fallback;
-    return { ...fallback, ...parsed };
+    return parseWindowState(readFileSync(windowStatePath(), "utf8"));
   } catch {
-    return fallback;
+    return defaultWindowState;
   }
 }
 
@@ -57,25 +45,15 @@ function saveWindowState(window: BrowserWindow): void {
   writeFileSync(windowStatePath(), JSON.stringify(state), "utf8");
 }
 
-function validWindowState(state: WindowState): boolean {
-  if (state.x === undefined || state.y === undefined) return false;
-  const { x, y } = state;
-  return screen.getAllDisplays().some((display) => {
-    const area = display.workArea;
-    return (
-      x < area.x + area.width &&
-      x + state.width > area.x &&
-      y < area.y + area.height &&
-      y + state.height > area.y
-    );
-  });
-}
-
 function createWindow(): BrowserWindow {
   const state = readWindowState();
+  const visible = isWindowStateVisible(
+    state,
+    screen.getAllDisplays().map(({ workArea }) => workArea),
+  );
   const window = new BrowserWindow({
-    x: validWindowState(state) ? state.x : undefined,
-    y: validWindowState(state) ? state.y : undefined,
+    x: visible ? state.x : undefined,
+    y: visible ? state.y : undefined,
     width: state.width,
     height: state.height,
     minWidth: 960,
