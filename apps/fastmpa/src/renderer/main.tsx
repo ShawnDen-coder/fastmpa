@@ -31,6 +31,26 @@ const pages = [
   "Settings",
 ];
 
+function MarkdownPre({
+  children,
+}: {
+  readonly children?: React.ReactNode;
+}): React.JSX.Element {
+  const text = typeof children === "string" ? children.replace(/\n$/, "") : "";
+  return (
+    <pre className="markdown-pre">
+      <button
+        type="button"
+        className="copy-code-button"
+        onClick={() => void navigator.clipboard.writeText(text)}
+      >
+        Copy
+      </button>
+      {children}
+    </pre>
+  );
+}
+
 function ToolEventCard({
   event,
   onDetails,
@@ -586,7 +606,10 @@ function App(): React.JSX.Element {
                         <div className="message-meta">
                           {message.senderId === "human" ? "You" : "Agent"}
                         </div>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{ pre: MarkdownPre }}
+                        >
                           {message.body}
                         </ReactMarkdown>
                       </div>

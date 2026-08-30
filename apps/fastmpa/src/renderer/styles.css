@@ -340,6 +340,26 @@ body {
   color: #263445;
   white-space: pre-wrap;
 }
+.markdown-pre {
+  position: relative;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 10px;
+  background: #1f2937;
+  color: #e5edf7;
+}
+.copy-code-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border: 1px solid #52657d;
+  border-radius: 6px;
+  color: #dbe7f5;
+  background: #2d3b4f;
+  cursor: pointer;
+  font-size: 11px;
+}
 .message.streaming {
   opacity: 0.82;
 }
