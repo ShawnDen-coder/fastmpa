@@ -5,14 +5,14 @@ FastMPA 的统一 Tool 调用边界。所有 TAPD、ShotGrid、MCP 等外部动�
 ## 当前闭环
 
 ```text
-ToolCall → Registry → 参数校验 → Policy
+ToolCall → ToolCatalog → 参数校验 → Policy
                          ├── deny
                          ├── require approval → approve → execute
                          └── allow → execute
                                    → idempotency → audit journal
 ```
 
-本包不包含平台 SDK 或领域业务规则；外部执行器通过注册表注入。审批、成功结果和 Journal 可使用 `InMemoryApprovalStore`，也可使用 `SqliteApprovalStore` 在进程重启后恢复；结果缓存会按幂等键阻止同一写入被重复执行。`toCoreToolRegistry()` 默认只投影 `read` Tool；显式传入 `pipeline` 和 `actorId` 后，写入 Tool 才能进入 Core，并在审批时返回 `approval_required`。
+本包不包含平台 SDK 或领域业务规则；外部执行器必须通过 `RuntimeTooling` 的 `ToolCatalog` 注入。审批、成功结果和 Journal 可使用 `InMemoryApprovalStore`，也可使用 `SqliteApprovalStore` 在进程重启后恢复；结果缓存会按幂等键阻止同一写入被重复执行。所有投影到 Core 的写入 Tool 都经过 Policy、Approval、Idempotency 和 Journal。
 
 ## 目录结构
 
@@ -44,9 +44,10 @@ const pipeline = new ToolPipeline(registry, undefined, undefined, store)
 const decision = await pipeline.execute(call, {
   actorId: "agent-1",
   idempotencyKey: "run-1:update-1",
+  runId: "run-1",
 })
 if (decision.status === "approval_required")
-  await pipeline.approve(decision.approval.approvalId)
+  await pipeline.approve(decision.approval.approvalId, "run-1")
 store.close()
 ```
 
