@@ -367,6 +367,16 @@ function App(): React.JSX.Element {
       ) ?? [],
     [snapshot, conversationId],
   );
+  const failedRun = useMemo(
+    () =>
+      snapshot?.runs
+        .filter((run) => run.context?.conversationId === conversationId)
+        .filter((run) =>
+          ["failed", "cancelled", "interrupted"].includes(run.status),
+        )
+        .at(-1),
+    [conversationId, snapshot],
+  );
   const toolEvents = useMemo(
     () =>
       events.filter(
@@ -713,6 +723,38 @@ function App(): React.JSX.Element {
                   <div>
                     <div className="message-meta">Agent · streaming</div>
                     <p>{streamingText}</p>
+                  </div>
+                </article>
+              )}
+              {failedRun?.error && (
+                <article className="message error-message" role="alert">
+                  <div className="avatar">!</div>
+                  <div>
+                    <div className="message-meta">Run failed</div>
+                    <p>{failedRun.error.message}</p>
+                    <div className="run-actions">
+                      {failedRun.error.retryable !== false && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() =>
+                            void window.fastMpa.application.dispatch({
+                              type: "retry",
+                              runId: failedRun.runId,
+                            })
+                          }
+                        >
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setInspectorRunId(failedRun.runId)}
+                      >
+                        Details
+                      </button>
+                    </div>
                   </div>
                 </article>
               )}
