@@ -61,10 +61,14 @@ function App(): React.JSX.Element {
         setStreamingText((current) => current + event.delta);
       if (event.type === "turn.completed") setStreamingText("");
     });
+    const unsubscribeLogs = window.fastMpa.application.onLog((entry) => {
+      if (active) setLogs((current) => [...current.slice(-499), entry]);
+    });
     return () => {
       active = false;
       unsubscribeSnapshot();
       unsubscribeEvents();
+      unsubscribeLogs();
     };
   }, []);
 

@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type {
   ApplicationEvent,
   ApplicationLogEntry,
@@ -177,6 +178,67 @@ function ScheduleCard({
   );
 }
 
+function LogPage({
+  logs,
+}: {
+  readonly logs: readonly ApplicationLogEntry[];
+}): React.JSX.Element {
+  const [level, setLevel] = useState<"all" | ApplicationLogEntry["level"]>(
+    "all",
+  );
+  const filteredLogs = useMemo(
+    () =>
+      level === "all" ? logs : logs.filter((entry) => entry.level === level),
+    [level, logs],
+  );
+  return (
+    <div className="logs-page">
+      <div className="logs-toolbar">
+        <span>Recent application logs ({filteredLogs.length})</span>
+        <div className="log-controls">
+          <label>
+            Level
+            <select
+              value={level}
+              onChange={(event) =>
+                setLevel(
+                  event.target.value as "all" | ApplicationLogEntry["level"],
+                )
+              }
+            >
+              <option value="all">All</option>
+              <option value="debug">Debug</option>
+              <option value="info">Info</option>
+              <option value="warn">Warn</option>
+              <option value="error">Error</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void window.fastMpa.desktop.revealLogFile()}
+          >
+            Open log file
+          </button>
+        </div>
+      </div>
+      <div className="log-items">
+        {filteredLogs.map((entry) => (
+          <article
+            className={`log-item level-${entry.level}`}
+            key={entry.sequence}
+          >
+            <span>{entry.level}</span>
+            <strong>{entry.component}</strong>
+            <p>{entry.message}</p>
+            <time>{entry.timestamp}</time>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PageView({
   page,
   snapshot,
@@ -229,33 +291,7 @@ export function PageView({
       </div>
     );
   if (page === "Logs")
-    return (
-      <div className="logs-page">
-        <div className="logs-toolbar">
-          <span>Recent application logs</span>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void window.fastMpa.desktop.revealLogFile()}
-          >
-            Open log file
-          </button>
-        </div>
-        <div className="log-items">
-          {logs.map((entry) => (
-            <article
-              className={`log-item level-${entry.level}`}
-              key={entry.sequence}
-            >
-              <span>{entry.level}</span>
-              <strong>{entry.component}</strong>
-              <p>{entry.message}</p>
-              <time>{entry.timestamp}</time>
-            </article>
-          ))}
-        </div>
-      </div>
-    );
+    return <LogPage logs={logs} />;
   return (
     <div className="settings-grid">
       <Card

@@ -368,6 +368,24 @@ body {
   color: #607086;
   font-size: 12px;
 }
+.log-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.log-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.log-controls select {
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #34445a;
+  font: inherit;
+}
 .log-item {
   display: grid;
   grid-template-columns: 60px 120px 1fr auto;
