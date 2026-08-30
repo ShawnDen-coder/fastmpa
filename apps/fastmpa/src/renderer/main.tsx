@@ -17,7 +17,7 @@ import type {
 } from "../application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
-import { useShellStore } from "./stores.js";
+import { useSelectionStore, useShellStore } from "./stores.js";
 import "./styles.css";
 
 const pages = [
@@ -33,10 +33,18 @@ function App(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<ApplicationSnapshot>();
   const page = useShellStore((state) => state.page);
   const setPage = useShellStore((state) => state.setPage);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>();
-  const [selectedConversationId, setSelectedConversationId] =
-    useState<string>();
-  const [selectedAgentId, setSelectedAgentId] = useState<string>();
+  const selectedWorkspaceId = useSelectionStore((state) => state.workspaceId);
+  const setSelectedWorkspaceId = useSelectionStore(
+    (state) => state.setWorkspaceId,
+  );
+  const selectedConversationId = useSelectionStore(
+    (state) => state.conversationId,
+  );
+  const setSelectedConversationId = useSelectionStore(
+    (state) => state.setConversationId,
+  );
+  const selectedAgentId = useSelectionStore((state) => state.agentId);
+  const setSelectedAgentId = useSelectionStore((state) => state.setAgentId);
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -102,7 +110,7 @@ function App(): React.JSX.Element {
       unsubscribeLogs();
       unsubscribeClosing();
     };
-  }, []);
+  }, [setSelectedWorkspaceId]);
 
   useEffect(() => {
     if (!selectedWorkspaceId) return;
