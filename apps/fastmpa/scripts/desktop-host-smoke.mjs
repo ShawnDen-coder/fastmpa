@@ -3,7 +3,12 @@ import { join } from "node:path";
 
 const appRoot = new URL("../", import.meta.url).pathname.replace(/^\//, "").replaceAll("/", "\\");
 const manifest = JSON.parse(await readFile(join(appRoot, "package.json"), "utf8"));
-const requiredFiles = ["dist/main/main.mjs", "dist/preload/preload.cjs", "dist/renderer/index.html"];
+const requiredFiles = [
+  "dist/main/main.mjs",
+  "dist/preload/preload.cjs",
+  "dist/renderer/index.html",
+  "resources/icon.ico",
+];
 const mainSource = await readFile(join(appRoot, "src/main/main.ts"), "utf8");
 const mainBundle = await readFile(join(appRoot, "dist/main/main.mjs"), "utf8");
 const preloadBundle = await readFile(join(appRoot, "dist/preload/preload.cjs"), "utf8");
@@ -20,6 +25,7 @@ assert(
   "Windows x64 NSIS target is missing",
 );
 assert(manifest.build.npmRebuild === true, "native dependency rebuild is disabled");
+assert(manifest.build.icon === "resources/icon.ico", "Windows icon is missing");
 assert(
   manifest.build.asarUnpack?.includes("**/node_modules/better-sqlite3/**/*"),
   "better-sqlite3 is not unpacked from asar",

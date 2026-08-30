@@ -43,6 +43,7 @@
   "build": {
     "appId": "io.fastmpa.desktop",
     "productName": "FastMPA",
+    "icon": "resources/icon.ico",
     "asar": true,
     "npmRebuild": true,
     "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
