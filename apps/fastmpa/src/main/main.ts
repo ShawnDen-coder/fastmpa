@@ -180,7 +180,7 @@ function registerIpc(): void {
     }),
   );
   ipcMain.handle(desktopChannels.openExternal, (_event, url: unknown) => {
-    if (typeof url !== "string" || !url.startsWith("https://"))
+    if (typeof url !== "string" || !isAllowedExternalUrl(url))
       return Promise.resolve({
         ok: false,
         error: invalidPayload("Only HTTPS URLs are allowed"),
