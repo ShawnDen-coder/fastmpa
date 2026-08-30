@@ -26,11 +26,8 @@ const result = await runTurn(
 console.log(result.status, result.messages)
 ```
 
-OpenRouter 只用于模型适配器验证；产品级任务闭环由 `apps/fastmpa` 的 Application 负责，运行：
-
-```bash
-pnpm --filter fastmpa doctor
-```
+OpenRouter 只用于模型适配器验证；产品级任务闭环由 `apps/fastmpa` 的 Desktop Application 负责。请参阅
+`apps/fastmpa/README.md` 的 Windows Desktop 启动说明。
 
 ## 目录结构
 
