@@ -5,7 +5,7 @@ FastMPA 是一个以 Workspace 为协作事实、以 Agent Run 为可恢复执�
 ## 交付顺序
 
 1. **核心收敛**：Core 定义 Turn/Model/Tool 协议，Runtime 负责 Run、租约、队列、恢复、重试、通知、调度、工具策略、审批和审计，Workspace 负责会话、消息、看板、Attention 和 Schedule；SQLite 是生产默认存储。
-2. **Application 边界**：`apps/fastmpa/src/application.ts` 组合 Runtime 与 Workspace，提供命令、查询、订阅和生命周期；UI 不得直接访问 Store 或 SQLite。
+2. **Application 边界**：`apps/fastmpa/src/application/` 组合 Runtime 与 Workspace，提供命令、查询、订阅和生命周期；UI 不得直接访问 Store 或 SQLite。
 3. **V1 Desktop**：Electron Main/Preload/Renderer 提供 Windows 桌面 shell，Renderer 只通过类型化 IPC 访问 Application。
 4. **扩展**：在 Runtime 审批、幂等和审计边界内接入 Skills、MCP，再加入 TAPD 等平台适配器。
 
