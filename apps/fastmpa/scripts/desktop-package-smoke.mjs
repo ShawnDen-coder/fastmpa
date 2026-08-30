@@ -4,7 +4,8 @@ import { join } from "node:path";
 const appRoot = new URL("../", import.meta.url).pathname
   .replace(/^\//, "")
   .replaceAll("/", "\\");
-const packagedRoot = join(appRoot, "release", "win-unpacked");
+const outputDirectory = process.env.FASTMPA_PACKAGE_OUTPUT ?? "release";
+const packagedRoot = join(appRoot, outputDirectory, "win-unpacked");
 const resourcesRoot = join(packagedRoot, "resources");
 const asarPath = join(resourcesRoot, "app.asar");
 const unpackedRoot = join(resourcesRoot, "app.asar.unpacked");
@@ -26,11 +27,13 @@ async function files(directory) {
   ).flat();
 }
 
-await access(join(appRoot, "release", `FastMPA-Setup-${manifest.version}.exe`));
+await access(
+  join(appRoot, outputDirectory, `FastMPA-Setup-${manifest.version}.exe`),
+);
 await access(asarPath);
 const unpackedFiles = await files(unpackedRoot);
 assert(
-  unpackedFiles.some((file) => /better_sqlite3\.node$/i.test(file)),
+  unpackedFiles.some((file) => /prebuilds[\\/]win32-x64\.node$/i.test(file)),
   "Electron-native better-sqlite3 binary is missing",
 );
 assert(
