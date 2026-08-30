@@ -30,6 +30,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] 流式草稿、活动工具、队列计数和失败消息按 `workspaceId:conversationId` 隔离，切换 Conversation 不串本地状态。
 - [x] Runs、Schedules 和 Attention 通过命令面板分别进入辅助视图，不再混合显示为固定右栏列表。
 - [x] 命令面板支持 `g` 在当前 Workspace 的 Agent participant 之间切换，后续消息使用选中的 Agent。
+- [x] Approval card 支持 ←/→ 选择 Approve、Reject、Details，Enter 确认；Ctrl+A/Ctrl+X 仍作为快捷操作。
 - [x] 增加 40/80/120 列宽度策略；窄终端隐藏次要 Run metadata，不切换到另一套布局，并有单元测试覆盖。
 - [x] Run Details 展示 Run 时间线、上下文、Tool Call、错误码/可重试性、Approval ID 和可用操作。
 - [x] TUI 发送失败时保留本地消息内容，并通过命令面板支持 Retry / Edit / Discard。

@@ -63,6 +63,7 @@ export function FastMpaTui({
   const [logOffset, setLogOffset] = React.useState(0);
   const [logFollow, setLogFollow] = React.useState(true);
   const [detailsVisible, setDetailsVisible] = React.useState(false);
+  const [approvalAction, setApprovalAction] = React.useState(0);
   const [auxiliaryView, setAuxiliaryView] =
     React.useState<AuxiliaryView>("runs");
   const [dialog, setDialog] = React.useState<
@@ -350,6 +351,31 @@ export function FastMpaTui({
       }
       return;
     }
+    if (approval && !dialog && !logsVisible) {
+      if (key.leftArrow || key.rightArrow) {
+        setApprovalAction((action) =>
+          Math.min(2, Math.max(0, action + (key.rightArrow ? 1 : -1))),
+        );
+        return;
+      }
+      if (key.return) {
+        const details = approval.error?.details as { approvalId: string };
+        if (approvalAction === 0)
+          void application.dispatch({
+            type: "approve",
+            runId: approval.runId,
+            approvalId: details.approvalId,
+          });
+        else if (approvalAction === 1)
+          void application.dispatch({
+            type: "reject",
+            runId: approval.runId,
+            approvalId: details.approvalId,
+          });
+        else setDetailsVisible(true);
+        return;
+      }
+    }
     if ((key.return && key.shift) || (key.ctrl && value === "j")) {
       setInput((current) => `${current}\n`);
       return;
@@ -603,6 +629,7 @@ export function FastMpaTui({
               ? (approval.error.details as { approvalId: string }).approvalId
               : ""
           }
+          selectedAction={approvalAction}
         />
       ) : null}
       {detailsVisible && snapshot?.runs[selectedRunIndex] ? (
