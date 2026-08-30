@@ -123,13 +123,19 @@ export async function createApplication(
   const scheduleRunner = new ScheduleRunner({
     scheduler,
     repository,
-    dispatch: (signal) => scheduler.dispatchAndRun(signal),
+    dispatch: async (signal) => {
+      const run = await scheduler.dispatchAndRun(signal);
+      if (run) projector.project(run);
+      await publish();
+      return run;
+    },
     onError: (error) => void error,
   });
   const listeners = new Set<ApplicationEventListener>();
   let started = false;
   const app: FastMpaApplication = {
     async start() {
+      if (started) return;
       started = true;
       worker.startWorkers();
       scheduleRunner.start();
@@ -167,11 +173,11 @@ export async function createApplication(
     },
     async dispatch(command) {
       if (command.type === "cancel")
-        return { run: await worker.cancel(command.runId) };
+        return publishResult({ run: await worker.cancel(command.runId) });
       if (command.type === "retry") {
         const run = await runStore.get(command.runId);
         if (!run?.input) throw new Error("Run cannot be retried");
-        return { run: await worker.resume(command.runId, run.input.turn) };
+        return publishResult({ run: await worker.retry(command.runId) });
       }
       if (command.type === "approve" || command.type === "reject") {
         const run = await runStore.get(command.runId);
@@ -184,7 +190,7 @@ export async function createApplication(
           throw new Error("Approval does not belong to Run");
         if (command.type === "reject") {
           tooling.reject(command.approvalId, command.runId);
-          return { run: await worker.cancel(command.runId) };
+          return publishResult({ run: await worker.cancel(command.runId) });
         }
         const result = await tooling.approve(command.approvalId, command.runId);
         if (result.status !== "completed")
@@ -198,12 +204,12 @@ export async function createApplication(
             toolCallId: result.result.toolCallId,
           },
         ];
-        return {
+        return publishResult({
           run: await worker.resume(command.runId, {
             ...run.input.turn,
             messages,
           }),
-        };
+        });
       }
       if (command.type === "schedule.create") {
         const id = command.scheduleId ?? randomUUID();
@@ -281,6 +287,11 @@ export async function createApplication(
   async function publish(): Promise<void> {
     const snapshot = await app.getSnapshot();
     for (const listener of listeners) listener(snapshot);
+  }
+  async function publishResult(result: CommandResult): Promise<CommandResult> {
+    if (result.run) projector.project(result.run);
+    await publish();
+    return result;
   }
   function ensureWorkspace(
     workspaceId: string,
