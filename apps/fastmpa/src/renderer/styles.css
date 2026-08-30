@@ -240,6 +240,24 @@ body {
   color: #263445;
   white-space: pre-wrap;
 }
+.message.streaming {
+  opacity: 0.82;
+}
+.message.streaming .message-meta::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #3276d8;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
 .empty-state {
   margin: 16vh auto;
   text-align: center;

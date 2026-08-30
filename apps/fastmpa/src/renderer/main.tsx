@@ -28,6 +28,7 @@ function App(): React.JSX.Element {
   const [sending, setSending] = useState(false);
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
+  const [streamingText, setStreamingText] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -45,7 +46,11 @@ function App(): React.JSX.Element {
       },
     );
     const unsubscribeEvents = window.fastMpa.application.onEvent((event) => {
-      if (active) setEvents((current) => [...current.slice(-199), event]);
+      if (!active) return;
+      setEvents((current) => [...current.slice(-199), event]);
+      if (event.type === "text.delta")
+        setStreamingText((current) => current + event.delta);
+      if (event.type === "turn.completed") setStreamingText("");
     });
     return () => {
       active = false;
@@ -71,6 +76,10 @@ function App(): React.JSX.Element {
           .includes(search.toLowerCase()),
     ) ?? [];
   const conversationId = selectedConversationId ?? conversations[0]?.id;
+  useEffect(() => {
+    if (conversationId === undefined) setStreamingText("");
+    else setStreamingText("");
+  }, [conversationId]);
   const messages = useMemo(
     () =>
       snapshot?.messages.filter(
@@ -256,6 +265,15 @@ function App(): React.JSX.Element {
                     </div>
                   </article>
                 ))
+              )}
+              {streamingText && (
+                <article className="message streaming">
+                  <div className="avatar">A</div>
+                  <div>
+                    <div className="message-meta">Agent · streaming</div>
+                    <p>{streamingText}</p>
+                  </div>
+                </article>
               )}
             </div>
           ) : (
