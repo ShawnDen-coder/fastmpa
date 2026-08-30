@@ -25,6 +25,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] TUI 提供 `Ctrl+K` 命令面板入口；`Ctrl+L` 打开日志面板，`Esc` 返回 Conversation。
 - [x] TUI 将 Conversation、InlineTool、ApprovalCard、RunDetails、StatusBar 和 CommandPalette 拆为独立组件；`Ctrl+D` 打开选中 Run 详情。
 - [x] TUI 默认使用 Conversation-first 单区渲染；Workspace、Runs 和 Logs 通过焦点或快捷键进入，日志使用独立 `LogView`。
+- [x] `Ctrl+L` 打开 Logs 焦点视图，方向键滚动日志；日志按当前 Workspace/Conversation 保持上下文过滤。
 - [x] TUI 发送失败时保留本地消息内容，并通过命令面板支持 Retry / Edit / Discard。
 
 本轮未声称完成整个 V1 计划：正式的 conversation-first 单区布局、覆盖式 Run Details/Approval 卡片、日志的独立全屏视图与完整过滤器、消息失败后的 Retry/Edit/Discard，以及 40/80/120 列布局验收仍需后续批次实现。

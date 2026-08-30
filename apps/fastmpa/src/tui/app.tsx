@@ -158,7 +158,10 @@ export function FastMpaTui({
       return;
     }
     if (key.ctrl && value === "l") {
-      setLogsVisible((visible) => !visible);
+      setLogsVisible((visible) => {
+        setFocus(visible ? "middle" : "logs");
+        return !visible;
+      });
       setLogFollow(true);
       setLogOffset(0);
       return;
@@ -196,8 +199,10 @@ export function FastMpaTui({
         setDialog(undefined);
         setInput("");
       } else if (detailsVisible) setDetailsVisible(false);
-      else if (logsVisible) setLogsVisible(false);
-      else exit();
+      else if (logsVisible) {
+        setLogsVisible(false);
+        setFocus("middle");
+      } else exit();
       return;
     }
     if (key.ctrl && value === "c") {
@@ -470,6 +475,8 @@ export function FastMpaTui({
           selectedRunIndex={selectedRunIndex}
           offset={logOffset}
           follow={logFollow}
+          workspaceId={selectedWorkspaceId}
+          conversationId={selectedConversationId}
         />
       ) : null}
       {dialog ? (

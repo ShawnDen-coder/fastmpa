@@ -14,6 +14,8 @@ export function LogView({
   selectedRunIndex,
   offset,
   follow,
+  workspaceId,
+  conversationId,
 }: {
   readonly entries: readonly ApplicationLogEntry[];
   readonly snapshot?: ApplicationSnapshot;
@@ -23,12 +25,24 @@ export function LogView({
   readonly selectedRunIndex: number;
   readonly offset: number;
   readonly follow: boolean;
+  readonly workspaceId?: string;
+  readonly conversationId?: string;
 }): React.ReactElement {
   const runId = snapshot?.runs[selectedRunIndex]?.runId;
   const filtered = entries
     .filter(
       (entry) =>
         ["debug", "info", "warn", "error"].indexOf(entry.level) >= minimumLevel,
+    )
+    .filter(
+      (entry) =>
+        entry.context.workspaceId === workspaceId ||
+        entry.context.workspaceId === undefined,
+    )
+    .filter(
+      (entry) =>
+        entry.context.conversationId === conversationId ||
+        entry.context.conversationId === undefined,
     )
     .filter(
       (entry) =>
