@@ -5,6 +5,7 @@ import type {
   ApplicationLogEntry,
   ApplicationSnapshot,
 } from "../application.js";
+import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
 import "./styles.css";
 
@@ -29,6 +30,7 @@ function App(): React.JSX.Element {
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
   const [streamingText, setStreamingText] = useState("");
+  const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
 
   useEffect(() => {
     let active = true;
@@ -40,6 +42,7 @@ function App(): React.JSX.Element {
         );
       }
     });
+    void window.fastMpa.desktop.getInfo().then(setDesktopInfo);
     const unsubscribeSnapshot = window.fastMpa.application.onSnapshot(
       (next) => {
         if (active) setSnapshot(next);
@@ -282,6 +285,7 @@ function App(): React.JSX.Element {
               snapshot={snapshot}
               logs={logs}
               events={events}
+              desktopInfo={desktopInfo}
             />
           )}
           {page === "Conversations" && (

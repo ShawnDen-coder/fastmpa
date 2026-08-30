@@ -3,12 +3,14 @@ import type {
   ApplicationLogEntry,
   ApplicationSnapshot,
 } from "../application.js";
+import type { DesktopInfo } from "../shared/desktop-api.js";
 
 interface PageViewProps {
   readonly page: string;
   readonly snapshot?: ApplicationSnapshot;
   readonly logs: readonly ApplicationLogEntry[];
   readonly events: readonly ApplicationEvent[];
+  readonly desktopInfo?: DesktopInfo;
 }
 
 function Card({
@@ -180,6 +182,7 @@ export function PageView({
   snapshot,
   logs,
   events,
+  desktopInfo,
 }: PageViewProps): React.JSX.Element {
   if (page === "Agents")
     return (
@@ -265,7 +268,15 @@ export function PageView({
         value="SQLite"
         detail="Stored in the FastMPA user data directory"
       />
-      <Card label="Version" value="Desktop 0.1.0" detail="FastMPA" />
+      <Card
+        label="Version"
+        value={desktopInfo?.version ?? "Loading"}
+        detail={
+          desktopInfo
+            ? `${desktopInfo.platform} · ${desktopInfo.arch}`
+            : "FastMPA Desktop"
+        }
+      />
     </div>
   );
 }
