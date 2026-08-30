@@ -195,6 +195,8 @@ function App(): React.JSX.Element {
           onChange={(event) => {
             setSelectedWorkspaceId(event.target.value);
             setSelectedConversationId(undefined);
+            setSelectedAgentId(undefined);
+            setAgentFilter("all");
           }}
         >
           <option value="" disabled>
