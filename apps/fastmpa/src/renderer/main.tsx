@@ -41,6 +41,7 @@ function App(): React.JSX.Element {
   const [streamingText, setStreamingText] = useState("");
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
   const [inspectorRunId, setInspectorRunId] = useState<string>();
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -68,11 +69,15 @@ function App(): React.JSX.Element {
     const unsubscribeLogs = window.fastMpa.application.onLog((entry) => {
       if (active) setLogs((current) => [...current.slice(-499), entry]);
     });
+    const unsubscribeClosing = window.fastMpa.desktop.onClosing(() => {
+      if (active) setClosing(true);
+    });
     return () => {
       active = false;
       unsubscribeSnapshot();
       unsubscribeEvents();
       unsubscribeLogs();
+      unsubscribeClosing();
     };
   }, []);
 
@@ -427,7 +432,7 @@ function App(): React.JSX.Element {
                 <button
                   type="button"
                   className="send-button"
-                  disabled={!draft.trim() || sending}
+                  disabled={!draft.trim() || sending || closing}
                   onClick={() => void submit()}
                 >
                   {sending ? "…" : "Send"}
@@ -486,6 +491,15 @@ function App(): React.JSX.Element {
           </aside>
         )}
       </div>
+      {closing && (
+        <div className="shutdown-overlay" role="status" aria-live="polite">
+          <div className="shutdown-card">
+            <span className="shutdown-spinner" />
+            <strong>正在安全退出</strong>
+            <p>FastMPA 正在完成当前任务并保存状态。</p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
