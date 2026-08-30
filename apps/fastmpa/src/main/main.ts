@@ -1,5 +1,6 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
 import type { FastMpaApplication } from "../application.js";
 import { bootstrap } from "../bootstrap.js";
 import { desktopChannels } from "../shared/desktop-api.js";
@@ -12,11 +13,71 @@ import {
 
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
+let isQuitting = false;
 
-function createWindow(): BrowserWindow {
-  const window = new BrowserWindow({
+interface WindowState {
+  readonly x?: number;
+  readonly y?: number;
+  readonly width: number;
+  readonly height: number;
+  readonly isMaximized: boolean;
+}
+
+function windowStatePath(): string {
+  return join(app.getPath("userData"), "window-state.json");
+}
+
+function readWindowState(): WindowState {
+  const fallback: WindowState = {
     width: 1440,
     height: 900,
+    isMaximized: false,
+  };
+  try {
+    const parsed = JSON.parse(
+      readFileSync(windowStatePath(), "utf8"),
+    ) as Partial<WindowState>;
+    if (typeof parsed.width !== "number" || typeof parsed.height !== "number")
+      return fallback;
+    return { ...fallback, ...parsed };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveWindowState(window: BrowserWindow): void {
+  const bounds = window.getBounds();
+  const state: WindowState = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    isMaximized: window.isMaximized(),
+  };
+  writeFileSync(windowStatePath(), JSON.stringify(state), "utf8");
+}
+
+function validWindowState(state: WindowState): boolean {
+  if (state.x === undefined || state.y === undefined) return false;
+  const { x, y } = state;
+  return screen.getAllDisplays().some((display) => {
+    const area = display.workArea;
+    return (
+      x < area.x + area.width &&
+      x + state.width > area.x &&
+      y < area.y + area.height &&
+      y + state.height > area.y
+    );
+  });
+}
+
+function createWindow(): BrowserWindow {
+  const state = readWindowState();
+  const window = new BrowserWindow({
+    x: validWindowState(state) ? state.x : undefined,
+    y: validWindowState(state) ? state.y : undefined,
+    width: state.width,
+    height: state.height,
     minWidth: 960,
     minHeight: 640,
     title: "FastMPA",
@@ -28,6 +89,17 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  if (state.isMaximized) window.maximize();
+  window.on("resize", () => saveWindowState(window));
+  window.on("move", () => saveWindowState(window));
+  window.on("maximize", () => saveWindowState(window));
+  window.on("unmaximize", () => saveWindowState(window));
+  window.on("close", (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    void shutdown();
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -170,6 +242,21 @@ async function start(): Promise<void> {
   });
 }
 
+async function shutdown(): Promise<void> {
+  if (isQuitting) return;
+  isQuitting = true;
+  broadcast(desktopChannels.closing, undefined);
+  const currentApplication = application;
+  application = undefined;
+  if (currentApplication) {
+    await Promise.race([
+      currentApplication.stop(),
+      new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+    ]);
+  }
+  app.exit(0);
+}
+
 void start().catch((error: unknown) => {
   console.error(error);
   app.quit();
@@ -180,9 +267,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
-  if (!application) return;
+  if (isQuitting || !application) return;
   event.preventDefault();
-  const currentApplication = application;
-  application = undefined;
-  void currentApplication.stop().finally(() => app.exit(0));
+  void shutdown();
 });
