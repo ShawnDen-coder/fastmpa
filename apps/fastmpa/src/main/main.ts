@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   app,
@@ -20,6 +20,7 @@ import {
   isSnapshotQuery,
 } from "../shared/ipc.js";
 import { EventBatcher } from "./event-batcher.js";
+import { resolveRendererPath } from "./renderer-path.js";
 import {
   defaultWindowState,
   isWindowStateVisible,
@@ -219,14 +220,11 @@ function broadcast(channel: string, value: unknown): void {
 function registerAppProtocol(): void {
   const rendererRoot = resolve(import.meta.dirname, "../renderer");
   protocol.handle("fastmpa", (request) => {
-    const requestedPath =
-      decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, "") ||
-      "index.html";
-    const filePath = resolve(rendererRoot, requestedPath);
-    if (
-      filePath !== rendererRoot &&
-      !filePath.startsWith(`${rendererRoot}${sep}`)
-    )
+    const filePath = resolveRendererPath(
+      rendererRoot,
+      new URL(request.url).pathname,
+    );
+    if (!filePath)
       return Promise.resolve(new Response("Not found", { status: 404 }));
     return net.fetch(pathToFileURL(filePath).toString());
   });
