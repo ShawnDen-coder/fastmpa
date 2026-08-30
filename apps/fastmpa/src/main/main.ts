@@ -1,9 +1,15 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   net,
   protocol,
@@ -253,8 +259,13 @@ async function start(): Promise<void> {
   app.on("second-instance", () => mainWindow?.focus());
   await app.whenReady();
   if (app.isPackaged) registerAppProtocol();
+  const databasePath = join(app.getPath("userData"), "fastmpa.sqlite");
+  if (!(await prepareLegacyDatabase(databasePath))) {
+    app.quit();
+    return;
+  }
   application = await bootstrap({
-    databasePath: join(app.getPath("userData"), "fastmpa.sqlite"),
+    databasePath,
     logPath: join(app.getPath("userData"), "fastmpa.log"),
   });
   registerIpc();
@@ -268,6 +279,27 @@ async function start(): Promise<void> {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });
+}
+
+async function prepareLegacyDatabase(databasePath: string): Promise<boolean> {
+  const legacyPath = join(process.cwd(), "fastmpa.sqlite");
+  if (legacyPath === databasePath || !existsSync(legacyPath) || existsSync(databasePath))
+    return true;
+  const choice = await dialog.showMessageBox({
+    type: "question",
+    title: "FastMPA data found",
+    message: "An existing FastMPA database was found in the old workspace.",
+    detail: "Import it into this Desktop installation, start fresh, or cancel startup.",
+    buttons: ["Import existing data", "Start fresh", "Cancel"],
+    defaultId: 0,
+    cancelId: 2,
+  });
+  if (choice.response === 2) return false;
+  if (choice.response === 1) return true;
+  const backupPath = `${legacyPath}.backup-${Date.now()}`;
+  copyFileSync(legacyPath, backupPath);
+  copyFileSync(legacyPath, databasePath);
+  return true;
 }
 
 async function shutdown(): Promise<void> {
