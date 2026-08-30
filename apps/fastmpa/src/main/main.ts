@@ -20,6 +20,10 @@ import {
   isSnapshotQuery,
 } from "../shared/ipc.js";
 import { EventBatcher } from "./event-batcher.js";
+import {
+  isAllowedExternalUrl,
+  isAllowedNavigation,
+} from "./navigation-policy.js";
 import { resolveRendererPath } from "./renderer-path.js";
 import {
   defaultWindowState,
@@ -102,13 +106,13 @@ function createWindow(): BrowserWindow {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) void shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   window.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith("app://") && !url.startsWith("http://localhost:")) {
+    if (!isAllowedNavigation(url)) {
       event.preventDefault();
-      if (url.startsWith("https://")) void shell.openExternal(url);
+      if (isAllowedExternalUrl(url)) void shell.openExternal(url);
     }
   });
 
