@@ -51,8 +51,10 @@ body {
   }
 }
 .title-bar {
+  display: flex;
+  align-items: center;
   height: 44px;
-  padding: 12px 20px;
+  padding: 12px 140px 12px 20px;
   border-bottom: 1px solid #dfe6ef;
   background: #fff;
   -webkit-app-region: drag;
