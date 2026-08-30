@@ -12,6 +12,22 @@ pnpm --filter fastmpa build
 pnpm --filter fastmpa exec electron .
 ```
 
+开发环境建议使用两个终端。终端 1 启动 Renderer dev server：
+
+```bash
+pnpm install
+pnpm --filter fastmpa build
+pnpm --filter fastmpa dev:renderer
+```
+
+终端 2 启动 Electron：
+
+```bash
+pnpm --filter fastmpa dev:electron
+```
+
+Renderer 修改支持热更新；Main 或 Preload 修改后需重新 build 并重启 Electron。
+
 生成 Windows 安装包：
 
 ```bash

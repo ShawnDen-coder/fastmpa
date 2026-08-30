@@ -7,6 +7,8 @@
   "files": ["dist", "resources"],
   "scripts": {
     "build": "vite build --config vite.renderer.config.ts && vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
+    "dev:renderer": "vite --config vite.renderer.config.ts --host localhost",
+    "dev:electron": "electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "desktop:smoke": "node scripts/desktop-host-smoke.mjs",
