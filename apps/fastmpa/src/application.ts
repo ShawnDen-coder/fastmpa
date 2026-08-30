@@ -453,6 +453,14 @@ export async function createApplication(
     const run = await worker.run(runId);
     if (run) projector.project(run);
     await publish();
+    if (run && requiresApproval(run)) {
+      const terminal = await waitForTerminalRun(() => runStore.get(runId));
+      if (terminal) {
+        projector.project(terminal);
+        await publish();
+        return { run: terminal, created: true };
+      }
+    }
     return { run, created: true };
   }
   async function publish(): Promise<void> {
@@ -525,6 +533,26 @@ function withPhase(run: AgentRun): AgentRun & { readonly phase: RunPhase } {
       phase = "terminal";
   }
   return { ...run, phase };
+}
+
+function requiresApproval(run: AgentRun): boolean {
+  if (run.status !== "waiting") return false;
+  const details = run.error?.details;
+  return (
+    typeof details === "object" &&
+    details !== null &&
+    typeof (details as { approvalId?: unknown }).approvalId === "string"
+  );
+}
+
+async function waitForTerminalRun(
+  getRun: () => Promise<AgentRun | undefined>,
+): Promise<AgentRun | undefined> {
+  for (;;) {
+    const run = await getRun();
+    if (!run || !requiresApproval(run)) return run;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
 }
 
 export function selectConversationContext(

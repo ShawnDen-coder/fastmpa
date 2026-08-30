@@ -19,6 +19,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
 - [x] Application Snapshot 支持按 Workspace/Conversation 选择范围读取。
 - [x] 增加 ConversationRunCoordinator，保证同一 Conversation 的 submit 串行；不同 Conversation 可并行，失败后队列继续。
+- [x] 审批 waiting Run 会占用当前 Conversation 队列，直到批准、拒绝或取消后才释放后续消息。
 - [x] 完成三栏 TUI 的三栏焦点、Workspace/Conversation 选择、创建/重命名、队列状态和审批快捷键基础交互。
 - [x] Application 提供 500 条日志 Ring Buffer、实时订阅和 JSONL 文件输出；TUI 支持 `Ctrl+L` 折叠日志面板。
 - [x] TUI 日志支持最低级别 `1/2/3/4`、当前 Run 过滤 `Ctrl+E`，并显示日志文件绝对路径。

@@ -122,3 +122,7 @@ changes request a filtered Application snapshot; submitted turns are serialized
 by Application on `workspaceId:conversationId`, so switching the visible
 conversation does not cancel background work or mix its history into another
 conversation.
+
+When a Run is waiting for approval, the Application coordinator keeps that
+conversation's queue occupied until the approval is resolved. Other
+conversations remain independent.
