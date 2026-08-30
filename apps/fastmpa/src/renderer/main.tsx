@@ -39,7 +39,7 @@ function App(): React.JSX.Element {
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("all");
-  const [draft, setDraft] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [sendQueue, setSendQueue] = useState<readonly string[]>([]);
   const [sendError, setSendError] = useState<string>();
@@ -129,6 +129,15 @@ function App(): React.JSX.Element {
     ) ?? [];
   const activeAgentId = selectedAgentId ?? agents[0]?.id ?? "demo-agent";
   const conversationId = selectedConversationId ?? conversations[0]?.id;
+  const conversationKey =
+    workspace && conversationId
+      ? `${workspace.id}:${conversationId}`
+      : undefined;
+  const draft = conversationKey ? (drafts[conversationKey] ?? "") : "";
+  function setDraft(value: string): void {
+    if (!conversationKey) return;
+    setDrafts((current) => ({ ...current, [conversationKey]: value }));
+  }
   useEffect(() => {
     if (conversationId === undefined) setStreamingText("");
     else setStreamingText("");
@@ -155,6 +164,9 @@ function App(): React.JSX.Element {
           agentId: activeAgentId,
         });
       } catch (error: unknown) {
+        if (conversationKey) {
+          setDrafts((current) => ({ ...current, [conversationKey]: body }));
+        }
         setSendError(
           error instanceof Error ? error.message : "Message failed to send",
         );
@@ -162,7 +174,7 @@ function App(): React.JSX.Element {
         setSending(false);
       }
     },
-    [activeAgentId, conversationId, workspace],
+    [activeAgentId, conversationId, conversationKey, workspace],
   );
 
   async function submit(): Promise<void> {
