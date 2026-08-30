@@ -6,6 +6,7 @@ import type {
   FastMpaApplication,
 } from "../application.js";
 import { ApprovalCard } from "./approval-card.js";
+import { type AuxiliaryView, AuxiliaryViewPanel } from "./auxiliary-view.js";
 import { CommandPalette } from "./command-palette.js";
 import { ConversationView } from "./conversation-view.js";
 import { LogView } from "./log-view.js";
@@ -61,6 +62,8 @@ export function FastMpaTui({
   const [logOffset, setLogOffset] = React.useState(0);
   const [logFollow, setLogFollow] = React.useState(true);
   const [detailsVisible, setDetailsVisible] = React.useState(false);
+  const [auxiliaryView, setAuxiliaryView] =
+    React.useState<AuxiliaryView>("runs");
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
@@ -188,8 +191,16 @@ export function FastMpaTui({
         setCommandPalette(false);
         return;
       }
-      if (value === "w" || value === "c" || value === "r") {
+      if (value === "w" || value === "c") {
         setFocus(value === "w" ? "left" : value === "c" ? "middle" : "right");
+        setCommandPalette(false);
+        return;
+      }
+      if (value === "r" || value === "s" || value === "a") {
+        setAuxiliaryView(
+          value === "r" ? "runs" : value === "s" ? "schedules" : "attention",
+        );
+        setFocus("right");
         setCommandPalette(false);
         return;
       }
@@ -522,20 +533,7 @@ export function FastMpaTui({
             liveTool={activeConversationUi.liveTool}
           />
           <Box width="25%" flexDirection="column">
-            <Text color="yellow">
-              Runs / Approval / Schedule [{focus === "right" ? "focus" : ""}]
-            </Text>
-            {snapshot?.runs.map((run, index) => (
-              <Text
-                key={run.runId}
-                color={index === selectedRunIndex ? "yellow" : undefined}
-              >
-                {run.runId.slice(0, 12)} {run.status}
-              </Text>
-            ))}
-            {snapshot?.schedules.map((schedule) => (
-              <Text key={schedule.id}>schedule {schedule.id.slice(0, 12)}</Text>
-            ))}
+            <AuxiliaryViewPanel snapshot={snapshot} view={auxiliaryView} />
           </Box>
         </Box>
       ) : null}
