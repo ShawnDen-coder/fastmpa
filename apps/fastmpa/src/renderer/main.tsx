@@ -119,7 +119,16 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     if (page !== "Logs") return;
-    void window.fastMpa.application.getRecentLogs(100).then(setLogs);
+    void window.fastMpa.application.getRecentLogs(100).then((history) => {
+      setLogs((current) => {
+        const entries = new Map(
+          [...history, ...current].map((entry) => [entry.sequence, entry]),
+        );
+        return [...entries.values()]
+          .sort((left, right) => left.sequence - right.sequence)
+          .slice(-500);
+      });
+    });
   }, [page]);
 
   const workspace =
