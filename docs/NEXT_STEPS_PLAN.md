@@ -24,6 +24,8 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] TUI 订阅实时事件，在当前 Conversation 中显示流式文本和工具执行指示。
 - [x] TUI 提供 `Ctrl+K` 命令面板入口；`Ctrl+L` 打开日志面板，`Esc` 返回 Conversation。
 
+本轮未声称完成整个 V1 计划：正式的 conversation-first 单区布局、覆盖式 Run Details/Approval 卡片、日志的独立全屏视图与完整过滤器、消息失败后的 Retry/Edit/Discard，以及 40/80/120 列布局验收仍需后续批次实现。
+
 - [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
 - [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
