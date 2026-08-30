@@ -41,7 +41,7 @@ export class ScheduleRunner {
       .listSchedules()
       .find((item) => item.id === scheduleId);
     if (!schedule) return false;
-    this.options.repository.saveSchedule({ ...schedule, enabled: false });
+    this.options.repository.deleteSchedule(schedule.workspaceId, schedule.id);
     return true;
   }
 
@@ -59,6 +59,7 @@ export class ScheduleRunner {
           scheduleId: schedule.id,
           workspaceId: schedule.workspaceId,
           agentId: schedule.agentId,
+          scheduledFor: schedule.nextRunAt,
         }),
       );
       let nextRunAt = schedule.nextRunAt;

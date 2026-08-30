@@ -121,7 +121,13 @@ export class LeaseRuntimeWorker {
       const persisted = requirePersistedDependencies(current.input);
       const [model, tools] = await Promise.all([
         this.options.resolver.resolveModel(persisted.dependencies.modelKey),
-        this.options.resolver.resolveTools(persisted.dependencies.toolsetKey),
+        this.options.resolver.resolveTools(persisted.dependencies.toolsetKey, {
+          runId,
+          attempt: current.attempt,
+          agentId: current.context?.agentId,
+          workspaceId: current.context?.workspaceId,
+          toolsetKey: persisted.dependencies.toolsetKey,
+        }),
       ]);
       const retryPolicy = persisted.retryPolicy ?? noRetry;
 

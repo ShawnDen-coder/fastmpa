@@ -40,10 +40,22 @@ export class InMemoryApprovalStore implements ApprovalStore {
 
 export class SqliteApprovalStore implements ApprovalStore {
   private readonly database: Database.Database;
+  private readonly ownsDatabase: boolean;
 
-  constructor(filePath: string) {
-    mkdirSync(dirname(filePath), { recursive: true });
-    this.database = new Database(filePath);
+  constructor(filePath: string);
+  constructor(database: Database.Database, ownsDatabase: boolean);
+  constructor(
+    filePathOrDatabase: string | Database.Database,
+    ownsDatabase = true,
+  ) {
+    if (typeof filePathOrDatabase === "string") {
+      mkdirSync(dirname(filePathOrDatabase), { recursive: true });
+      this.database = new Database(filePathOrDatabase);
+      this.ownsDatabase = true;
+    } else {
+      this.database = filePathOrDatabase;
+      this.ownsDatabase = ownsDatabase;
+    }
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS tool_approvals (
         approval_id TEXT PRIMARY KEY,
@@ -58,6 +70,10 @@ export class SqliteApprovalStore implements ApprovalStore {
         payload_json TEXT NOT NULL
       );
     `);
+  }
+
+  public static fromDatabase(database: Database.Database): SqliteApprovalStore {
+    return new SqliteApprovalStore(database, false);
   }
 
   save(approval: ApprovalRequest): void {
@@ -118,6 +134,6 @@ export class SqliteApprovalStore implements ApprovalStore {
   }
 
   close(): void {
-    this.database.close();
+    if (this.ownsDatabase) this.database.close();
   }
 }

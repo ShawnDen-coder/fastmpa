@@ -1,13 +1,19 @@
-import { createHash, randomUUID } from "node:crypto";
-import { type ModelAdapter, ToolRegistry } from "@shawnden-coder/agent-core";
+import { randomUUID } from "node:crypto";
+import type { ModelAdapter } from "@shawnden-coder/agent-core";
 import {
   type AgentRun,
+  AgentRuntime,
   AgentScheduler,
-  LeaseRuntimeWorker,
+  DefaultRuntimeTooling,
+  openSqliteDatabase,
   type RunDependencyResolver,
+  type RuntimeTooling,
   ScheduleRunner,
+  SqliteApprovalStore,
+  type SqliteDatabase,
   SqliteRunStore,
-  type ToolPipeline,
+  ToolCatalog,
+  ToolPipeline,
 } from "@shawnden-coder/agent-runtime";
 import {
   type Message,
@@ -16,7 +22,7 @@ import {
   sendMessage,
   type WorkspaceRepository,
 } from "workspace";
-import { projectCompletedRun } from "./orchestrator.js";
+import { CompletionProjector } from "./orchestrator.js";
 
 export type ApplicationCommand =
   | {
@@ -70,36 +76,43 @@ export interface FastMpaApplication {
 export interface FastMpaApplicationOptions {
   readonly databasePath: string;
   readonly model?: ModelAdapter;
-  readonly tools?: ToolRegistry;
+  readonly tooling?: RuntimeTooling;
   readonly ownerId?: string;
-  readonly approvalPipeline?: Pick<ToolPipeline, "approve" | "reject">;
 }
 
 export async function createApplication(
   options: FastMpaApplicationOptions,
 ): Promise<FastMpaApplication> {
-  const repository: WorkspaceRepository = new SqliteWorkspaceRepository(
-    options.databasePath,
-  );
-  const runStore = await SqliteRunStore.open({
+  const database = await openSqliteDatabase({
     filePath: options.databasePath,
     migrationsFolder: false,
   });
+  const repository: WorkspaceRepository =
+    SqliteWorkspaceRepository.fromDatabase(database.client);
+  const runStore = SqliteRunStore.fromDatabase(database);
+  const projector = new CompletionProjector(database.client, repository);
   const model = options.model ?? {
     complete: async () => ({
       type: "text" as const,
       content: "演示 Agent 已完成任务。",
     }),
   };
-  const tools = options.tools ?? new ToolRegistry();
+  const tooling = options.tooling ?? createDefaultTooling(database.client);
   const resolver: RunDependencyResolver = {
     resolveModel: () => model,
-    resolveTools: () => tools,
+    resolveTools: (_toolsetKey, context) => {
+      if (!context) throw new Error("Run execution context is required");
+      return tooling.resolveTools(context);
+    },
   };
-  const worker = new LeaseRuntimeWorker(runStore, {
+  const worker = new AgentRuntime(runStore, {
     ownerId: options.ownerId ?? `fastmpa-${process.pid}`,
     leaseMs: 30_000,
     resolver,
+    onWorkerRun: (run) => {
+      projector.project(run);
+      void publish();
+    },
   });
   const scheduler = new AgentScheduler({
     repository,
@@ -118,17 +131,20 @@ export async function createApplication(
   const app: FastMpaApplication = {
     async start() {
       started = true;
+      worker.startWorkers();
       scheduleRunner.start();
       const persistedRuns = (await runStore.listRuns()).runs;
-      for (const run of persistedRuns) projectCompletedRun(repository, run);
+      projector.projectAll(persistedRuns);
       await publish();
     },
     async stop() {
       if (!started) return;
       started = false;
       scheduleRunner.stop();
+      await worker.stopWorkers();
       runStore.close();
       (repository as SqliteWorkspaceRepository).close();
+      database.client.close();
     },
     async getSnapshot() {
       const workspaces = repository.listWorkspaceIds?.() ?? ["default"];
@@ -151,27 +167,26 @@ export async function createApplication(
     },
     async dispatch(command) {
       if (command.type === "cancel")
-        return { run: await worker.cancelPersistedRun(command.runId) };
+        return { run: await worker.cancel(command.runId) };
       if (command.type === "retry") {
         const run = await runStore.get(command.runId);
         if (!run?.input) throw new Error("Run cannot be retried");
-        return { run: await worker.resumeRun(command.runId, run.input.turn) };
+        return { run: await worker.resume(command.runId, run.input.turn) };
       }
       if (command.type === "approve" || command.type === "reject") {
         const run = await runStore.get(command.runId);
-        if (!run?.error?.details || !options.approvalPipeline)
+        if (!run?.error?.details)
           throw new Error(
             `Approval ${command.approvalId} is not configured for Run ${command.runId}`,
           );
         const details = run.error.details as { approvalId?: unknown };
         if (details.approvalId !== command.approvalId)
           throw new Error("Approval does not belong to Run");
-        if (command.type === "reject")
-          return { run: await worker.cancelPersistedRun(command.runId) };
-        const result = await options.approvalPipeline.approve(
-          command.approvalId,
-          command.runId,
-        );
+        if (command.type === "reject") {
+          tooling.reject(command.approvalId, command.runId);
+          return { run: await worker.cancel(command.runId) };
+        }
+        const result = await tooling.approve(command.approvalId, command.runId);
         if (result.status !== "completed")
           throw new Error("Approval did not complete tool execution");
         if (!run.input) throw new Error("Waiting Run has no persisted input");
@@ -184,7 +199,7 @@ export async function createApplication(
           },
         ];
         return {
-          run: await worker.resumeRun(command.runId, {
+          run: await worker.resume(command.runId, {
             ...run.input.turn,
             messages,
           }),
@@ -217,7 +232,7 @@ export async function createApplication(
         if (!schedule)
           throw new Error(`Schedule not found: ${command.scheduleId}`);
         if (command.type === "schedule.delete")
-          repository.saveSchedule({ ...schedule, enabled: false });
+          repository.deleteSchedule(schedule.workspaceId, schedule.id);
         else
           repository.saveSchedule({
             ...schedule,
@@ -238,12 +253,8 @@ export async function createApplication(
         mentions: [agentId],
         createdAt: new Date().toISOString(),
       }).message;
-      const runId = createRunId(
-        command.workspaceId,
-        command.conversationId,
-        command.body,
-      );
-      const enqueued = await worker.enqueueIdempotent({
+      const runId = `run:${message.id}`;
+      const enqueued = await worker.enqueue({
         runId,
         turn: { messages: [{ role: "user", content: command.body }] },
         dependencies: { modelKey: "demo", toolsetKey: "local" },
@@ -257,26 +268,7 @@ export async function createApplication(
       });
       if (!enqueued.created) return enqueued;
       const run = await worker.run(runId);
-      if (run) projectCompletedRun(repository, run);
-      if (run?.status === "completed" && run.result)
-        for (const result of run.result.messages.filter(
-          (item) => item.role === "assistant",
-        )) {
-          const previous = repository.listMessages(
-            command.workspaceId,
-            command.conversationId,
-          );
-          repository.saveMessage({
-            id: randomUUID(),
-            workspaceId: command.workspaceId,
-            conversationId: command.conversationId,
-            senderId: agentId,
-            body: result.content,
-            mentions: [],
-            sequence: (previous.at(-1)?.sequence ?? 0) + 1,
-            createdAt: new Date().toISOString(),
-          });
-        }
+      if (run) projector.project(run);
       await publish();
       return { run, created: true };
     },
@@ -320,10 +312,18 @@ export async function createApplication(
       });
   }
 }
-function createRunId(
-  workspaceId: string,
-  conversationId: string,
-  body: string,
-): string {
-  return `run-${createHash("sha256").update(`${workspaceId}:${conversationId}:${body}`).digest("hex").slice(0, 24)}`;
+
+function createDefaultTooling(
+  client: SqliteDatabase["client"],
+): RuntimeTooling {
+  const catalog = new ToolCatalog();
+  return new DefaultRuntimeTooling(
+    catalog,
+    new ToolPipeline(
+      catalog,
+      undefined,
+      undefined,
+      SqliteApprovalStore.fromDatabase(client),
+    ),
+  );
 }

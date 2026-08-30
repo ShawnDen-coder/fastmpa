@@ -15,7 +15,7 @@ export interface RegisteredTool {
   ): unknown | Promise<unknown>;
 }
 
-export class ToolRegistry {
+export class ToolCatalog {
   private readonly tools = new Map<string, RegisteredTool>();
 
   public register(tool: RegisteredTool): void {
@@ -33,6 +33,9 @@ export class ToolRegistry {
     return [...this.tools.values()];
   }
 }
+
+/** @deprecated Runtime callers should use ToolCatalog. */
+export { ToolCatalog as ToolRegistry };
 
 /** 将 Pipeline 的注册表投影为 Core 只读执行接口；审批仍由 Pipeline 调用方负责。 */
 export function toCoreToolRegistry(
@@ -72,6 +75,7 @@ export function toCoreToolRegistry(
         const result = await options.pipeline.execute(call, {
           actorId: options.actorId,
           idempotencyKey: `${options.idempotencyKeyPrefix ?? "core"}:${tool.definition.name}:${JSON.stringify(record)}`,
+          runId: options.idempotencyKeyPrefix ?? "core",
         });
         if (result.status === "approval_required")
           throw new ToolExecutionError(

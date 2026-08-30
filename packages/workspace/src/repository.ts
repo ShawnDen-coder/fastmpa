@@ -30,6 +30,7 @@ export interface WorkspaceRepository {
   ): ReadCursor;
   saveReadCursor(cursor: ReadCursor): void;
   saveSchedule(schedule: Schedule): void;
+  deleteSchedule(workspaceId: string, scheduleId: string): void;
   getSchedule(workspaceId: string, scheduleId: string): Schedule | undefined;
   listSchedules(workspaceId?: string): readonly Schedule[];
   listWorkspaceIds?(): readonly string[];
@@ -146,6 +147,9 @@ export class InMemoryWorkspaceRepository implements WorkspaceRepository {
   }
   saveSchedule(schedule: Schedule): void {
     this.schedules.set(key(schedule.workspaceId, schedule.id), schedule);
+  }
+  deleteSchedule(workspaceId: string, scheduleId: string): void {
+    this.schedules.delete(key(workspaceId, scheduleId));
   }
   getSchedule(workspaceId: string, scheduleId: string): Schedule | undefined {
     return this.schedules.get(key(workspaceId, scheduleId));

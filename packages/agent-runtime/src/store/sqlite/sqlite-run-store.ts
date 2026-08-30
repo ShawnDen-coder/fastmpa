@@ -23,9 +23,15 @@ import { agentRuns, runtimeEvents } from "./schema.js";
 
 /** SQLite 版 RunStore；查询、写入和事务均通过 Drizzle 完成。 */
 export class SqliteRunStore implements RunLeaseStore {
-  private constructor(private readonly database: SqliteDatabase) {}
+  private constructor(
+    private readonly database: SqliteDatabase,
+    private readonly ownsDatabase = true,
+  ) {}
   public static async open(config: SqliteStoreConfig): Promise<SqliteRunStore> {
     return new SqliteRunStore(await openSqliteDatabase(config));
+  }
+  public static fromDatabase(database: SqliteDatabase): SqliteRunStore {
+    return new SqliteRunStore(database, false);
   }
 
   public async create(run: AgentRun): Promise<void> {
@@ -492,7 +498,7 @@ export class SqliteRunStore implements RunLeaseStore {
 
   /** 应用退出时关闭 SQLite 连接。 */
   public close(): void {
-    this.database.client.close();
+    if (this.ownsDatabase) this.database.client.close();
   }
 }
 
@@ -551,12 +557,17 @@ function toEventRow(event: RuntimeEvent) {
   };
 }
 function toRun(row: typeof agentRuns.$inferSelect): AgentRun {
+  const input =
+    row.inputJson === null
+      ? undefined
+      : (JSON.parse(row.inputJson) as AgentRun["input"]);
   return {
     runId: row.runId,
     status: row.status as AgentRun["status"],
     attempt: row.attempt,
     version: row.version,
-    ...(row.inputJson === null ? {} : { input: JSON.parse(row.inputJson) }),
+    ...(input === undefined ? {} : { input }),
+    ...(input?.context === undefined ? {} : { context: input.context }),
     createdAt: row.createdAt,
     ...(row.startedAt === null ? {} : { startedAt: row.startedAt }),
     ...(row.finishedAt === null ? {} : { finishedAt: row.finishedAt }),

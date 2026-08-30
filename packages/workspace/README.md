@@ -10,7 +10,7 @@ FastMPA 的协作工作空间基础包，负责保存 Human 与 Agent 共同工�
 - 保存 `Conversation/Message`、`Board/Column/Card` 和 Agent 的 `ReadCursor`。
 - 通过 `loadInbox`、`loadAgenda`、`loadAttention` 提供派生查询。
 - 提供 `InMemoryWorkspaceRepository` 与 `SqliteWorkspaceRepository`；生产 Host 可在进程重启后恢复 Workspace 事实。
-- 持有周期 `Schedule` 定义，由 Runtime 内置 Scheduler 读取并推进下一次执行时间。
+- 持有周期 `Schedule` 定义；Application Orchestrator 读取它并通过 Runtime 入队。删除会真正移除持久化 Schedule。
 - 业务写入返回轻量 `WorkspaceChange`，由 Runtime Scheduler 触发通知。
 
 Inbox 与 Agenda 是查询结果，不是独立队列或 Repository；本包不负责 Runtime、Scheduler、HTTP API 或领域状态机。

@@ -14,6 +14,7 @@ export interface RuntimeWorkerLoopOptions {
   readonly setInterval?: typeof setInterval;
   readonly clearInterval?: typeof clearInterval;
   readonly onError?: (error: unknown) => void;
+  readonly onRun?: (run: AgentRun) => void;
 }
 
 /**
@@ -77,7 +78,8 @@ export class RuntimeWorkerLoop {
 
   private async runOne(run: AgentRun): Promise<void> {
     try {
-      await this.options.worker.run(run.runId);
+      const result = await this.options.worker.run(run.runId);
+      if (result) this.options.onRun?.(result);
     } catch (error) {
       this.options.onError?.(error);
     }

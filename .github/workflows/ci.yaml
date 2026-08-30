@@ -20,4 +20,4 @@ jobs:
       node-version: '22'
       lint-command: just check
       build-command: just build && just typecheck
-      test-command: just test
+      test-command: just test && node apps/fastmpa/dist/index.js doctor

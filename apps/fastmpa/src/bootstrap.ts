@@ -1,4 +1,4 @@
-import { FakeModel, type ToolRegistry } from "@shawnden-coder/agent-core";
+import { FakeModel } from "@shawnden-coder/agent-core";
 import {
   createApplication,
   type FastMpaApplication,
@@ -7,7 +7,6 @@ import {
 export function bootstrap(
   options: Omit<FastMpaApplicationOptions, "model"> & {
     model?: FastMpaApplicationOptions["model"];
-    tools?: ToolRegistry;
   },
 ): Promise<FastMpaApplication> {
   return createApplication({

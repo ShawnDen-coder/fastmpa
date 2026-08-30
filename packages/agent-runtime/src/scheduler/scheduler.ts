@@ -1,11 +1,6 @@
 import type { WorkspaceChange, WorkspaceRepository } from "workspace";
 import { loadAttention, markConversationRead } from "workspace";
 import type { AgentRun, EnqueueRunInput } from "../types/index.js";
-import {
-  InMemoryWorkClaimStore,
-  type WorkClaim,
-  type WorkClaimStore,
-} from "./claim.js";
 import { assembleAgentContext, contextMessages } from "./context.js";
 import { shouldWake } from "./triage.js";
 
@@ -15,6 +10,7 @@ export interface WakeSignal {
   agentId: string;
   reason: "mention" | "assignment" | "schedule";
   sourceRef: { type: "message" | "card" | "schedule"; id: string };
+  scheduledFor?: number;
 }
 
 export interface RuntimeDispatcher {
@@ -31,24 +27,16 @@ export interface AgentSchedulerOptions {
   createId?: () => string;
   modelKey: string;
   toolsetKey: string;
-  claimStore?: WorkClaimStore;
-  claimLeaseMs?: number;
   now?: () => number;
 }
 
 export class AgentScheduler {
   private readonly pending = new Map<string, WakeSignal>();
+  private readonly inFlight = new Set<string>();
   private readonly createId: () => string;
-  private readonly claimStore: WorkClaimStore;
-  private readonly claimLeaseMs: number;
-  private readonly now: () => number;
 
   public constructor(private readonly options: AgentSchedulerOptions) {
     this.createId = options.createId ?? (() => crypto.randomUUID());
-    this.claimStore =
-      options.claimStore ?? new InMemoryWorkClaimStore(this.createId);
-    this.claimLeaseMs = options.claimLeaseMs ?? 5 * 60_000;
-    this.now = options.now ?? Date.now;
   }
 
   public notify(change: WorkspaceChange): readonly WakeSignal[] {
@@ -76,6 +64,7 @@ export class AgentScheduler {
     scheduleId: string;
     workspaceId: string;
     agentId: string;
+    scheduledFor?: number;
   }): WakeSignal {
     const pendingKey = `${input.workspaceId}:${input.agentId}`;
     const existing = this.pending.get(pendingKey);
@@ -86,52 +75,58 @@ export class AgentScheduler {
       agentId: input.agentId,
       reason: "schedule",
       sourceRef: { type: "schedule", id: input.scheduleId },
+      ...(input.scheduledFor === undefined
+        ? {}
+        : { scheduledFor: input.scheduledFor }),
     };
     this.pending.set(pendingKey, signal);
     return signal;
   }
 
   public async dispatch(signal: WakeSignal): Promise<unknown> {
-    const claim = this.acquireClaim(signal);
-    if (!claim) return undefined;
+    if (!this.beginDispatch(signal)) return undefined;
     const snapshot = loadAttention(
       this.options.repository,
       signal.workspaceId,
       signal.agentId,
     );
     if (signal.reason !== "schedule" && !shouldWake(snapshot)) {
-      this.releaseClaim(claim, signal.wakeId);
+      this.endDispatch(signal);
       return undefined;
     }
-    const result = await this.options.runtime.enqueue(
-      this.createEnqueueInput(signal, snapshot),
-    );
-    this.pending.delete(`${signal.workspaceId}:${signal.agentId}`);
-    return result;
+    try {
+      const result = await this.options.runtime.enqueue(
+        this.createEnqueueInput(signal, snapshot),
+      );
+      this.pending.delete(`${signal.workspaceId}:${signal.agentId}`);
+      return result;
+    } finally {
+      this.endDispatch(signal);
+    }
   }
 
   public async dispatchAndRun(
     signal: WakeSignal,
   ): Promise<AgentRun | undefined> {
-    const claim = this.acquireClaim(signal);
-    if (!claim) return undefined;
+    if (!this.beginDispatch(signal)) return undefined;
     const snapshot = loadAttention(
       this.options.repository,
       signal.workspaceId,
       signal.agentId,
     );
     if (signal.reason !== "schedule" && !shouldWake(snapshot)) {
-      this.releaseClaim(claim, signal.wakeId);
+      this.endDispatch(signal);
       return undefined;
     }
     const runtime = this.options.runtime as RuntimeProcessor;
     if (typeof runtime.run !== "function") {
-      this.releaseClaim(claim, signal.wakeId);
+      this.endDispatch(signal);
       throw new Error("Runtime dispatcher does not support execution");
     }
     try {
-      await runtime.enqueue(this.createEnqueueInput(signal, snapshot));
-      const run = await runtime.run(signal.wakeId);
+      const input = this.createEnqueueInput(signal, snapshot);
+      await runtime.enqueue(input);
+      const run = await runtime.run(input.runId);
       if (run?.status === "completed") {
         const byConversation = new Map<string, number>();
         for (const message of snapshot.inbox) {
@@ -155,22 +150,19 @@ export class AgentScheduler {
       }
       return run;
     } finally {
-      this.releaseClaim(claim, signal.wakeId);
+      this.endDispatch(signal);
       this.pending.delete(`${signal.workspaceId}:${signal.agentId}`);
     }
   }
 
-  private acquireClaim(signal: WakeSignal): WorkClaim | undefined {
-    return this.claimStore.acquire({
-      workKey: `${signal.workspaceId}:${signal.agentId}:${signal.sourceRef.type}:${signal.sourceRef.id}`,
-      ownerId: signal.wakeId,
-      now: this.now(),
-      leaseMs: this.claimLeaseMs,
-    });
+  private beginDispatch(signal: WakeSignal): boolean {
+    if (this.inFlight.has(signal.wakeId)) return false;
+    this.inFlight.add(signal.wakeId);
+    return true;
   }
 
-  private releaseClaim(claim: WorkClaim, ownerId: string): void {
-    this.claimStore.release(claim.claimId, ownerId);
+  private endDispatch(signal: WakeSignal): void {
+    this.inFlight.delete(signal.wakeId);
   }
 
   private createEnqueueInput(
@@ -199,7 +191,10 @@ export class AgentScheduler {
       schedule,
     );
     return {
-      runId: signal.wakeId,
+      runId:
+        signal.reason === "schedule" && signal.scheduledFor !== undefined
+          ? `run:${signal.workspaceId}:${signal.agentId}:${signal.sourceRef.id}:${signal.scheduledFor}`
+          : signal.wakeId,
       turn: {
         messages: contextMessages(contextWithSchedule),
         metadata: {

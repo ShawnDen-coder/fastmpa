@@ -34,12 +34,17 @@ typecheck:
 test:
     pnpm --config.confirmModulesPurge=false -r --if-present run test
 
+# Run the built CLI against a throwaway database.
+cli-smoke:
+    powershell -NoProfile -Command "$db = Join-Path $env:TEMP 'fastmpa-cli-smoke.sqlite'; if (Test-Path $db) { Remove-Item $db -Force }; $env:FASTMPA_DB = $db; node apps/fastmpa/dist/index.js doctor; node apps/fastmpa/dist/index.js run smoke; if (Test-Path $db) { Remove-Item $db -Force }"
+
 # Reproduce the GitHub CI checks locally
 ci:
     pnpm check
     just build
     just typecheck
     just test
+    just cli-smoke
 
 # Prepare the package selected by a release tag, for example agent-core-0.2.0.
 package tag:

@@ -4,12 +4,14 @@ import {
   type TurnStatus,
 } from "@shawnden-coder/agent-core";
 import { RunAlreadyActiveError, RunNotResumableError } from "./errors.js";
+import { LeaseRuntimeWorker } from "./lease-worker.js";
 import { transition } from "./lifecycle.js";
 import { noRetry, shouldRetry } from "./retry.js";
 import { RunStoreError } from "./store/errors.js";
 import type {
   ListEventsOptions,
   ListRunsOptions,
+  RunLeaseStore,
   RunPage,
   RunStore,
 } from "./store/index.js";
@@ -27,6 +29,7 @@ import type {
   StartRunInput,
 } from "./types/index.js";
 import { systemClock } from "./types/index.js";
+import { RuntimeWorkerLoop } from "./worker-loop.js";
 
 type RunExecutionInput = StartRunInput | ResumeRunInput;
 type TurnRunStatus =
@@ -39,6 +42,12 @@ type TurnRunStatus =
 export interface RuntimeDependencies {
   /** 可注入的时间来源；默认使用系统时钟。 */
   readonly clock?: Clock;
+  readonly ownerId?: string;
+  readonly leaseMs?: number;
+  readonly resolver?: import("./types/index.js").RunDependencyResolver;
+  readonly pollIntervalMs?: number;
+  readonly onWorkerError?: (error: unknown) => void;
+  readonly onWorkerRun?: (run: AgentRun) => void;
 }
 
 interface ExecutionContext {
@@ -62,12 +71,94 @@ export class AgentRuntime {
   /** 正在启动或执行的 Run；同一 runId 同时只能有一个执行者。 */
   private readonly activeRuns = new Map<string, AbortController>();
   private readonly clock: Clock;
+  private readonly leaseWorker?: LeaseRuntimeWorker;
+  private readonly workerLoop?: RuntimeWorkerLoop;
 
   public constructor(
     private readonly store: RunStore,
     dependencies: RuntimeDependencies = {},
   ) {
     this.clock = dependencies.clock ?? systemClock;
+    if (dependencies.resolver) {
+      const leaseStore = requireLeaseStore(store);
+      this.leaseWorker = new LeaseRuntimeWorker(leaseStore, {
+        ownerId: dependencies.ownerId ?? `agent-runtime-${process.pid}`,
+        leaseMs: dependencies.leaseMs ?? 30_000,
+        resolver: dependencies.resolver,
+        clock: this.clock,
+      });
+      this.workerLoop = new RuntimeWorkerLoop({
+        worker: this.leaseWorker,
+        store: leaseStore,
+        pollIntervalMs: dependencies.pollIntervalMs,
+        onError: dependencies.onWorkerError,
+        onRun: dependencies.onWorkerRun,
+      });
+    }
+  }
+
+  /** Public durable-runtime facade: enqueue without executing inline. */
+  public async enqueue(
+    input: import("./types/index.js").EnqueueRunInput,
+  ): Promise<import("./enqueue.js").EnqueueResult> {
+    if (!this.leaseWorker)
+      throw new Error("Durable runtime resolver is not configured");
+    return this.leaseWorker.enqueueIdempotent(input);
+  }
+
+  public async cancel(runId: string): Promise<AgentRun | undefined> {
+    if (this.leaseWorker) return this.leaseWorker.cancelPersistedRun(runId);
+    this.cancelRun(runId);
+    return this.store.get(runId);
+  }
+
+  public async resume(
+    runId: string,
+    turn: import("./types/index.js").PersistedTurnInput,
+  ): Promise<AgentRun | undefined> {
+    if (!this.leaseWorker)
+      throw new Error("Durable runtime resolver is not configured");
+    return this.leaseWorker.resumeRun(runId, turn);
+  }
+
+  public async retry(runId: string): Promise<AgentRun | undefined> {
+    const run = await this.store.get(runId);
+    if (!run?.input) return undefined;
+    if (run.status === "waiting" || run.status === "blocked")
+      return this.resume(runId, run.input.turn);
+    if (run.status === "failed") {
+      const leaseStore = requireLeaseStore(this.store);
+      const events = await leaseStore.listEvents(runId);
+      const queued = {
+        ...run,
+        status: "queued" as const,
+        version: run.version + 1,
+        attempt: run.attempt + 1,
+      };
+      await leaseStore.transitionWithEvent(runId, run.version, queued, {
+        runId,
+        sequence: (events.at(-1)?.sequence ?? -1) + 1,
+        type: "run_retried",
+        occurredAt: this.clock.now(),
+      });
+      return this.leaseWorker?.run(runId);
+    }
+    return run;
+  }
+
+  public startWorkers(): void {
+    if (!this.workerLoop)
+      throw new Error("Durable runtime resolver is not configured");
+    this.workerLoop.start();
+  }
+
+  public async stopWorkers(): Promise<void> {
+    this.workerLoop?.stop();
+  }
+
+  /** Internal orchestration hook; application code should normally enqueue. */
+  public async run(runId: string): Promise<AgentRun | undefined> {
+    return this.leaseWorker?.run(runId);
   }
 
   /** 创建并执行一次 Run；当前版本会等待 Turn 完成后返回最终快照。 */
@@ -579,4 +670,13 @@ function serializeRunError(error: unknown): SerializedRunError {
       : {}),
     ...(details.details === undefined ? {} : { details: details.details }),
   };
+}
+
+function requireLeaseStore(store: RunStore): RunLeaseStore {
+  if (
+    typeof (store as Partial<RunLeaseStore>).claimAndStart !== "function" ||
+    typeof (store as Partial<RunLeaseStore>).recoverExpiredRuns !== "function"
+  )
+    throw new Error("Durable AgentRuntime requires a lease-aware RunStore");
+  return store as RunLeaseStore;
 }

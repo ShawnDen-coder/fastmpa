@@ -3,6 +3,7 @@ export { systemClock } from "./clock.js";
 export type {
   RunDependencyKeys,
   RunDependencyResolver,
+  RunExecutionContext,
 } from "./dependencies.js";
 export type { EnqueueRunInput } from "./enqueue.js";
 export type { RuntimeEvent } from "./event.js";

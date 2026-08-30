@@ -10,7 +10,7 @@ import type { RegisteredTool, ToolRegistry } from "./registry.js";
 export interface ToolExecutionOptions {
   actorId: string;
   idempotencyKey: string;
-  runId?: string;
+  runId: string;
 }
 
 export interface ToolJournalEntry {
@@ -84,7 +84,7 @@ export class ToolPipeline {
     if (decision === "require_approval") {
       const approval: ApprovalRequest = {
         approvalId: this.createId(),
-        runId: options.runId ?? options.idempotencyKey,
+        runId: options.runId,
         toolCall: call,
         actorId: options.actorId,
         idempotencyKey: options.idempotencyKey,
@@ -98,7 +98,7 @@ export class ToolPipeline {
 
   public async approve(
     approvalId: string,
-    runId?: string,
+    runId: string,
   ): Promise<PipelineResult> {
     const pending = this.approvalStore.get(approvalId);
     if (!pending) throw new Error(`Approval not found: ${approvalId}`);
@@ -112,16 +112,20 @@ export class ToolPipeline {
     >;
     return this.runTool(
       pending.toolCall,
-      { actorId: pending.actorId, idempotencyKey: pending.idempotencyKey },
+      {
+        actorId: pending.actorId,
+        idempotencyKey: pending.idempotencyKey,
+        runId: pending.runId,
+      },
       tool,
       arguments_,
     );
   }
 
-  public reject(approvalId: string, runId?: string): PipelineResult {
+  public reject(approvalId: string, runId: string): PipelineResult {
     const pending = this.approvalStore.get(approvalId);
     if (!pending) throw new Error(`Approval not found: ${approvalId}`);
-    if (runId !== undefined && pending.runId !== runId)
+    if (!runId || pending.runId !== runId)
       throw new Error(`Approval ${approvalId} belongs to Run ${pending.runId}`);
     this.approvalStore.remove(approvalId);
     return {

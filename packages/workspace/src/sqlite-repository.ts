@@ -19,10 +19,32 @@ type RecordKind =
 /** SQLite-backed Workspace facts. JSON keeps the repository compatible with the small domain types. */
 export class SqliteWorkspaceRepository implements WorkspaceRepository {
   private readonly database: Database.Database;
+  private readonly ownsDatabase: boolean;
 
-  constructor(filePath: string) {
-    mkdirSync(dirname(filePath), { recursive: true });
-    this.database = new Database(filePath);
+  constructor(filePath: string);
+  constructor(database: Database.Database, ownsDatabase: boolean);
+  constructor(
+    filePathOrDatabase: string | Database.Database,
+    ownsDatabase = true,
+  ) {
+    if (typeof filePathOrDatabase === "string") {
+      mkdirSync(dirname(filePathOrDatabase), { recursive: true });
+      this.database = new Database(filePathOrDatabase);
+      this.ownsDatabase = true;
+    } else {
+      this.database = filePathOrDatabase;
+      this.ownsDatabase = ownsDatabase;
+    }
+    this.initialize();
+  }
+
+  public static fromDatabase(
+    database: Database.Database,
+  ): SqliteWorkspaceRepository {
+    return new SqliteWorkspaceRepository(database, false);
+  }
+
+  private initialize(): void {
     this.database.pragma("journal_mode = WAL");
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS workspace_records (
@@ -43,7 +65,12 @@ export class SqliteWorkspaceRepository implements WorkspaceRepository {
   }
 
   close(): void {
-    this.database.close();
+    if (this.ownsDatabase) this.database.close();
+  }
+
+  /** Application-owned shared connections are closed by the application. */
+  get connection(): Database.Database {
+    return this.database;
   }
 
   saveParticipant(value: Participant): void {
@@ -141,6 +168,13 @@ export class SqliteWorkspaceRepository implements WorkspaceRepository {
 
   saveSchedule(value: Schedule): void {
     this.save("schedule", value.workspaceId, value.id, value);
+  }
+  deleteSchedule(workspaceId: string, id: string): void {
+    this.database
+      .prepare(
+        "DELETE FROM workspace_records WHERE kind = ? AND workspace_id = ? AND record_id = ?",
+      )
+      .run("schedule", workspaceId, id);
   }
   getSchedule(workspaceId: string, id: string): Schedule | undefined {
     return this.get("schedule", workspaceId, id);

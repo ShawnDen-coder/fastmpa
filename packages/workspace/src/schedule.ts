@@ -9,3 +9,10 @@ export interface Schedule {
   readonly enabled?: boolean;
   readonly createdAt: string;
 }
+
+export interface ScheduleOccurrence {
+  readonly scheduleId: string;
+  readonly scheduledFor: number;
+  readonly workspaceId: string;
+  readonly agentId: string;
+}

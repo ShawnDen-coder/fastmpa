@@ -26,4 +26,34 @@ describe("FastMpaApplication", () => {
     await app.stop();
     await rm(directory, { recursive: true, force: true });
   });
+
+  it("keeps identical message text idempotent per message and replays once", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const databasePath = join(directory, "state.sqlite");
+    const first = await createApplication({ databasePath });
+    await first.start();
+    await first.dispatch({
+      type: "submit",
+      workspaceId: "default",
+      conversationId: "default",
+      body: "重复文本",
+    });
+    await first.dispatch({
+      type: "submit",
+      workspaceId: "default",
+      conversationId: "default",
+      body: "重复文本",
+    });
+    await first.stop();
+
+    const second = await createApplication({ databasePath });
+    await second.start();
+    const snapshot = await second.getSnapshot();
+    expect(snapshot.runs).toHaveLength(2);
+    expect(
+      snapshot.messages.filter((message) => message.senderId === "demo-agent"),
+    ).toHaveLength(2);
+    await second.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
 });

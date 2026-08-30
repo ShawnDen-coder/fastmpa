@@ -12,7 +12,7 @@ FastMPA 是一个以 Workspace 为协作事实、以 Agent Run 为可恢复执�
 
 ## 当前闭环
 
-`fastmpa run "任务"` 会创建 Workspace Participant/Conversation，写入用户消息，生成确定性 Run ID，持久化并执行 Run，再把 Agent 回复写回 Conversation。Runtime 的 `enqueueIdempotent()` 返回 `created` 或 `existing`，Scheduler 和 Tooling 已归入 Runtime 公共边界。
+`fastmpa run "任务"` 会创建 Workspace Participant/Conversation，写入用户消息，以持久化 message ID 生成 Run ID，持久化并执行 Run，再把 Agent 回复写回 Conversation。Application 只向 RuntimeTooling 注册工具；Skills/MCP 仍属于后续扩展。
 
 ## 架构约束
 
