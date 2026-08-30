@@ -4,10 +4,23 @@ FastMPA Windows Desktop 应用。`src/application.ts` 是 UI 无关的组合边�
 
 ## Quickstart
 
+在仓库根目录执行：
+
+```bash
+pnpm install
+pnpm --filter fastmpa build
+pnpm --filter fastmpa exec electron .
+```
+
+生成 Windows 安装包：
+
 ```bash
 pnpm --filter fastmpa build
 pnpm --filter fastmpa package:win
 ```
+
+安装包输出在 `apps/fastmpa/release/`。启动前如需使用 OpenRouter，请设置
+`OPENROUTER_API_KEY` 和 `OPENROUTER_MODEL` 环境变量。
 
 开发阶段构建 Main、Preload 和 Renderer 三个产物：
 
@@ -16,7 +29,7 @@ pnpm --filter fastmpa typecheck
 pnpm --filter fastmpa build
 ```
 
-默认使用 `.env` 中配置的 OpenRouter 模型和本地无副作用工具。生产工具应作为 Runtime Tooling 的受控实现注入，并遵循审批、幂等和审计边界。
+默认从环境变量读取 OpenRouter 模型，并使用本地无副作用工具。生产工具应作为 Runtime Tooling 的受控实现注入，并遵循审批、幂等和审计边界。
 
 当前 Desktop shell 提供 FastMPA 品牌窗口和安全进程边界；Workspace、Conversation、Run、Approval、Schedule 和 Logs 页面按交付批次接入。
 

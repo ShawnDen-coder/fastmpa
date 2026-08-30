@@ -51,17 +51,24 @@ FastMPA 通过统一 Workspace、Runtime Scheduler、可恢复执行和受控 To
 
 ## 启动 Windows Desktop
 
-在仓库根目录执行：
+首次运行或依赖变更后，在仓库根目录执行：
 
-```bash
+```powershell
 pnpm install
+pnpm --filter fastmpa build
+pnpm --filter fastmpa exec electron .
+```
+
+`build` 会生成 Electron Main、Preload 和 Renderer；`electron .` 会启动本地 Desktop 应用。之后只修改源码时，重新执行 `pnpm --filter fastmpa build` 再启动即可。
+
+如需生成 Windows 安装包：
+
+```powershell
 pnpm --filter fastmpa build
 pnpm --filter fastmpa package:win
 ```
 
-构建产物包含 Electron Main、Preload 和 Renderer；开发时可使用 Vite 的 Renderer dev server，并由 Electron Main 加载 Desktop shell。
-
-`FASTMPA_DB` 可指定 SQLite 文件，`FASTMPA_LOG_PATH` 可指定 JSONL 日志文件；未设置时默认使用当前目录下的 `fastmpa.sqlite` 和 `fastmpa.log`。
+安装包位于 `apps/fastmpa/release/`。Desktop 默认将 SQLite 和 JSONL 日志保存到 Electron 的 userData 目录。
 
 ## 日志
 
@@ -71,12 +78,13 @@ Application 创建唯一 root Pino logger，并向 Core、Runtime、Scheduler �
 
 ## 本地配置
 
-Desktop Main 启动时读取环境变量；已有的系统环境变量优先级更高。建议在 `.env` 中配置本地数据库和日志路径，例如：
+Desktop Main 启动时读取环境变量。PowerShell 中可在启动前设置 OpenRouter：
 
-```dotenv
-FASTMPA_DB=./tmp/fastmpa.sqlite
-FASTMPA_LOG_PATH=./tmp/fastmpa.log
-FASTMPA_LOG_LEVEL=info
+```powershell
+$env:OPENROUTER_API_KEY = "your-api-key"
+$env:OPENROUTER_MODEL = "your-model"
+$env:FASTMPA_LOG_LEVEL = "info"
+pnpm --filter fastmpa exec electron .
 ```
 
-`.env` 只用于本地配置，禁止提交 API key、密码或其他凭据。
+也可以使用系统环境变量。禁止将 API key、密码或其他凭据提交到仓库。
