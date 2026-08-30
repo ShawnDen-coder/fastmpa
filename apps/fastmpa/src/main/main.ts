@@ -12,8 +12,8 @@ import {
   screen,
   shell,
 } from "electron";
-import type { FastMpaApplication } from "../application.js";
-import { bootstrap } from "../bootstrap.js";
+import type { FastMpaApplication } from "../application/application.js";
+import { bootstrap } from "../application/bootstrap.js";
 import { desktopChannels } from "../shared/desktop-api.js";
 import {
   type IpcResponse,

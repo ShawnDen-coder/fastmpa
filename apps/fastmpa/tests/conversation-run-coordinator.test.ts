@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConversationRunCoordinator } from "../src/conversation-run-coordinator.js";
+import { ConversationRunCoordinator } from "../src/application/conversation-run-coordinator.js";
 
 describe("ConversationRunCoordinator", () => {
   it("serializes one conversation while allowing another to start", async () => {

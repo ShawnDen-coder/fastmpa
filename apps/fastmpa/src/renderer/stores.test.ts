@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ApplicationEvent } from "../application.js";
+import type { ApplicationEvent } from "../application/application.js";
 import {
   useConversationStore,
   useLogStore,

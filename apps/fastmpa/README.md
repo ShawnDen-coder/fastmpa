@@ -1,6 +1,6 @@
 # FastMPA
 
-FastMPA Windows Desktop 应用。`src/application.ts` 是 UI 无关的组合边界，统一持有 SQLite-backed Workspace 与 Runtime；Electron Main 持有 Application，Renderer 通过 preload bridge 访问类型化 API。
+FastMPA Windows Desktop 应用。`src/application/` 是 UI 无关的组合边界，统一持有 SQLite-backed Workspace 与 Runtime；Electron Main 持有 Application，Renderer 通过 preload bridge 访问类型化 API。
 
 ## Quickstart
 

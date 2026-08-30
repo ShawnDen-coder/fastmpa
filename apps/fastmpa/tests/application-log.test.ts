@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ApplicationLogStore } from "../src/application-log.js";
+import { ApplicationLogStore } from "../src/application/application-log.js";
 
 describe("ApplicationLogStore", () => {
   it("tees structured Pino lines to JSONL, ring buffer, and subscribers", async () => {

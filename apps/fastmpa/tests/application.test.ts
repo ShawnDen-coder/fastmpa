@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createApplication,
   selectConversationContext,
-} from "../src/application.js";
+} from "../src/application/application.js";
 
 describe("FastMpaApplication", () => {
   it("publishes live streaming events enriched with run context", async () => {

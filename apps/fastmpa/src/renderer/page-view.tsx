@@ -4,7 +4,7 @@ import type {
   ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
-} from "../application.js";
+} from "../application/application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
 import { useLogStore } from "./stores.js";
 

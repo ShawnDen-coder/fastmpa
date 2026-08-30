@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ApplicationEvent } from "../application.js";
+import type { ApplicationEvent } from "../application/application.js";
 import type { FastMpaDesktopApi } from "../shared/desktop-api.js";
 import { desktopChannels } from "../shared/desktop-api.js";
 import type { ApplicationErrorDto, IpcResponse } from "../shared/ipc.js";

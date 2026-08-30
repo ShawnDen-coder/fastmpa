@@ -4,7 +4,7 @@ import type {
   ApplicationLogEntry,
   ApplicationSnapshot,
   CommandResult,
-} from "../application.js";
+} from "../application/application.js";
 
 export const desktopChannels = {
   getSnapshot: "application:get-snapshot",

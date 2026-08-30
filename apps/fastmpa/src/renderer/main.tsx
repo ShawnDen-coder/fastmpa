@@ -10,7 +10,7 @@ import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
-import type { ApplicationEvent } from "../application.js";
+import type { ApplicationEvent } from "../application/application.js";
 import { PageView } from "./page-view.js";
 import {
   useApplicationStore,

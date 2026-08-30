@@ -1,4 +1,4 @@
-import type { ApplicationCommand } from "../application.js";
+import type { ApplicationCommand } from "../application/application.js";
 import type { SnapshotQuery } from "./desktop-api.js";
 
 export interface ApplicationErrorDto {
