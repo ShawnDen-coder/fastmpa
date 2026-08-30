@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useLogStore } from "./stores.js";
+import { useConversationStore, useLogStore } from "./stores.js";
 
 function log(sequence: number) {
   return {
@@ -32,5 +32,26 @@ describe("logStore", () => {
     expect(
       useLogStore.getState().entries.map((entry) => entry.sequence),
     ).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe("conversationStore", () => {
+  beforeEach(() =>
+    useConversationStore.setState({ drafts: {}, sendQueues: {} }),
+  );
+
+  it("keeps queued messages isolated by conversation key", () => {
+    const store = useConversationStore.getState();
+    store.enqueue("workspace-a:conversation-a", "first");
+    store.enqueue("workspace-b:conversation-b", "second");
+
+    expect(useConversationStore.getState().sendQueues).toEqual({
+      "workspace-a:conversation-a": ["first"],
+      "workspace-b:conversation-b": ["second"],
+    });
+    useConversationStore.getState().dequeue("workspace-a:conversation-a");
+    expect(
+      useConversationStore.getState().sendQueues["workspace-b:conversation-b"],
+    ).toEqual(["second"]);
   });
 });

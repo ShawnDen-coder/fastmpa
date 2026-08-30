@@ -57,7 +57,6 @@ function App(): React.JSX.Element {
   const [sendError, setSendError] = useState<string>();
   const drafts = useConversationStore((state) => state.drafts);
   const setDraftValue = useConversationStore((state) => state.setDraft);
-  const sendQueue = useConversationStore((state) => state.sendQueue);
   const enqueue = useConversationStore((state) => state.enqueue);
   const dequeue = useConversationStore((state) => state.dequeue);
   const logs = useLogStore((state) => state.entries);
@@ -168,6 +167,9 @@ function App(): React.JSX.Element {
     workspace && conversationId
       ? `${workspace.id}:${conversationId}`
       : undefined;
+  const sendQueue = useConversationStore((state) =>
+    conversationKey ? (state.sendQueues[conversationKey] ?? []) : [],
+  );
   const draft = conversationKey ? (drafts[conversationKey] ?? "") : "";
   const streamingText = conversationKey
     ? (streamingByConversation[conversationKey] ?? "")
@@ -216,7 +218,7 @@ function App(): React.JSX.Element {
     const body = draft.trim();
     setDraft("");
     if (sending) {
-      enqueue(body);
+      if (conversationKey) enqueue(conversationKey, body);
       return;
     }
     await dispatchMessage(body);
@@ -225,9 +227,9 @@ function App(): React.JSX.Element {
   useEffect(() => {
     if (sending || sendQueue.length === 0) return;
     const next = sendQueue[0];
-    dequeue();
+    if (conversationKey) dequeue(conversationKey);
     void dispatchMessage(next);
-  }, [dequeue, dispatchMessage, sending, sendQueue]);
+  }, [conversationKey, dequeue, dispatchMessage, sending, sendQueue]);
 
   return (
     <main className="app-shell">

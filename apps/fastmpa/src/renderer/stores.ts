@@ -47,10 +47,10 @@ interface ApplicationState {
 
 interface ConversationState {
   readonly drafts: Readonly<Record<string, string>>;
-  readonly sendQueue: readonly string[];
+  readonly sendQueues: Readonly<Record<string, readonly string[]>>;
   readonly setDraft: (conversationKey: string, draft: string) => void;
-  readonly enqueue: (body: string) => void;
-  readonly dequeue: () => void;
+  readonly enqueue: (conversationKey: string, body: string) => void;
+  readonly dequeue: (conversationKey: string) => void;
 }
 
 export const useShellStore = create<ShellState>((set) => ({
@@ -111,10 +111,21 @@ export const useApplicationStore = create<ApplicationState>((set) => ({
 
 export const useConversationStore = create<ConversationState>((set) => ({
   drafts: {},
-  sendQueue: [],
+  sendQueues: {},
   setDraft: (conversationKey, draft) =>
     set((state) => ({ drafts: { ...state.drafts, [conversationKey]: draft } })),
-  enqueue: (body) =>
-    set((state) => ({ sendQueue: [...state.sendQueue, body] })),
-  dequeue: () => set((state) => ({ sendQueue: state.sendQueue.slice(1) })),
+  enqueue: (conversationKey, body) =>
+    set((state) => ({
+      sendQueues: {
+        ...state.sendQueues,
+        [conversationKey]: [...(state.sendQueues[conversationKey] ?? []), body],
+      },
+    })),
+  dequeue: (conversationKey) =>
+    set((state) => ({
+      sendQueues: {
+        ...state.sendQueues,
+        [conversationKey]: (state.sendQueues[conversationKey] ?? []).slice(1),
+      },
+    })),
 }));
