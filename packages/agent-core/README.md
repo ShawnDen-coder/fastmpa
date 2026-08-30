@@ -12,7 +12,7 @@ TurnInput → Guard → ModelAdapter → ModelResponse
 ToolCall → ToolRegistry → ToolExecutor → TurnContext → TurnResult
 ```
 
-本包不负责 Runtime 调度、持久化、APM 业务规则、权限审批或外部平台连接。
+本包不负责 Runtime 调度、持久化、领域业务规则、权限审批或外部平台连接。
 
 ## Quickstart
 
@@ -26,10 +26,10 @@ const result = await runTurn(
 console.log(result.status, result.messages)
 ```
 
-完整的 OpenRouter + Tool + Workspace 示例见 [`examples/openrouter-tapd-audit.ts`](../../examples/openrouter-tapd-audit.ts)，运行：
+OpenRouter 只用于模型适配器验证；产品级任务闭环由 `apps/fastmpa` 的 Application 负责，运行：
 
 ```bash
-pnpm --filter fastmpa-examples openrouter
+pnpm --filter fastmpa doctor
 ```
 
 ## 目录结构

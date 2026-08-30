@@ -2,13 +2,13 @@
 
 ## 当前方向
 
-FastMPA 不是重新设计一套通用 Agent 编排平台，而是在 Cumora 的协作模型上扩充 APM 工作逻辑：
+FastMPA 是一个本地 Agent 工作台，先围绕任务、Run、审批、调度和恢复建立稳定闭环：
 
 ```text
 Participant + Workspace
-  → Agent Scheduler
+  → Runtime Scheduler
   → Runtime/Core + Tooling
-  → APM + Integrations
+  → future Skills / MCP / platform adapters
 ```
 
 `agent-core`、`agent-runtime`、Workspace、Scheduler、Tooling 和平台适配器已有第一版实现。当前重点是先稳定本地任务、审批、调度和恢复闭环，再推进真实平台接入。
@@ -25,14 +25,14 @@ Participant + Workspace
 - [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Model、Tool、Context 与 Guard。
 - [Agent Runtime 计划](AGENT_RUNTIME_PLAN.md) — Run 生命周期、Store、Lease 和恢复设计。
 
-### 后续领域阶段
+### 项目入口
 
-- [APM Requirement 垂直切片](FASTMPA_DOMAIN_PLAN.md) — 延后到 Workspace 闭环之后的第一个 APM 扩展。
-- [项目 README](../README.md) — Monorepo 结构与常用命令。
+- [项目 README](../README.md) — 产品目标、使用逻辑与常用命令。
+- [最终架构](ARCHITECTURE.md) — 三个核心包、Application、TUI 和 Runtime 边界。
 
 ### 可运行示例
 
-- [OpenRouter TAPD 审计示例](../examples/README.md) — 使用 fixture 验收“用户消息 → 指定 Agent → 只读 Tool → Conversation 回执”，不连接真实 TAPD。
+- [示例说明](../examples/README.md) — Core、Runtime 和 Workspace 的离线示例。
 
 ## 文档职责
 

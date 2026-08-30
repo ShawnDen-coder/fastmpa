@@ -11,7 +11,7 @@ flowchart LR
     CLI[Commander CLI]
     APP[FastMpaApplication\ncommands, snapshots, subscriptions]
     CORE[agent-core\nTurn / Model / Tool protocols]
-    RUNTIME[agent-runtime\nRun / queue / lease / recovery\nScheduler / approval / audit]
+    RUNTIME[agent-runtime\nRun / queue / lease / recovery\nScheduler / Tooling / approval / audit]
     WORKSPACE[workspace\nconversation / message / attention\nboard / schedule facts]
     DB[(SQLite\nshared application state)]
     EXT[Skills / MCP / platform adapters\nfuture extension boundary]

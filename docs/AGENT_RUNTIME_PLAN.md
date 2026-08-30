@@ -22,7 +22,7 @@ Agent Runtime
 Agent Core / Turn
 ```
 
-Runtime 负责 Run 生命周期、事件、取消、并发和恢复入口；Core 负责单次 Turn。Runtime 不负责 APM 状态机、审批规则、数据库 SQL、HTTP 路由、模型协议或具体业务工具。
+Runtime 负责 Run 生命周期、事件、取消、并发和恢复入口；Core 负责单次 Turn。Runtime 不负责具体领域状态机、数据库 SQL、HTTP 路由、模型协议或平台业务规则。
 
 ### Runtime 分层架构图
 
@@ -400,6 +400,6 @@ const runtime = new AgentRuntime(store, {
 ```
 
 生产环境默认使用系统时钟；测试环境使用固定时钟，避免真实时间导致断言不稳定。`runId` 仍由调用方提供，因此暂不增加 ID Generator。
-## 八、完成后的下一步
+## 当前状态
 
-Runtime 已稳定，Scheduler 已在 Runtime 内融合 Notify、Triage 与 Dispatch；Tooling 负责工具安全边界。旧 APM 和平台适配器按 Roadmap 后续接入。Runtime 只负责执行、持久化和恢复，不承担具体业务规则。
+Runtime 已完成核心收敛：Run、SQLite Store、Lease、恢复、Scheduler、Tooling、审批、幂等和审计均在本包内。Application 负责组合 Runtime 与 Workspace；Skills、MCP 和平台适配器按 Roadmap 后续接入，Runtime 不承担具体业务规则。

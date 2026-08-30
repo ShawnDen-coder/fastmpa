@@ -12,7 +12,7 @@ ToolCall → Registry → 参数校验 → Policy
                                    → idempotency → audit journal
 ```
 
-本包不包含平台 SDK 或 APM 业务规则；外部执行器通过注册表注入。审批、成功结果和 Journal 可使用 `InMemoryApprovalStore`，也可使用 `SqliteApprovalStore` 在进程重启后恢复；结果缓存会按幂等键阻止同一写入被重复执行。`toCoreToolRegistry()` 默认只投影 `read` Tool；显式传入 `pipeline` 和 `actorId` 后，写入 Tool 才能进入 Core，并在审批时返回 `approval_required`。
+本包不包含平台 SDK 或领域业务规则；外部执行器通过注册表注入。审批、成功结果和 Journal 可使用 `InMemoryApprovalStore`，也可使用 `SqliteApprovalStore` 在进程重启后恢复；结果缓存会按幂等键阻止同一写入被重复执行。`toCoreToolRegistry()` 默认只投影 `read` Tool；显式传入 `pipeline` 和 `actorId` 后，写入 Tool 才能进入 Core，并在审批时返回 `approval_required`。
 
 ## 目录结构
 

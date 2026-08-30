@@ -39,5 +39,5 @@ flowchart TD
     FailedRetry --> Output
     FailedStop --> Output
 
-    %% Policy 不属于 agent-core，未来由 Runtime 或 Policy 层包裹工具边界
-    Policy[未来 Policy<br/>允许 / 拒绝 / 需要审批] -.-> Executor
+    %% Runtime Tooling 在 Core 之外包裹工具执行，负责策略、审批、幂等和审计
+    Policy[Runtime Tooling<br/>允许 / 拒绝 / 需要审批 / 审计] -.-> Executor

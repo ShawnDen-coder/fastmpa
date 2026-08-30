@@ -122,6 +122,6 @@ pnpm --filter agent-core build
 
 当前验收：3 个测试文件、27 个测试、类型检查和构建全部通过。
 
-## 下一步
+## 当前边界
 
-Core 已进入稳定阶段，`agent-runtime` 也已实现 Run 生命周期、Store、取消、事件、Lease 和恢复。当前下一步是 Workspace/Inbox/Wake 闭环；不要把 Participant、Inbox、Agenda、Scheduler 或 APM 规则加入 `turn.ts`。
+Core 已进入稳定阶段。Workspace、Runtime Scheduler、Tooling、审批、持久化和平台适配器均属于 Core 之外的边界；不要把 Participant、Attention、Scheduler 或业务规则加入 `turn.ts`。
