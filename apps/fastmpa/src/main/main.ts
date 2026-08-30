@@ -278,10 +278,26 @@ async function shutdown(): Promise<void> {
   const currentApplication = application;
   application = undefined;
   if (currentApplication) {
-    await Promise.race([
-      currentApplication.stop(),
-      new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+    const drained = await Promise.race([
+      currentApplication.stop().then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 15_000)),
     ]);
+    if (!drained) {
+      const snapshot = await currentApplication.getSnapshot();
+      const activeRuns = snapshot.runs.filter((run) =>
+        ["queued", "running", "retrying", "waiting"].includes(run.status),
+      );
+      await Promise.race([
+        Promise.all(
+          activeRuns.map((run) =>
+            currentApplication
+              .dispatch({ type: "cancel", runId: run.runId })
+              .catch(() => undefined),
+          ),
+        ),
+        new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
+      ]);
+    }
   }
   app.exit(0);
 }
