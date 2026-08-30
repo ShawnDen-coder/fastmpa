@@ -580,8 +580,8 @@ function App(): React.JSX.Element {
               type="button"
               className="secondary-button"
               onClick={() =>
-                setInspectorRunId((current) =>
-                  current ? undefined : snapshot?.runs[0]?.runId,
+                setInspectorRunId(
+                  inspectorRunId ? undefined : snapshot?.runs[0]?.runId,
                 )
               }
               disabled={!snapshot?.runs.length}
