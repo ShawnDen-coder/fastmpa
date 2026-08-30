@@ -1,6 +1,15 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
+import { join, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  net,
+  protocol,
+  screen,
+  shell,
+} from "electron";
 import type { FastMpaApplication } from "../application.js";
 import { bootstrap } from "../bootstrap.js";
 import { desktopChannels } from "../shared/desktop-api.js";
@@ -17,6 +26,13 @@ import {
   parseWindowState,
   type WindowState,
 } from "./window-state.js";
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "fastmpa",
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
+  },
+]);
 
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
@@ -99,8 +115,7 @@ function createWindow(): BrowserWindow {
     void window.loadURL(
       process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173",
     );
-  else
-    void window.loadFile(join(import.meta.dirname, "../renderer/index.html"));
+  else void window.loadURL("fastmpa://app/index.html");
   return window;
 }
 
@@ -198,6 +213,22 @@ function broadcast(channel: string, value: unknown): void {
     window.webContents.send(channel, value);
 }
 
+function registerAppProtocol(): void {
+  const rendererRoot = resolve(import.meta.dirname, "../renderer");
+  protocol.handle("fastmpa", (request) => {
+    const requestedPath =
+      decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, "") ||
+      "index.html";
+    const filePath = resolve(rendererRoot, requestedPath);
+    if (
+      filePath !== rendererRoot &&
+      !filePath.startsWith(`${rendererRoot}${sep}`)
+    )
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
+}
+
 async function start(): Promise<void> {
   if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -205,6 +236,7 @@ async function start(): Promise<void> {
   }
   app.on("second-instance", () => mainWindow?.focus());
   await app.whenReady();
+  if (app.isPackaged) registerAppProtocol();
   application = await bootstrap({
     databasePath: join(app.getPath("userData"), "fastmpa.sqlite"),
     logPath: join(app.getPath("userData"), "fastmpa.log"),
