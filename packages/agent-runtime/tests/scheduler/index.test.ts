@@ -214,4 +214,34 @@ describe("agent-scheduler", () => {
     });
     expect(runner.list()[0]?.nextRunAt).toBe(60_100);
   });
+
+  it("keeps different schedule occurrences independent", () => {
+    const repository = new InMemoryWorkspaceRepository();
+    const scheduler = new AgentScheduler({
+      repository,
+      runtime: { enqueue: async () => undefined },
+      createId: (() => {
+        let index = 0;
+        return () => `wake-${++index}`;
+      })(),
+      modelKey: "model.default",
+      toolsetKey: "tools.default",
+    });
+
+    const first = scheduler.notifySchedule({
+      scheduleId: "schedule-1",
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      scheduledFor: 100,
+    });
+    const second = scheduler.notifySchedule({
+      scheduleId: "schedule-2",
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      scheduledFor: 100,
+    });
+
+    expect(second).not.toBe(first);
+    expect(second.wakeId).toBe("wake-2");
+  });
 });

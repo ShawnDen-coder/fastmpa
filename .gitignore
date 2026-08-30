@@ -15,6 +15,7 @@ release/
 .pnpm-store/
 dist-ssr
 *.local
+*.sqlite
 
 # Editor directories and files
 !.vscode/extensions.json

@@ -36,7 +36,7 @@ test:
 
 # Run the built CLI against a throwaway database.
 cli-smoke:
-    powershell -NoProfile -Command "$db = Join-Path $env:TEMP 'fastmpa-cli-smoke.sqlite'; if (Test-Path $db) { Remove-Item $db -Force }; $env:FASTMPA_DB = $db; node apps/fastmpa/dist/index.js doctor; node apps/fastmpa/dist/index.js run smoke; if (Test-Path $db) { Remove-Item $db -Force }"
+    powershell -NoProfile -Command "Set-Item Env:FASTMPA_DB (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite'); Remove-Item -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite') -Force -ErrorAction SilentlyContinue; node apps/fastmpa/dist/index.js doctor; node apps/fastmpa/dist/index.js run smoke; Remove-Item -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite') -Force -ErrorAction SilentlyContinue"
 
 # Reproduce the GitHub CI checks locally
 ci:

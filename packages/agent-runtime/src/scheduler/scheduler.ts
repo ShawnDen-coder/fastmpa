@@ -66,7 +66,7 @@ export class AgentScheduler {
     agentId: string;
     scheduledFor?: number;
   }): WakeSignal {
-    const pendingKey = `${input.workspaceId}:${input.agentId}`;
+    const pendingKey = `${input.workspaceId}:${input.agentId}:schedule:${input.scheduleId}:${input.scheduledFor ?? "current"}`;
     const existing = this.pending.get(pendingKey);
     if (existing) return existing;
     const signal: WakeSignal = {
@@ -98,7 +98,7 @@ export class AgentScheduler {
       const result = await this.options.runtime.enqueue(
         this.createEnqueueInput(signal, snapshot),
       );
-      this.pending.delete(`${signal.workspaceId}:${signal.agentId}`);
+      this.pending.delete(this.pendingKey(signal));
       return result;
     } finally {
       this.endDispatch(signal);
@@ -151,7 +151,7 @@ export class AgentScheduler {
       return run;
     } finally {
       this.endDispatch(signal);
-      this.pending.delete(`${signal.workspaceId}:${signal.agentId}`);
+      this.pending.delete(this.pendingKey(signal));
     }
   }
 
@@ -163,6 +163,13 @@ export class AgentScheduler {
 
   private endDispatch(signal: WakeSignal): void {
     this.inFlight.delete(signal.wakeId);
+  }
+
+  private pendingKey(signal: WakeSignal): string {
+    if (signal.reason === "schedule") {
+      return `${signal.workspaceId}:${signal.agentId}:schedule:${signal.sourceRef.id}:${signal.scheduledFor ?? "current"}`;
+    }
+    return `${signal.workspaceId}:${signal.agentId}`;
   }
 
   private createEnqueueInput(
