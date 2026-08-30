@@ -21,6 +21,8 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Runtime 为实时事件附加 `runId`、attempt 和 RunContext；delta 只保留在内存，不写 SQLite 或 RuntimeEvent。
 - [x] Application 通过 `subscribeEvents()` 向 TUI 暴露 UI 无关的实时事件。
 - [x] Core 与 Application 测试覆盖流式 delta、最终消息和运行上下文。
+- [x] TUI 订阅实时事件，在当前 Conversation 中显示流式文本和工具执行指示。
+- [x] TUI 提供 `Ctrl+K` 命令面板入口；`Ctrl+L` 打开日志面板，`Esc` 返回 Conversation。
 
 - [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
 - [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。

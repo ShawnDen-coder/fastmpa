@@ -1,6 +1,7 @@
 import { Box, Text, useApp, useInput } from "ink";
 import React from "react";
 import type {
+  ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
   FastMpaApplication,
@@ -17,7 +18,10 @@ export function FastMpaTui({
   const [input, setInput] = React.useState("");
   const [error, setError] = React.useState<string>();
   const [logs, setLogs] = React.useState<readonly ApplicationLogEntry[]>([]);
-  const [logsVisible, setLogsVisible] = React.useState(true);
+  const [logsVisible, setLogsVisible] = React.useState(false);
+  const [commandPalette, setCommandPalette] = React.useState(false);
+  const [streamingText, setStreamingText] = React.useState("");
+  const [liveTool, setLiveTool] = React.useState<string>();
   const [focus, setFocus] = React.useState<
     "left" | "middle" | "right" | "logs"
   >("middle");
@@ -62,11 +66,24 @@ export function FastMpaTui({
     const unsubscribeLogs = application.subscribeLogs((entry) =>
       setLogs((current) => [...current.slice(-99), entry]),
     );
+    const unsubscribeEvents = application.subscribeEvents((event) => {
+      if (!isSelectedEvent(event, selectedWorkspaceId, selectedConversationId))
+        return;
+      if (event.type === "text.delta")
+        setStreamingText((current) => current + event.delta);
+      else if (event.type === "tool.started") setLiveTool(event.toolName);
+      else if (event.type === "tool.completed") setLiveTool(undefined);
+      else if (event.type === "turn.completed") {
+        setStreamingText("");
+        setLiveTool(undefined);
+      }
+    });
     return () => {
       unsubscribeSnapshot();
       unsubscribeLogs();
+      unsubscribeEvents();
     };
-  }, [application]);
+  }, [application, selectedWorkspaceId, selectedConversationId]);
   const refreshSelection = React.useCallback(
     (workspaceId: string, conversationId?: string) => {
       setSelectedWorkspaceId(workspaceId);
@@ -81,6 +98,28 @@ export function FastMpaTui({
     if (confirmExit) {
       if (value.toLowerCase() === "y") exit();
       else if (value.toLowerCase() === "n" || key.escape) setConfirmExit(false);
+      return;
+    }
+    if (commandPalette) {
+      if (key.escape || (key.ctrl && value === "k")) {
+        setCommandPalette(false);
+        return;
+      }
+      if (value === "l") {
+        setLogsVisible(true);
+        setCommandPalette(false);
+        return;
+      }
+      if (value === "n") {
+        setDialog(focus === "left" ? "workspace" : "conversation");
+        setCommandPalette(false);
+        setInput("");
+        return;
+      }
+      return;
+    }
+    if (key.ctrl && value === "k") {
+      setCommandPalette(true);
       return;
     }
     if (key.ctrl && value === "l") {
@@ -121,7 +160,8 @@ export function FastMpaTui({
       if (dialog) {
         setDialog(undefined);
         setInput("");
-      } else exit();
+      } else if (logsVisible) setLogsVisible(false);
+      else exit();
       return;
     }
     if (key.ctrl && value === "c") {
@@ -330,6 +370,8 @@ export function FastMpaTui({
               {message.senderId}: {message.body}
             </Text>
           ))}
+          {liveTool ? <Text color="cyan">● {liveTool}…</Text> : null}
+          {streamingText ? <Text color="green">{streamingText}</Text> : null}
         </Box>
         <Box width="25%" flexDirection="column">
           <Text color="yellow">
@@ -409,7 +451,23 @@ export function FastMpaTui({
           Unsent messages are queued locally and will be lost. Exit? [y/N]
         </Text>
       ) : null}
+      {commandPalette ? (
+        <Text color="cyan">
+          Commands: [l] Logs  [n] New item  [Esc/Ctrl+K] Close
+        </Text>
+      ) : null}
     </Box>
+  );
+}
+
+function isSelectedEvent(
+  event: ApplicationEvent,
+  workspaceId: string | undefined,
+  conversationId: string | undefined,
+): boolean {
+  return (
+    event.context?.workspaceId === workspaceId &&
+    event.context?.conversationId === conversationId
   );
 }
 
