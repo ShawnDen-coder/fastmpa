@@ -18,9 +18,9 @@ export function FastMpaTui({
   const [error, setError] = React.useState<string>();
   const [logs, setLogs] = React.useState<readonly ApplicationLogEntry[]>([]);
   const [logsVisible, setLogsVisible] = React.useState(true);
-  const [focus, setFocus] = React.useState<"left" | "middle" | "right">(
-    "middle",
-  );
+  const [focus, setFocus] = React.useState<
+    "left" | "middle" | "right" | "logs"
+  >("middle");
   const [selectedWorkspaceId, setSelectedWorkspaceId] =
     React.useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
@@ -29,6 +29,9 @@ export function FastMpaTui({
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [confirmExit, setConfirmExit] = React.useState(false);
+  const [selectedRunIndex, setSelectedRunIndex] = React.useState(0);
+  const [logOffset, setLogOffset] = React.useState(0);
+  const [logFollow, setLogFollow] = React.useState(true);
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
@@ -79,6 +82,8 @@ export function FastMpaTui({
     }
     if (key.ctrl && value === "l") {
       setLogsVisible((visible) => !visible);
+      setLogFollow(true);
+      setLogOffset(0);
       return;
     }
     if (key.ctrl && value === "e") {
@@ -101,7 +106,7 @@ export function FastMpaTui({
     }
     if (key.tab) {
       setFocus((current) => {
-        const areas = ["left", "middle", "right"] as const;
+        const areas = ["left", "middle", "right", "logs"] as const;
         const index = areas.indexOf(current);
         return areas[
           (index + (key.shift ? -1 : 1) + areas.length) % areas.length
@@ -142,7 +147,20 @@ export function FastMpaTui({
       return;
     }
     if (key.upArrow || key.downArrow) {
-      if (focus === "left") {
+      if (focus === "logs") {
+        const filteredLogs = filteredLogEntries(
+          logs,
+          minimumLogLevel,
+          currentRunOnly,
+          snapshot,
+          selectedRunIndex,
+        );
+        const maximum = Math.max(0, filteredLogs.length - 8);
+        setLogFollow(false);
+        setLogOffset((offset) =>
+          Math.min(maximum, Math.max(0, offset + (key.upArrow ? 1 : -1))),
+        );
+      } else if (focus === "left") {
         const workspaces = (snapshot?.workspaces ?? []).map((item) =>
           typeof item === "string" ? { id: item, name: item } : item,
         );
@@ -170,6 +188,11 @@ export function FastMpaTui({
         const conversation = snapshot?.conversations[next];
         if (conversation)
           refreshSelection(conversation.workspaceId, conversation.id);
+      } else if (focus === "right") {
+        const maximum = Math.max(0, (snapshot?.runs.length ?? 1) - 1);
+        setSelectedRunIndex((index) =>
+          Math.min(maximum, Math.max(0, index + (key.upArrow ? -1 : 1))),
+        );
       }
       return;
     }
@@ -287,8 +310,11 @@ export function FastMpaTui({
           <Text color="yellow">
             Runs / Approval / Schedule [{focus === "right" ? "focus" : ""}]
           </Text>
-          {snapshot?.runs.map((run) => (
-            <Text key={run.runId}>
+          {snapshot?.runs.map((run, index) => (
+            <Text
+              key={run.runId}
+              color={index === selectedRunIndex ? "yellow" : undefined}
+            >
               {run.runId.slice(0, 12)} {run.status}
             </Text>
           ))}
@@ -301,21 +327,20 @@ export function FastMpaTui({
         <Box flexDirection="column" borderStyle="single" borderColor="gray">
           <Text color="gray">
             Live Logs {application.getLogPath?.() ?? ""} [on]
+            {focus === "logs" ? " [focus]" : ""}
+            {logFollow ? " [follow]" : " [paused]"}
             {currentRunOnly ? " [current run]" : ""}
           </Text>
-          {logs
-            .filter(
-              (entry) =>
-                ["debug", "info", "warn", "error"].indexOf(entry.level) >=
-                minimumLogLevel,
-            )
-            .filter((entry) => {
-              if (!currentRunOnly) return true;
-              const runId = snapshot?.runs[0]?.runId;
-              return runId !== undefined && entry.context.runId === runId;
-            })
-            .slice(-8)
-            .map((entry) => (
+          {(() => {
+            const filtered = filteredLogEntries(
+              logs,
+              minimumLogLevel,
+              currentRunOnly,
+              snapshot,
+              selectedRunIndex,
+            );
+            const end = Math.max(0, filtered.length - logOffset);
+            return filtered.slice(Math.max(0, end - 8), end).map((entry) => (
               <Text
                 key={entry.sequence}
                 color={
@@ -328,7 +353,8 @@ export function FastMpaTui({
               >
                 {entry.timestamp} {entry.component}: {entry.message}
               </Text>
-            ))}
+            ));
+          })()}
         </Box>
       ) : null}
       {dialog ? (
@@ -377,4 +403,25 @@ function composerStatus(
   if (queuedCount === 1) return "submitting";
   if (snapshot?.runs.some((run) => run.status === "waiting")) return "waiting";
   return "ready";
+}
+
+function filteredLogEntries(
+  logs: readonly ApplicationLogEntry[],
+  minimumLogLevel: number,
+  currentRunOnly: boolean,
+  snapshot: ApplicationSnapshot | undefined,
+  selectedRunIndex: number,
+): readonly ApplicationLogEntry[] {
+  const runId = snapshot?.runs[selectedRunIndex]?.runId;
+  return logs
+    .filter(
+      (entry) =>
+        ["debug", "info", "warn", "error"].indexOf(entry.level) >=
+        minimumLogLevel,
+    )
+    .filter(
+      (entry) =>
+        !currentRunOnly ||
+        (runId !== undefined && entry.context.runId === runId),
+    );
 }
