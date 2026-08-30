@@ -9,11 +9,13 @@ describe("navigation policy", () => {
     expect(isAllowedNavigation("app://fastmpa/index.html")).toBe(true);
     expect(isAllowedNavigation("http://localhost:5173/index.html")).toBe(true);
     expect(isAllowedNavigation("app://other/index.html")).toBe(false);
+    expect(isAllowedNavigation("app://fastmpa.evil/index.html")).toBe(false);
     expect(isAllowedNavigation("file:///secret.txt")).toBe(false);
   });
 
   it("allows HTTPS as the only external protocol", () => {
     expect(isAllowedExternalUrl("https://example.com")).toBe(true);
+    expect(isAllowedExternalUrl("https://")).toBe(false);
     expect(isAllowedExternalUrl("http://example.com")).toBe(false);
     expect(isAllowedExternalUrl("javascript:alert(1)")).toBe(false);
   });
