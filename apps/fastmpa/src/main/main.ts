@@ -5,6 +5,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  type IpcMainInvokeEvent,
   ipcMain,
   net,
   protocol,
@@ -130,7 +131,9 @@ function createWindow(): BrowserWindow {
 }
 
 function registerIpc(): void {
-  ipcMain.handle(desktopChannels.getSnapshot, (_event, query) => {
+  ipcMain.handle(desktopChannels.getSnapshot, (event, query) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     if (!isSnapshotQuery(query))
       return Promise.resolve({
         ok: false,
@@ -138,7 +141,9 @@ function registerIpc(): void {
       });
     return respond(() => requireApplication().getSnapshot(query));
   });
-  ipcMain.handle(desktopChannels.dispatch, (_event, command) => {
+  ipcMain.handle(desktopChannels.dispatch, (event, command) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     if (!isApplicationCommand(command))
       return Promise.resolve({
         ok: false,
@@ -146,7 +151,9 @@ function registerIpc(): void {
       });
     return respond(() => requireApplication().dispatch(command));
   });
-  ipcMain.handle(desktopChannels.getRecentLogs, (_event, limit: unknown) => {
+  ipcMain.handle(desktopChannels.getRecentLogs, (event, limit: unknown) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     if (
       limit !== undefined &&
       (typeof limit !== "number" ||
@@ -164,8 +171,10 @@ function registerIpc(): void {
       ),
     );
   });
-  ipcMain.handle(desktopChannels.getInfo, () =>
-    Promise.resolve({
+  ipcMain.handle(desktopChannels.getInfo, (event) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return Promise.resolve({
       ok: true,
       value: {
         version: app.getVersion(),
@@ -177,9 +186,11 @@ function registerIpc(): void {
         dataDirectory: app.getPath("userData"),
         logLevel: process.env.FASTMPA_LOG_LEVEL ?? "info",
       },
-    }),
-  );
-  ipcMain.handle(desktopChannels.openExternal, (_event, url: unknown) => {
+    });
+  });
+  ipcMain.handle(desktopChannels.openExternal, (event, url: unknown) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     if (typeof url !== "string" || !isAllowedExternalUrl(url))
       return Promise.resolve({
         ok: false,
@@ -187,17 +198,32 @@ function registerIpc(): void {
       });
     return respond(() => shell.openExternal(url));
   });
-  ipcMain.handle(desktopChannels.revealLogFile, () =>
-    respond(() => {
+  ipcMain.handle(desktopChannels.revealLogFile, (event) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return respond(() => {
       shell.showItemInFolder(requireApplication().getLogPath());
-    }),
-  );
-  ipcMain.handle(desktopChannels.revealDataDirectory, () =>
-    respond(async () => {
+    });
+  });
+  ipcMain.handle(desktopChannels.revealDataDirectory, (event) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return respond(async () => {
       const error = await shell.openPath(app.getPath("userData"));
       if (error) throw new Error(error);
-    }),
-  );
+    });
+  });
+}
+
+function rejectUntrustedSender(
+  event: IpcMainInvokeEvent,
+): IpcResponse<never> | undefined {
+  return isAllowedNavigation(event.senderFrame?.url ?? "")
+    ? undefined
+    : {
+        ok: false,
+        error: invalidPayload("Untrusted renderer sender"),
+      };
 }
 
 function requireApplication(): FastMpaApplication {
