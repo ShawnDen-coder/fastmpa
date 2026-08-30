@@ -114,6 +114,9 @@ tees structured JSONL to the absolute `fastmpa.log` path and a bounded
 500-entry in-memory buffer. Log subscribers update only the log panel; message
 and model content is not emitted as log context.
 
+The panel can set a minimum level with `1`–`4` and toggle current-Run filtering
+with `Ctrl+E`; `Ctrl+L` collapses it without changing the composer.
+
 The workspace TUI keeps selection and unsent queue state locally. Selection
 changes request a filtered Application snapshot; submitted turns are serialized
 by Application on `workspaceId:conversationId`, so switching the visible

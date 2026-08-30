@@ -103,6 +103,7 @@ export interface FastMpaApplication {
   subscribe(listener: ApplicationEventListener): () => void;
   getRecentLogs?(limit?: number): readonly ApplicationLogEntry[];
   subscribeLogs?(listener: (entry: ApplicationLogEntry) => void): () => void;
+  getLogPath?(): string;
 }
 export interface FastMpaApplicationOptions {
   readonly databasePath: string;
@@ -385,12 +386,23 @@ export async function createApplication(
     subscribeLogs(listener) {
       return logStore?.subscribe(listener) ?? (() => undefined);
     },
+    getLogPath() {
+      return logPath;
+    },
   };
   return app;
   async function submit(
     command: Extract<ApplicationCommand, { type: "submit" }>,
   ): Promise<CommandResult> {
     const agentId = command.agentId ?? "demo-agent";
+    logger.info(
+      {
+        workspaceId: command.workspaceId,
+        conversationId: command.conversationId,
+        agentId,
+      },
+      "message queued",
+    );
     ensureWorkspace(command.workspaceId, command.conversationId, agentId);
     const message = sendMessage(repository, {
       id: randomUUID(),
@@ -401,6 +413,15 @@ export async function createApplication(
       mentions: [agentId],
       createdAt: new Date().toISOString(),
     }).message;
+    logger.info(
+      {
+        workspaceId: command.workspaceId,
+        conversationId: command.conversationId,
+        agentId,
+        messageId: message.id,
+      },
+      "message submitted",
+    );
     const runId = `run:${message.id}`;
     const conversationMessages = selectConversationContext(
       repository

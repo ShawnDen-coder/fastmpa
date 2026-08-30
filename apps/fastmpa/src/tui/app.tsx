@@ -26,6 +26,8 @@ export function FastMpaTui({
   const [selectedConversationId, setSelectedConversationId] =
     React.useState<string>();
   const [queuedCount, setQueuedCount] = React.useState(0);
+  const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
+  const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
@@ -71,6 +73,14 @@ export function FastMpaTui({
   useInput((value, key) => {
     if (key.ctrl && value === "l") {
       setLogsVisible((visible) => !visible);
+      return;
+    }
+    if (key.ctrl && value === "e") {
+      setCurrentRunOnly((current) => !current);
+      return;
+    }
+    if (focus === "right" && !dialog && ["1", "2", "3", "4"].includes(value)) {
+      setMinimumLogLevel(Number(value) - 1);
       return;
     }
     if (key.ctrl && value === "n") {
@@ -281,21 +291,36 @@ export function FastMpaTui({
       </Box>
       {logsVisible ? (
         <Box flexDirection="column" borderStyle="single" borderColor="gray">
-          <Text color="gray">Live Logs [on]</Text>
-          {logs.slice(-8).map((entry) => (
-            <Text
-              key={entry.sequence}
-              color={
-                entry.level === "error"
-                  ? "red"
-                  : entry.level === "warn"
-                    ? "yellow"
-                    : "gray"
-              }
-            >
-              {entry.timestamp} {entry.component}: {entry.message}
-            </Text>
-          ))}
+          <Text color="gray">
+            Live Logs {application.getLogPath?.() ?? ""} [on]
+            {currentRunOnly ? " [current run]" : ""}
+          </Text>
+          {logs
+            .filter(
+              (entry) =>
+                ["debug", "info", "warn", "error"].indexOf(entry.level) >=
+                minimumLogLevel,
+            )
+            .filter((entry) => {
+              if (!currentRunOnly) return true;
+              const runId = snapshot?.runs[0]?.runId;
+              return runId !== undefined && entry.context.runId === runId;
+            })
+            .slice(-8)
+            .map((entry) => (
+              <Text
+                key={entry.sequence}
+                color={
+                  entry.level === "error"
+                    ? "red"
+                    : entry.level === "warn"
+                      ? "yellow"
+                      : "gray"
+                }
+              >
+                {entry.timestamp} {entry.component}: {entry.message}
+              </Text>
+            ))}
         </Box>
       ) : null}
       {dialog ? (
@@ -311,7 +336,7 @@ export function FastMpaTui({
       <Text color="gray">
         {selectedWorkspaceId ?? "default"} /{" "}
         {selectedConversationId ?? "default"} ·{" "}
-        {queuedCount ? `queued (${queuedCount})` : "ready"}
+        {composerStatus(snapshot, queuedCount)}
         {"\n"}&gt; {input}
       </Text>
       {approval ? (
@@ -327,4 +352,14 @@ export function FastMpaTui({
 function workspaceId(snapshot: ApplicationSnapshot): string | undefined {
   const first = snapshot.workspaces[0];
   return typeof first === "string" ? first : first?.id;
+}
+
+function composerStatus(
+  snapshot: ApplicationSnapshot | undefined,
+  queuedCount: number,
+): "ready" | "queued" | "submitting" | "waiting" | "error" {
+  if (queuedCount > 1) return "queued";
+  if (queuedCount === 1) return "submitting";
+  if (snapshot?.runs.some((run) => run.status === "waiting")) return "waiting";
+  return "ready";
 }
