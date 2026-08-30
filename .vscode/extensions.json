@@ -1,6 +1,8 @@
 {
   "recommendations": [
     "biomejs.biome",
-    "formulahendry.code-runner"
+    "formulahendry.code-runner",
+    "alexcvzz.vscode-sqlite",
+    "qwtel.sqlite-viewer"
   ]
 }

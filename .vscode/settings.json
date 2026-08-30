@@ -4,6 +4,6 @@
   "code-runner.runInTerminal": true,
   "code-runner.fileDirectoryAsCwd": false,
   "code-runner.executorMap": {
-    "typescript": "node --env-file=\"$workspaceRoot/.env\" \"$workspaceRoot/node_modules/vite-node/vite-node.mjs\" \"$fullFileName\""
+    "typescript": "powershell -NoProfile -Command \"`$file = '$fullFileName'.Trim('\"'); `$appRoot = '$workspaceRoot\\apps\\fastmpa'; `$root = if (`$file.StartsWith(`$appRoot, [System.StringComparison]::OrdinalIgnoreCase)) { `$appRoot } else { '$workspaceRoot' }; & node --env-file='$workspaceRoot\\.env' '$workspaceRoot\\node_modules\\vite-node\\vite-node.mjs' --root `$root `$file\""
   }
 }
