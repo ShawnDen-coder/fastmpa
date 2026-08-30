@@ -26,6 +26,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] TUI 将 Conversation、InlineTool、ApprovalCard、RunDetails、StatusBar 和 CommandPalette 拆为独立组件；`Ctrl+D` 打开选中 Run 详情。
 - [x] TUI 默认使用 Conversation-first 单区渲染；Workspace、Runs 和 Logs 通过焦点或快捷键进入，日志使用独立 `LogView`。
 - [x] `Ctrl+L` 打开 Logs 焦点视图，方向键滚动日志；日志按当前 Workspace/Conversation 保持上下文过滤。
+- [x] 初始加载和 Workspace 切换按选中 Conversation 重新读取消息，避免 Workspace 内会话串消息。
 - [x] Run Details 展示 Run 时间线、上下文、Tool Call、错误码/可重试性、Approval ID 和可用操作。
 - [x] TUI 发送失败时保留本地消息内容，并通过命令面板支持 Retry / Edit / Discard。
 

@@ -11,6 +11,7 @@ export function CommandPalette({
       <Text color="cyan">Commands</Text>
       <Text>[w] Workspace [c] Conversation [r] Runs [l] Logs</Text>
       <Text>[n] New Workspace/Conversation [Esc/Ctrl+K] Close</Text>
+      <Text>Switch Agent · Show Schedules · Show Attention</Text>
       {hasFailedDraft ? (
         <Text color="yellow">[y] Retry [e] Edit [d] Discard</Text>
       ) : null}

@@ -66,13 +66,23 @@ export function FastMpaTui({
     );
   });
   React.useEffect(() => {
-    void application.getSnapshot().then((next) => {
-      setSnapshot(next);
-      setSelectedWorkspaceId(next.selectedWorkspaceId ?? workspaceId(next));
-      setSelectedConversationId(
-        next.selectedConversationId ?? next.conversations[0]?.id,
-      );
-    });
+    void application
+      .getSnapshot()
+      .then((next) => {
+        const nextWorkspaceId = next.selectedWorkspaceId ?? workspaceId(next);
+        const nextConversationId =
+          next.selectedConversationId ?? next.conversations[0]?.id;
+        setSnapshot(next);
+        setSelectedWorkspaceId(nextWorkspaceId);
+        setSelectedConversationId(nextConversationId);
+        if (nextWorkspaceId && nextConversationId)
+          return application.getSnapshot({
+            workspaceId: nextWorkspaceId,
+            conversationId: nextConversationId,
+          });
+        return next;
+      })
+      .then(setSnapshot);
     setLogs(application.getRecentLogs(100));
     const unsubscribeSnapshot = application.subscribe(setSnapshot);
     const unsubscribeLogs = application.subscribeLogs((entry) =>
@@ -102,6 +112,16 @@ export function FastMpaTui({
       setSelectedConversationId(conversationId);
       void application
         .getSnapshot({ workspaceId, conversationId })
+        .then((next) => {
+          const nextConversationId =
+            conversationId ?? next.conversations[0]?.id;
+          setSelectedConversationId(nextConversationId);
+          if (!nextConversationId) return next;
+          return application.getSnapshot({
+            workspaceId,
+            conversationId: nextConversationId,
+          });
+        })
         .then(setSnapshot);
     },
     [application],
