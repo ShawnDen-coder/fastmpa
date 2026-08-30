@@ -29,6 +29,7 @@ import {
   type Workspace,
   type WorkspaceRepository,
 } from "workspace";
+import { ConversationRunCoordinator } from "./conversation-run-coordinator.js";
 import { CompletionProjector } from "./orchestrator.js";
 
 export type ApplicationCommand =
@@ -171,6 +172,7 @@ export async function createApplication(
     logger: logger.child({ component: "runtime-scheduler" }),
   });
   const listeners = new Set<ApplicationEventListener>();
+  const conversationRuns = new ConversationRunCoordinator();
   let started = false;
   const app: FastMpaApplication = {
     async start() {
@@ -356,44 +358,10 @@ export async function createApplication(
         return {};
       }
       if (command.type !== "submit") return {};
-      const agentId = command.agentId ?? "demo-agent";
-      ensureWorkspace(command.workspaceId, command.conversationId, agentId);
-      const message = sendMessage(repository, {
-        id: randomUUID(),
-        workspaceId: command.workspaceId,
-        conversationId: command.conversationId,
-        senderId: "human",
-        body: command.body,
-        mentions: [agentId],
-        createdAt: new Date().toISOString(),
-      }).message;
-      const runId = `run:${message.id}`;
-      const conversationMessages = repository
-        .listMessages(command.workspaceId, command.conversationId)
-        .map((item) => ({
-          role:
-            item.senderId === agentId
-              ? ("assistant" as const)
-              : ("user" as const),
-          content: item.body,
-        }));
-      const enqueued = await worker.enqueue({
-        runId,
-        turn: { messages: conversationMessages },
-        dependencies: { modelKey: "demo", toolsetKey: "local" },
-        context: {
-          workspaceId: command.workspaceId,
-          agentId,
-          conversationId: command.conversationId,
-          trigger: "mention",
-          sourceRef: { type: "message", id: message.id },
-        },
-      });
-      if (!enqueued.created) return enqueued;
-      const run = await worker.run(runId);
-      if (run) projector.project(run);
-      await publish();
-      return { run, created: true };
+      return conversationRuns.enqueue(
+        `${command.workspaceId}:${command.conversationId}`,
+        () => submit(command),
+      );
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -401,6 +369,48 @@ export async function createApplication(
     },
   };
   return app;
+  async function submit(
+    command: Extract<ApplicationCommand, { type: "submit" }>,
+  ): Promise<CommandResult> {
+    const agentId = command.agentId ?? "demo-agent";
+    ensureWorkspace(command.workspaceId, command.conversationId, agentId);
+    const message = sendMessage(repository, {
+      id: randomUUID(),
+      workspaceId: command.workspaceId,
+      conversationId: command.conversationId,
+      senderId: "human",
+      body: command.body,
+      mentions: [agentId],
+      createdAt: new Date().toISOString(),
+    }).message;
+    const runId = `run:${message.id}`;
+    const conversationMessages = repository
+      .listMessages(command.workspaceId, command.conversationId)
+      .map((item) => ({
+        role:
+          item.senderId === agentId
+            ? ("assistant" as const)
+            : ("user" as const),
+        content: item.body,
+      }));
+    const enqueued = await worker.enqueue({
+      runId,
+      turn: { messages: conversationMessages },
+      dependencies: { modelKey: "demo", toolsetKey: "local" },
+      context: {
+        workspaceId: command.workspaceId,
+        agentId,
+        conversationId: command.conversationId,
+        trigger: "mention",
+        sourceRef: { type: "message", id: message.id },
+      },
+    });
+    if (!enqueued.created) return enqueued;
+    const run = await worker.run(runId);
+    if (run) projector.project(run);
+    await publish();
+    return { run, created: true };
+  }
   async function publish(): Promise<void> {
     const snapshot = await app.getSnapshot();
     for (const listener of listeners) listener(snapshot);
