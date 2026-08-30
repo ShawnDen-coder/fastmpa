@@ -30,6 +30,14 @@ Participant + Workspace
 - [项目 README](../README.md) — 产品目标、使用逻辑与常用命令。
 - [最终架构](ARCHITECTURE.md) — 三个核心包、Application、TUI 和 Runtime 边界。
 
+### TUI 启动
+
+从仓库根目录先构建应用，再执行 `node apps/fastmpa/dist/index.js`；执行
+`node apps/fastmpa/dist/index.js chat` 也会进入同一持续 Workspace 工作台。
+开发时可用 `pnpm exec vite-node --root apps/fastmpa
+apps/fastmpa/src/index.ts` 直接运行源码。完整快捷键和配置变量见[项目
+README](../README.md)的“启动 TUI 工作台”。
+
 ### 可运行示例
 
 - [示例说明](../examples/README.md) — Core、Runtime 和 Workspace 的离线示例。
