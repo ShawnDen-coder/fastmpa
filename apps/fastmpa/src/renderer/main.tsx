@@ -82,6 +82,19 @@ function App(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    if (!selectedWorkspaceId) return;
+    let active = true;
+    void window.fastMpa.application
+      .getSnapshot({ workspaceId: selectedWorkspaceId })
+      .then((next) => {
+        if (active) setSnapshot(next);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedWorkspaceId]);
+
+  useEffect(() => {
     if (page !== "Logs") return;
     void window.fastMpa.application.getRecentLogs(100).then(setLogs);
   }, [page]);
