@@ -43,6 +43,30 @@ body {
   color: #718096;
   font-weight: 500;
 }
+.workspace-switcher {
+  margin-left: 18px;
+  padding: 5px 28px 5px 8px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  color: #607086;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+.title-action {
+  margin-left: 8px;
+  padding: 5px 9px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  color: #607086;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.title-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .desktop-layout {
   display: grid;
   grid-template-columns: 72px 320px minmax(0, 1fr);

@@ -19,8 +19,10 @@ const pages = [
 function App(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<ApplicationSnapshot>();
   const [page, setPage] = useState("Conversations");
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
     useState<string>();
+  const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
@@ -28,7 +30,12 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const active = true;
     void window.fastMpa.application.getSnapshot().then((next) => {
-      if (active) setSnapshot(next);
+      if (active) {
+        setSnapshot(next);
+        setSelectedWorkspaceId(
+          next.selectedWorkspaceId ?? next.workspaces[0]?.id,
+        );
+      }
     });
     return window.fastMpa.application.onSnapshot((next) => {
       if (active) setSnapshot(next);
@@ -40,10 +47,16 @@ function App(): React.JSX.Element {
     void window.fastMpa.application.getRecentLogs(100).then(setLogs);
   }, [page]);
 
-  const workspace = snapshot?.workspaces[0];
+  const workspace =
+    snapshot?.workspaces.find((item) => item.id === selectedWorkspaceId) ??
+    snapshot?.workspaces[0];
   const conversations =
     snapshot?.conversations.filter(
-      (conversation) => conversation.workspaceId === workspace?.id,
+      (conversation) =>
+        conversation.workspaceId === workspace?.id &&
+        (conversation.title ?? "Untitled conversation")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
     ) ?? [];
   const conversationId = selectedConversationId ?? conversations[0]?.id;
   const messages = useMemo(
@@ -75,9 +88,53 @@ function App(): React.JSX.Element {
       <header className="title-bar">
         <span className="brand-mark">F</span>
         <strong>FastMPA</strong>
-        <span className="workspace-name">
-          {workspace?.name ?? "Loading workspace"}
-        </span>
+        <select
+          className="workspace-switcher"
+          aria-label="Workspace"
+          value={workspace?.id ?? ""}
+          onChange={(event) => {
+            setSelectedWorkspaceId(event.target.value);
+            setSelectedConversationId(undefined);
+          }}
+        >
+          <option value="" disabled>
+            Loading workspace
+          </option>
+          {(snapshot?.workspaces ?? []).map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="title-action"
+          onClick={() =>
+            void window.fastMpa.application.dispatch({
+              type: "workspace.create",
+              name: "New workspace",
+            })
+          }
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="title-action"
+          disabled={!workspace}
+          onClick={() => {
+            if (!workspace) return;
+            const name = window.prompt("Workspace name", workspace.name);
+            if (name?.trim())
+              void window.fastMpa.application.dispatch({
+                type: "workspace.rename",
+                workspaceId: workspace.id,
+                name: name.trim(),
+              });
+          }}
+        >
+          Rename
+        </button>
       </header>
       <div className="desktop-layout">
         <nav className="rail" aria-label="Primary navigation">
@@ -117,6 +174,8 @@ function App(): React.JSX.Element {
           </div>
           <input
             className="search-input"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search conversations"
             aria-label="Search conversations"
           />
