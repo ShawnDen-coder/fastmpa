@@ -55,6 +55,7 @@ export function FastMpaTui({
     React.useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
     React.useState<string>();
+  const [selectedAgentId, setSelectedAgentId] = React.useState("demo-agent");
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [confirmExit, setConfirmExit] = React.useState(false);
@@ -116,6 +117,10 @@ export function FastMpaTui({
         setSnapshot(next);
         setSelectedWorkspaceId(nextWorkspaceId);
         setSelectedConversationId(nextConversationId);
+        setSelectedAgentId(
+          next.participants.find((participant) => participant.kind === "agent")
+            ?.id ?? "demo-agent",
+        );
         if (nextWorkspaceId && nextConversationId)
           return application.getSnapshot({
             workspaceId: nextWorkspaceId,
@@ -201,6 +206,22 @@ export function FastMpaTui({
           value === "r" ? "runs" : value === "s" ? "schedules" : "attention",
         );
         setFocus("right");
+        setCommandPalette(false);
+        return;
+      }
+      if (value === "g") {
+        const agents = (snapshot?.participants ?? []).filter(
+          (participant) => participant.kind === "agent",
+        );
+        if (agents.length > 0) {
+          const current = agents.findIndex(
+            (agent) => agent.id === selectedAgentId,
+          );
+          setSelectedAgentId(
+            agents[(current + 1 + agents.length) % agents.length]?.id ??
+              agents[0].id,
+          );
+        }
         setCommandPalette(false);
         return;
       }
@@ -443,6 +464,7 @@ export function FastMpaTui({
           workspaceId: selectedWorkspaceId ?? "default",
           conversationId: selectedConversationId ?? "default",
           body: task,
+          agentId: selectedAgentId,
         })
         .finally(() =>
           updateConversationUi(submissionKey, (state) => ({
@@ -564,6 +586,7 @@ export function FastMpaTui({
       <StatusBar
         workspace={selectedWorkspaceId ?? "default"}
         conversation={selectedConversationId ?? "default"}
+        agent={selectedAgentId}
         status={composerStatus(
           snapshot,
           activeConversationUi.queuedCount,

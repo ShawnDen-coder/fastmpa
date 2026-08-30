@@ -14,7 +14,7 @@ export function CommandPalette({
         Logs
       </Text>
       <Text>[n] New Workspace/Conversation [Esc/Ctrl+K] Close</Text>
-      <Text>Switch Agent · Show Schedules · Show Attention</Text>
+      <Text>[g] Switch Agent · Show Schedules · Show Attention</Text>
       {hasFailedDraft ? (
         <Text color="yellow">[y] Retry [e] Edit [d] Discard</Text>
       ) : null}
