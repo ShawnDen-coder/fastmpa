@@ -568,6 +568,23 @@ body {
   color: #75849a;
   overflow-wrap: anywhere;
 }
+.inspector-tools .tool-card {
+  margin: 0 0 10px;
+}
+.inspector-error {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #efcaca;
+  border-radius: 9px;
+  color: #9d4343;
+  background: #fff5f5;
+  font-size: 12px;
+}
+.inspector-error small {
+  color: #b86c6c;
+}
 .run-select {
   align-self: flex-start;
   border: 0;

@@ -733,30 +733,103 @@ function App(): React.JSX.Element {
                 (item) => item.runId === inspectorRunId,
               );
               if (!run) return <p className="empty-state">Run unavailable.</p>;
+              const runEvents = events.filter(
+                (event) => event.runId === run.runId,
+              );
+              const toolEventsForRun = runEvents.filter(
+                (event) =>
+                  event.type === "tool.started" ||
+                  event.type === "tool.approval_required" ||
+                  event.type === "tool.completed",
+              );
+              const canCancel = [
+                "queued",
+                "running",
+                "retrying",
+                "waiting",
+              ].includes(run.status);
+              const canRetry = ["failed", "cancelled", "interrupted"].includes(
+                run.status,
+              );
               return (
                 <div className="inspector-content">
                   <div className="inspector-status">
                     <span>{run.phase}</span>
                     <strong>{run.status}</strong>
                   </div>
+                  <div className="run-actions">
+                    {canRetry && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          void window.fastMpa.application.dispatch({
+                            type: "retry",
+                            runId: run.runId,
+                          })
+                        }
+                      >
+                        Retry
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button
+                        type="button"
+                        className="secondary-button danger-button"
+                        onClick={() =>
+                          void window.fastMpa.application.dispatch({
+                            type: "cancel",
+                            runId: run.runId,
+                          })
+                        }
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                   <dl>
                     <dt>Run ID</dt>
                     <dd>{run.runId}</dd>
                     <dt>Attempt</dt>
                     <dd>{run.attempt}</dd>
+                    <dt>Workspace</dt>
+                    <dd>{run.context?.workspaceId ?? "—"}</dd>
+                    <dt>Conversation</dt>
+                    <dd>{run.context?.conversationId ?? "—"}</dd>
                   </dl>
+                  {run.error && (
+                    <div className="inspector-error" role="alert">
+                      <strong>{run.error.code ?? run.error.name}</strong>
+                      <span>{run.error.message}</span>
+                      <small>
+                        {run.error.retryable ? "Retryable" : "Not retryable"}
+                      </small>
+                    </div>
+                  )}
+                  {toolEventsForRun.length > 0 && (
+                    <>
+                      <h3>Tool calls</h3>
+                      <div className="inspector-tools">
+                        {toolEventsForRun.map((event) => (
+                          <ToolEventCard
+                            key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+                            event={event}
+                            onDetails={setInspectorRunId}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <h3>Lifecycle events</h3>
                   <div className="inspector-events">
-                    {events
-                      .filter((event) => event.runId === run.runId)
-                      .map((event) => (
-                        <div
-                          key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
-                        >
-                          <strong>{event.type}</strong>
-                          <small>{JSON.stringify(event)}</small>
-                        </div>
-                      ))}
+                    {runEvents.map((event) => (
+                      <div
+                        key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+                      >
+                        <strong>{event.type}</strong>
+                        <small>{JSON.stringify(event)}</small>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
