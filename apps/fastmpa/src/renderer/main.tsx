@@ -223,7 +223,14 @@ function App(): React.JSX.Element {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string>();
   const drafts = useConversationStore((state) => state.drafts);
+  const failedMessages = useConversationStore((state) => state.failedMessages);
   const setDraftValue = useConversationStore((state) => state.setDraft);
+  const setFailedMessage = useConversationStore(
+    (state) => state.setFailedMessage,
+  );
+  const clearFailedMessage = useConversationStore(
+    (state) => state.clearFailedMessage,
+  );
   const enqueue = useConversationStore((state) => state.enqueue);
   const dequeue = useConversationStore((state) => state.dequeue);
   const logs = useLogStore((state) => state.entries);
@@ -337,6 +344,9 @@ function App(): React.JSX.Element {
     conversationKey ? (state.sendQueues[conversationKey] ?? []) : [],
   );
   const draft = conversationKey ? (drafts[conversationKey] ?? "") : "";
+  const failedMessage = conversationKey
+    ? failedMessages[conversationKey]
+    : undefined;
   const streamingText = conversationKey
     ? (streamingByConversation[conversationKey] ?? "")
     : "";
@@ -380,9 +390,11 @@ function App(): React.JSX.Element {
           body,
           agentId: activeAgentId,
         });
+        if (conversationKey) clearFailedMessage(conversationKey);
       } catch (error: unknown) {
         if (conversationKey) {
           setDraftValue(conversationKey, body);
+          setFailedMessage(conversationKey, body);
         }
         setSendError(
           error instanceof Error ? error.message : "Message failed to send",
@@ -391,7 +403,15 @@ function App(): React.JSX.Element {
         setSending(false);
       }
     },
-    [activeAgentId, conversationId, conversationKey, setDraftValue, workspace],
+    [
+      activeAgentId,
+      clearFailedMessage,
+      conversationId,
+      conversationKey,
+      setDraftValue,
+      setFailedMessage,
+      workspace,
+    ],
   );
 
   async function submit(): Promise<void> {
@@ -709,6 +729,34 @@ function App(): React.JSX.Element {
               {sendError && (
                 <div className="composer-error" role="alert">
                   {sendError}
+                  {failedMessage && conversationKey && (
+                    <div className="composer-error-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearFailedMessage(conversationKey);
+                          void dispatchMessage(failedMessage);
+                        }}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftValue(conversationKey, failedMessage);
+                          clearFailedMessage(conversationKey);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => clearFailedMessage(conversationKey)}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="composer-footer">

@@ -59,7 +59,11 @@ describe("shellStore", () => {
 
 describe("conversationStore", () => {
   beforeEach(() =>
-    useConversationStore.setState({ drafts: {}, sendQueues: {} }),
+    useConversationStore.setState({
+      drafts: {},
+      failedMessages: {},
+      sendQueues: {},
+    }),
   );
 
   it("keeps queued messages isolated by conversation key", () => {
@@ -75,6 +79,21 @@ describe("conversationStore", () => {
     expect(
       useConversationStore.getState().sendQueues["workspace-b:conversation-b"],
     ).toEqual(["second"]);
+  });
+
+  it("keeps failed messages isolated and removable", () => {
+    useConversationStore
+      .getState()
+      .setFailedMessage("workspace-a:conversation-a", "retry me");
+    expect(
+      useConversationStore.getState().failedMessages[
+        "workspace-a:conversation-a"
+      ],
+    ).toBe("retry me");
+    useConversationStore
+      .getState()
+      .clearFailedMessage("workspace-a:conversation-a");
+    expect(useConversationStore.getState().failedMessages).toEqual({});
   });
 });
 
