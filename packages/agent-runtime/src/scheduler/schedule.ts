@@ -62,10 +62,6 @@ export class ScheduleRunner {
           scheduledFor: schedule.nextRunAt,
         }),
       );
-      let nextRunAt = schedule.nextRunAt;
-      do nextRunAt += schedule.intervalMs;
-      while (nextRunAt <= at);
-      this.options.repository.saveSchedule({ ...schedule, nextRunAt });
     }
     return signals;
   }
@@ -80,6 +76,7 @@ export class ScheduleRunner {
       signals.map(async (signal) => {
         try {
           await this.options.dispatch?.(signal);
+          this.advance(signal, at);
         } catch (error) {
           this.options.onError?.(error);
         }
@@ -104,5 +101,19 @@ export class ScheduleRunner {
     if (!this.timer) return;
     this.stopInterval(this.timer);
     this.timer = undefined;
+  }
+
+  private advance(signal: WakeSignal, at: number): void {
+    if (signal.scheduledFor === undefined) return;
+    const schedule = this.options.repository.getSchedule(
+      signal.workspaceId,
+      signal.sourceRef.id,
+    );
+    if (!schedule || schedule.enabled === false) return;
+    if (schedule.nextRunAt !== signal.scheduledFor) return;
+    let nextRunAt = schedule.nextRunAt;
+    do nextRunAt += schedule.intervalMs;
+    while (nextRunAt <= at);
+    this.options.repository.saveSchedule({ ...schedule, nextRunAt });
   }
 }
