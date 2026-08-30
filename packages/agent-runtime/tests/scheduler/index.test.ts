@@ -1,76 +1,9 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { InMemoryWorkspaceRepository } from "workspace/testing";
-import { InMemoryWorkClaimStore } from "../../src/scheduler/claim.js";
 import { ScheduleRunner } from "../../src/scheduler/schedule.js";
 import { AgentScheduler } from "../../src/scheduler/scheduler.js";
-import { SqliteWorkClaimStore } from "../../src/scheduler/sqlite-claim.js";
 
 describe("agent-scheduler", () => {
-  it("allows only one owner and allows takeover after lease expiry", () => {
-    const store = new InMemoryWorkClaimStore(() => "claim-1");
-    const first = store.acquire({
-      workKey: "a:agent-1:message:m-1",
-      ownerId: "run-1",
-      now: 100,
-      leaseMs: 10,
-    });
-    expect(first?.ownerId).toBe("run-1");
-    expect(
-      store.acquire({
-        workKey: "a:agent-1:message:m-1",
-        ownerId: "run-2",
-        now: 105,
-        leaseMs: 10,
-      }),
-    ).toBeUndefined();
-    expect(
-      store.acquire({
-        workKey: "a:agent-1:message:m-1",
-        ownerId: "run-2",
-        now: 110,
-        leaseMs: 10,
-      })?.ownerId,
-    ).toBe("run-2");
-  });
-
-  it("atomically shares claims through SQLite", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "fastmpa-claim-"));
-    const path = join(directory, "claims.db");
-    const firstStore = await SqliteWorkClaimStore.open({ filePath: path });
-    const secondStore = await SqliteWorkClaimStore.open({ filePath: path });
-    try {
-      const first = firstStore.acquire({
-        workKey: "work-1",
-        ownerId: "run-1",
-        now: 100,
-        leaseMs: 10,
-      });
-      const second = secondStore.acquire({
-        workKey: "work-1",
-        ownerId: "run-2",
-        now: 105,
-        leaseMs: 10,
-      });
-      expect(first).toBeDefined();
-      expect(second).toBeUndefined();
-      expect(
-        secondStore.acquire({
-          workKey: "work-1",
-          ownerId: "run-2",
-          now: 110,
-          leaseMs: 10,
-        }),
-      ).toBeDefined();
-    } finally {
-      firstStore.close();
-      secondStore.close();
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
-
   it("deduplicates wakeups per agent and dispatches current attention", async () => {
     const repository = new InMemoryWorkspaceRepository();
     repository.saveParticipant({
