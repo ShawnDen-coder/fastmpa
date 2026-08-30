@@ -181,6 +181,46 @@ export function FastMpaTui({
     },
     [application],
   );
+  const submitMessage = React.useCallback(
+    (
+      task: string,
+      submissionKey: string,
+      workspaceId: string,
+      conversationId: string,
+      agentId: string,
+    ) => {
+      updateConversationUi(submissionKey, (state) => ({
+        ...state,
+        queuedCount: state.queuedCount + 1,
+      }));
+      void application
+        .dispatch({
+          type: "submit",
+          workspaceId,
+          conversationId,
+          body: task,
+          agentId,
+        })
+        .finally(() =>
+          updateConversationUi(submissionKey, (state) => ({
+            ...state,
+            queuedCount: Math.max(0, state.queuedCount - 1),
+          })),
+        )
+        .then(() => {
+          setError(undefined);
+          clearFailedDraft(submissionKey);
+        })
+        .catch((reason: unknown) => {
+          setError(reason instanceof Error ? reason.message : String(reason));
+          updateConversationUi(submissionKey, (state) => ({
+            ...state,
+            failedDraft: task,
+          }));
+        });
+    },
+    [application, clearFailedDraft, updateConversationUi],
+  );
   useInput((value, key) => {
     if (confirmExit) {
       if (value.toLowerCase() === "y") exit();
@@ -233,9 +273,16 @@ export function FastMpaTui({
         return;
       }
       if (activeConversationUi.failedDraft && value === "y") {
+        const task = activeConversationUi.failedDraft;
         setCommandPalette(false);
-        setInput(activeConversationUi.failedDraft);
         clearFailedDraft(activeConversationKey);
+        submitMessage(
+          task,
+          activeConversationKey,
+          selectedWorkspaceId ?? "default",
+          selectedConversationId ?? "default",
+          selectedAgentId,
+        );
         return;
       }
       if (activeConversationUi.failedDraft && value === "e") {
@@ -480,35 +527,13 @@ export function FastMpaTui({
       const task = input;
       setInput("");
       const submissionKey = activeConversationKey;
-      updateConversationUi(submissionKey, (state) => ({
-        ...state,
-        queuedCount: state.queuedCount + 1,
-      }));
-      void application
-        .dispatch({
-          type: "submit",
-          workspaceId: selectedWorkspaceId ?? "default",
-          conversationId: selectedConversationId ?? "default",
-          body: task,
-          agentId: selectedAgentId,
-        })
-        .finally(() =>
-          updateConversationUi(submissionKey, (state) => ({
-            ...state,
-            queuedCount: Math.max(0, state.queuedCount - 1),
-          })),
-        )
-        .then(() => {
-          setError(undefined);
-          clearFailedDraft(submissionKey);
-        })
-        .catch((reason: unknown) => {
-          setError(reason instanceof Error ? reason.message : String(reason));
-          updateConversationUi(submissionKey, (state) => ({
-            ...state,
-            failedDraft: task,
-          }));
-        });
+      submitMessage(
+        task,
+        submissionKey,
+        selectedWorkspaceId ?? "default",
+        selectedConversationId ?? "default",
+        selectedAgentId,
+      );
     } else if (key.backspace) setInput((current) => current.slice(0, -1));
     else if (!key.ctrl && !key.meta && value)
       setInput((current) => current + value);

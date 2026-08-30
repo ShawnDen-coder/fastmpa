@@ -34,6 +34,7 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] 增加 40/80/120 列宽度策略；窄终端隐藏次要 Run metadata，不切换到另一套布局，并有单元测试覆盖。
 - [x] Run Details 展示 Run 时间线、上下文、Tool Call、错误码/可重试性、Approval ID 和可用操作。
 - [x] TUI 发送失败时保留本地消息内容，并通过命令面板支持 Retry / Edit / Discard。
+- [x] Retry 直接重新提交保留的失败消息；Edit 回填 Composer，Discard 清除本地草稿。
 
 本轮未声称完成整个 V1 计划：正式的 conversation-first 单区布局、覆盖式 Run Details/Approval 卡片、日志的独立全屏视图与完整过滤器、消息失败后的 Retry/Edit/Discard，以及 40/80/120 列布局验收仍需后续批次实现。
 
