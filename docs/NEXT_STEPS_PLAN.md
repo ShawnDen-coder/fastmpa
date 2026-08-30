@@ -19,6 +19,6 @@ Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构
 - [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
 - [x] Application Snapshot 支持按 Workspace/Conversation 选择范围读取。
 - [x] 增加 ConversationRunCoordinator，保证同一 Conversation 的 submit 串行；不同 Conversation 可并行，失败后队列继续。
-- [ ] 完成三栏 TUI 的选择、队列和审批交互。
+- [x] 完成三栏 TUI 的三栏焦点、Workspace/Conversation 选择、队列状态和审批快捷键基础交互。
 - [x] Application 提供 500 条日志 Ring Buffer、实时订阅和 JSONL 文件输出；TUI 支持 `Ctrl+L` 折叠日志面板。
 - [x] `fastmpa`（无参数）与 `fastmpa chat` 进入同一持续工作台；`fastmpa run` 保持单次 JSON 输出。

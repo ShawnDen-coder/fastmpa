@@ -113,3 +113,9 @@ Application logs are an independent observation stream. The root Pino logger
 tees structured JSONL to the absolute `fastmpa.log` path and a bounded
 500-entry in-memory buffer. Log subscribers update only the log panel; message
 and model content is not emitted as log context.
+
+The workspace TUI keeps selection and unsent queue state locally. Selection
+changes request a filtered Application snapshot; submitted turns are serialized
+by Application on `workspaceId:conversationId`, so switching the visible
+conversation does not cancel background work or mix its history into another
+conversation.

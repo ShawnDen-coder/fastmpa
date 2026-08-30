@@ -21,6 +21,8 @@ pnpm exec vite-node --root apps/fastmpa apps/fastmpa/src/index.ts run "整理今
 
 默认使用 `.env` 中配置的 OpenRouter 模型和本地无副作用工具。生产工具应作为 Runtime Tooling 的受控实现注入，并遵循审批、幂等和审计边界。
 
+工作台使用 Tab/Shift+Tab 切换三栏焦点，方向键选择 Workspace 或 Conversation，Enter 发送消息；Ctrl+L 折叠日志，Ctrl+A 批准，Ctrl+X 拒绝或取消当前 Run，Ctrl+C 在有活动 Run 时取消、否则退出。
+
 ## Commands
 
 无参数启动和 `chat` 都进入持续对话工作台；`run` 是单次、机器可读的执行入口，`doctor` 用于检查本地配置。
