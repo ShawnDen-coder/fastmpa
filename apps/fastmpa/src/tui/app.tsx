@@ -26,6 +26,9 @@ export function FastMpaTui({
   const [selectedConversationId, setSelectedConversationId] =
     React.useState<string>();
   const [queuedCount, setQueuedCount] = React.useState(0);
+  const [dialog, setDialog] = React.useState<
+    "workspace" | "conversation" | "rename" | undefined
+  >();
   const { exit } = useApp();
   const approval = snapshot?.runs.find((run) => {
     if (run.status !== "waiting") return false;
@@ -70,6 +73,16 @@ export function FastMpaTui({
       setLogsVisible((visible) => !visible);
       return;
     }
+    if (key.ctrl && value === "n") {
+      setDialog(focus === "left" ? "workspace" : "conversation");
+      setInput("");
+      return;
+    }
+    if (key.ctrl && value === "r" && selectedWorkspaceId) {
+      setDialog("rename");
+      setInput("");
+      return;
+    }
     if (key.tab) {
       setFocus((current) => {
         const areas = ["left", "middle", "right"] as const;
@@ -81,7 +94,10 @@ export function FastMpaTui({
       return;
     }
     if (key.escape) {
-      exit();
+      if (dialog) {
+        setDialog(undefined);
+        setInput("");
+      } else exit();
       return;
     }
     if (key.ctrl && value === "c") {
@@ -137,6 +153,47 @@ export function FastMpaTui({
         if (conversation)
           refreshSelection(conversation.workspaceId, conversation.id);
       }
+      return;
+    }
+    if ((key.return || value === "\r" || value === "\n") && dialog) {
+      const name = input.trim();
+      if (!name) return;
+      const command =
+        dialog === "workspace"
+          ? { type: "workspace.create" as const, name }
+          : dialog === "conversation"
+            ? {
+                type: "conversation.create" as const,
+                workspaceId: selectedWorkspaceId ?? "default",
+                title: name,
+              }
+            : {
+                type: "workspace.rename" as const,
+                workspaceId: selectedWorkspaceId ?? "default",
+                name,
+              };
+      setInput("");
+      setDialog(undefined);
+      void application
+        .dispatch(command)
+        .then(() =>
+          dialog === "workspace"
+            ? application.getSnapshot()
+            : application.getSnapshot({ workspaceId: selectedWorkspaceId }),
+        )
+        .then((next) => {
+          setSnapshot(next);
+          if (dialog === "workspace") {
+            const created = next.workspaces.at(-1);
+            const id = typeof created === "string" ? created : created?.id;
+            if (id) setSelectedWorkspaceId(id);
+          }
+          if (dialog === "conversation")
+            setSelectedConversationId(next.conversations.at(-1)?.id);
+        })
+        .catch((reason: unknown) =>
+          setError(reason instanceof Error ? reason.message : String(reason)),
+        );
       return;
     }
     if ((key.return || value === "\r" || value === "\n") && input.trim()) {
@@ -240,6 +297,16 @@ export function FastMpaTui({
             </Text>
           ))}
         </Box>
+      ) : null}
+      {dialog ? (
+        <Text color="cyan">
+          {dialog === "workspace"
+            ? "New Workspace name"
+            : dialog === "conversation"
+              ? "New Conversation title"
+              : "Rename Workspace"}
+          : {input}
+        </Text>
       ) : null}
       <Text color="gray">
         {selectedWorkspaceId ?? "default"} /{" "}
