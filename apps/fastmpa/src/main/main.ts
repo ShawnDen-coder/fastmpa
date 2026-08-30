@@ -112,9 +112,12 @@ function createWindow(): BrowserWindow {
   });
 
   if (!app.isPackaged)
-    void window.loadURL(
-      process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173",
-    );
+    void window
+      .loadURL(process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173")
+      .then(() => {
+        if (process.env.FASTMPA_DEVTOOLS === "1")
+          window.webContents.openDevTools({ mode: "detach" });
+      });
   else void window.loadURL("fastmpa://app/index.html");
   return window;
 }

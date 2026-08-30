@@ -12,21 +12,15 @@ pnpm --filter fastmpa build
 pnpm --filter fastmpa exec electron .
 ```
 
-开发环境建议使用两个终端。终端 1 启动 Renderer dev server：
+开发环境推荐使用一条命令启动 Renderer dev server、Electron 和 DevTools：
 
 ```bash
 pnpm install
 pnpm --filter fastmpa build
-pnpm --filter fastmpa dev:renderer
+pnpm --filter fastmpa dev
 ```
 
-终端 2 启动 Electron：
-
-```bash
-pnpm --filter fastmpa dev:electron
-```
-
-Renderer 修改支持热更新；Main 或 Preload 修改后需重新 build 并重启 Electron。
+修改 `src/renderer` 下的组件支持 React Fast Refresh 热更新；Main 或 Preload 修改后需重新 build 并重启 Electron。
 
 生成 Windows 安装包：
 

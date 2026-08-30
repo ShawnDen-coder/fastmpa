@@ -61,25 +61,17 @@ pnpm --filter fastmpa exec electron .
 
 `build` 会生成 Electron Main、Preload 和 Renderer；`electron .` 会启动本地 Desktop 应用。之后只修改源码时，重新执行 `pnpm --filter fastmpa build` 再启动即可。
 
-### 开发环境
+### 开发环境（支持热更新）
 
-开发时使用 Vite Renderer dev server，支持 Renderer 热更新。首次启动需要先构建 Main 和 Preload：
-
-终端 1：
+执行下面一条命令即可启动 Vite Renderer dev server 和 Electron：
 
 ```powershell
 pnpm install
 pnpm --filter fastmpa build
-pnpm --filter fastmpa dev:renderer
+pnpm --filter fastmpa dev
 ```
 
-终端 2：
-
-```powershell
-pnpm --filter fastmpa dev:electron
-```
-
-Electron 会自动连接 `http://localhost:5173`。修改 `src/renderer` 会热更新；修改 Main 或 Preload 后，停止 Electron，重新执行 `pnpm --filter fastmpa build`，再启动即可。
+开发模式会自动打开 DevTools。修改 `apps/fastmpa/src/renderer` 下的组件会通过 React Fast Refresh 热更新；修改 Main 或 Preload 后，停止开发命令，重新执行 `build` 再启动。
 
 如需生成 Windows 安装包：
 
