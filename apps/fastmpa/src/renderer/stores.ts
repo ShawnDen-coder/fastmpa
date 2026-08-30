@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ApplicationLogEntry } from "../application.js";
+import type { ApplicationEvent, ApplicationLogEntry } from "../application.js";
 
 interface ShellState {
   readonly page: string;
@@ -21,6 +21,14 @@ interface LogState {
   readonly entries: readonly ApplicationLogEntry[];
   readonly append: (entry: ApplicationLogEntry) => void;
   readonly mergeHistory: (entries: readonly ApplicationLogEntry[]) => void;
+}
+
+interface RuntimeState {
+  readonly events: readonly ApplicationEvent[];
+  readonly streamingByConversation: Readonly<Record<string, string>>;
+  readonly appendEvent: (event: ApplicationEvent) => void;
+  readonly appendTextDelta: (conversationKey: string, delta: string) => void;
+  readonly clearStreaming: (conversationKey: string) => void;
 }
 
 export const useShellStore = create<ShellState>((set) => ({
@@ -49,4 +57,25 @@ export const useLogStore = create<LogState>((set, get) => ({
         .slice(-500),
     });
   },
+}));
+
+export const useRuntimeStore = create<RuntimeState>((set) => ({
+  events: [],
+  streamingByConversation: {},
+  appendEvent: (event) =>
+    set((state) => ({ events: [...state.events.slice(-199), event] })),
+  appendTextDelta: (conversationKey, delta) =>
+    set((state) => ({
+      streamingByConversation: {
+        ...state.streamingByConversation,
+        [conversationKey]:
+          (state.streamingByConversation[conversationKey] ?? "") + delta,
+      },
+    })),
+  clearStreaming: (conversationKey) =>
+    set((state) => {
+      const streamingByConversation = { ...state.streamingByConversation };
+      delete streamingByConversation[conversationKey];
+      return { streamingByConversation };
+    }),
 }));

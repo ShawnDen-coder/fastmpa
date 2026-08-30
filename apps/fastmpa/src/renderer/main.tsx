@@ -10,10 +10,15 @@ import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
-import type { ApplicationEvent, ApplicationSnapshot } from "../application.js";
+import type { ApplicationSnapshot } from "../application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
-import { useLogStore, useSelectionStore, useShellStore } from "./stores.js";
+import {
+  useLogStore,
+  useRuntimeStore,
+  useSelectionStore,
+  useShellStore,
+} from "./stores.js";
 import "./styles.css";
 
 const pages = [
@@ -50,10 +55,13 @@ function App(): React.JSX.Element {
   const logs = useLogStore((state) => state.entries);
   const appendLog = useLogStore((state) => state.append);
   const mergeLogHistory = useLogStore((state) => state.mergeHistory);
-  const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
-  const [streamingByConversation, setStreamingByConversation] = useState<
-    Record<string, string>
-  >({});
+  const events = useRuntimeStore((state) => state.events);
+  const appendEvent = useRuntimeStore((state) => state.appendEvent);
+  const streamingByConversation = useRuntimeStore(
+    (state) => state.streamingByConversation,
+  );
+  const appendTextDelta = useRuntimeStore((state) => state.appendTextDelta);
+  const clearStreaming = useRuntimeStore((state) => state.clearStreaming);
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
   const [inspectorRunId, setInspectorRunId] = useState<string>();
   const [closing, setClosing] = useState(false);
@@ -78,22 +86,14 @@ function App(): React.JSX.Element {
     );
     const unsubscribeEvents = window.fastMpa.application.onEvent((event) => {
       if (!active) return;
-      setEvents((current) => [...current.slice(-199), event]);
+      appendEvent(event);
       const eventKey =
         event.context?.workspaceId && event.context.conversationId
           ? `${event.context.workspaceId}:${event.context.conversationId}`
           : undefined;
       if (eventKey && event.type === "text.delta")
-        setStreamingByConversation((current) => ({
-          ...current,
-          [eventKey]: (current[eventKey] ?? "") + event.delta,
-        }));
-      if (eventKey && event.type === "turn.completed")
-        setStreamingByConversation((current) => {
-          const next = { ...current };
-          delete next[eventKey];
-          return next;
-        });
+        appendTextDelta(eventKey, event.delta);
+      if (eventKey && event.type === "turn.completed") clearStreaming(eventKey);
     });
     const unsubscribeLogs = window.fastMpa.application.onLog((entry) => {
       if (active) appendLog(entry);
@@ -108,7 +108,13 @@ function App(): React.JSX.Element {
       unsubscribeLogs();
       unsubscribeClosing();
     };
-  }, [appendLog, setSelectedWorkspaceId]);
+  }, [
+    appendEvent,
+    appendLog,
+    appendTextDelta,
+    clearStreaming,
+    setSelectedWorkspaceId,
+  ]);
 
   useEffect(() => {
     if (!selectedWorkspaceId) return;
