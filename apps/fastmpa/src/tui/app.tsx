@@ -36,6 +36,11 @@ export function FastMpaTui({
   const [selectedConversationId, setSelectedConversationId] =
     React.useState<string>();
   const [queuedCount, setQueuedCount] = React.useState(0);
+  const [failedDraft, setFailedDraft] = React.useState<{
+    readonly body: string;
+    readonly workspaceId: string;
+    readonly conversationId: string;
+  }>();
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [confirmExit, setConfirmExit] = React.useState(false);
@@ -126,6 +131,24 @@ export function FastMpaTui({
         setDialog(focus === "left" ? "workspace" : "conversation");
         setCommandPalette(false);
         setInput("");
+        return;
+      }
+      if (failedDraft && value === "y") {
+        setCommandPalette(false);
+        setInput(failedDraft.body);
+        setFailedDraft(undefined);
+        return;
+      }
+      if (failedDraft && value === "e") {
+        setCommandPalette(false);
+        setInput(failedDraft.body);
+        setFailedDraft(undefined);
+        return;
+      }
+      if (failedDraft && value === "d") {
+        setCommandPalette(false);
+        setFailedDraft(undefined);
+        setError(undefined);
         return;
       }
       return;
@@ -336,10 +359,18 @@ export function FastMpaTui({
           body: task,
         })
         .finally(() => setQueuedCount((count) => Math.max(0, count - 1)))
-        .then(() => setError(undefined))
-        .catch((reason: unknown) =>
-          setError(reason instanceof Error ? reason.message : String(reason)),
-        );
+        .then(() => {
+          setError(undefined);
+          setFailedDraft(undefined);
+        })
+        .catch((reason: unknown) => {
+          setError(reason instanceof Error ? reason.message : String(reason));
+          setFailedDraft({
+            body: task,
+            workspaceId: selectedWorkspaceId ?? "default",
+            conversationId: selectedConversationId ?? "default",
+          });
+        });
     } else if (key.backspace) setInput((current) => current.slice(0, -1));
     else if (!key.ctrl && !key.meta && value)
       setInput((current) => current + value);
@@ -472,12 +503,19 @@ export function FastMpaTui({
         <RunDetails run={snapshot.runs[selectedRunIndex]} />
       ) : null}
       {error ? <Text color="red">Error: {error}</Text> : null}
+      {failedDraft ? (
+        <Text color="yellow">
+          Failed message retained · Ctrl+K then [y] Retry [e] Edit [d] Discard
+        </Text>
+      ) : null}
       {confirmExit ? (
         <Text color="yellow">
           Unsent messages are queued locally and will be lost. Exit? [y/N]
         </Text>
       ) : null}
-      {commandPalette ? <CommandPalette /> : null}
+      {commandPalette ? (
+        <CommandPalette hasFailedDraft={failedDraft !== undefined} />
+      ) : null}
     </Box>
   );
 }
