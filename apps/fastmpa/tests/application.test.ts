@@ -21,7 +21,8 @@ describe("FastMpaApplication", () => {
       },
     });
     app.subscribeEvents((event) => {
-      if (event.type === "text.delta") events.push(`${event.runId}:${event.delta}`);
+      if (event.type === "text.delta")
+        events.push(`${event.runId}:${event.delta}`);
     });
     await app.start();
     const result = await app.dispatch({
@@ -32,7 +33,10 @@ describe("FastMpaApplication", () => {
     });
 
     expect(result.run?.status).toBe("completed");
-    expect(events).toEqual([`${result.run?.runId}:实时`, `${result.run?.runId}:回复`]);
+    expect(events).toEqual([
+      `${result.run?.runId}:实时`,
+      `${result.run?.runId}:回复`,
+    ]);
     await app.stop();
     await rm(directory, { recursive: true, force: true });
   });

@@ -453,7 +453,7 @@ export function FastMpaTui({
       ) : null}
       {commandPalette ? (
         <Text color="cyan">
-          Commands: [l] Logs  [n] New item  [Esc/Ctrl+K] Close
+          Commands: [l] Logs [n] New item [Esc/Ctrl+K] Close
         </Text>
       ) : null}
     </Box>

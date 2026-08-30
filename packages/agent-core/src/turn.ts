@@ -93,10 +93,7 @@ import { TurnContext } from "./context/context";
 import { AgentCoreError } from "./errors";
 import { CancellationGuard, checkGuards, StepLimitGuard } from "./guards";
 import { type Logger, logger } from "./logger";
-import type {
-  ModelAdapter,
-  StreamingModelAdapter,
-} from "./model/adapter";
+import type { ModelAdapter, StreamingModelAdapter } from "./model/adapter";
 import { ModelExecutionError } from "./model/errors";
 import { ToolExecutionError } from "./tools/errors";
 import { ToolExecutor } from "./tools/executor";
@@ -155,7 +152,12 @@ export async function runTurn(
         "model requested",
       );
       // ModelAdapter 只负责请求模型，不负责执行工具。
-      const response = await requestModel(options.model, context.toModelInput(options.tools.definitions()), input.signal, options.onLiveEvent);
+      const response = await requestModel(
+        options.model,
+        context.toModelInput(options.tools.definitions()),
+        input.signal,
+        options.onLiveEvent,
+      );
 
       // ModelResponse 是判别联合类型，按 type 分支处理三种响应。
       switch (response.type) {
@@ -188,7 +190,11 @@ export async function runTurn(
               signal: input.signal,
             });
             if (!toolGuardResult.allowed) {
-              return finish(step + 1, toolGuardResult.status, toolGuardResult.error);
+              return finish(
+                step + 1,
+                toolGuardResult.status,
+                toolGuardResult.error,
+              );
             }
 
             events.push({
@@ -217,7 +223,8 @@ export async function runTurn(
               const approvalId =
                 typeof result.error.details === "object" &&
                 result.error.details !== null
-                  ? (result.error.details as { approvalId?: unknown }).approvalId
+                  ? (result.error.details as { approvalId?: unknown })
+                      .approvalId
                   : undefined;
               if (typeof approvalId === "string")
                 options.onLiveEvent?.({
@@ -238,7 +245,11 @@ export async function runTurn(
             }
 
             if (!result.ok && result.error.code === "cancelled") {
-              return finish(step + 1, "cancelled", cancellationError(result.error));
+              return finish(
+                step + 1,
+                "cancelled",
+                cancellationError(result.error),
+              );
             }
 
             events.push({

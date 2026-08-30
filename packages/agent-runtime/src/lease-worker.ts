@@ -1,8 +1,8 @@
 import {
   type Logger,
   runTurn,
-  type TurnResult,
   type TurnLiveEvent,
+  type TurnResult,
 } from "@shawnden-coder/agent-core";
 import { RunNotResumableError } from "./errors.js";
 import { transition } from "./lifecycle.js";
@@ -137,7 +137,7 @@ export class LeaseRuntimeWorker {
       while (!leaseLost) {
         const result = await runTurn(
           { ...persisted.turn, signal: controller.signal },
-        {
+          {
             model,
             tools,
             logger: this.options.logger?.child({
