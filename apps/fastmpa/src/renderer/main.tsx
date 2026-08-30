@@ -10,14 +10,10 @@ import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
-import type {
-  ApplicationEvent,
-  ApplicationLogEntry,
-  ApplicationSnapshot,
-} from "../application.js";
+import type { ApplicationEvent, ApplicationSnapshot } from "../application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
-import { useSelectionStore, useShellStore } from "./stores.js";
+import { useLogStore, useSelectionStore, useShellStore } from "./stores.js";
 import "./styles.css";
 
 const pages = [
@@ -51,7 +47,9 @@ function App(): React.JSX.Element {
   const [sending, setSending] = useState(false);
   const [sendQueue, setSendQueue] = useState<readonly string[]>([]);
   const [sendError, setSendError] = useState<string>();
-  const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
+  const logs = useLogStore((state) => state.entries);
+  const appendLog = useLogStore((state) => state.append);
+  const mergeLogHistory = useLogStore((state) => state.mergeHistory);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
   const [streamingByConversation, setStreamingByConversation] = useState<
     Record<string, string>
@@ -98,7 +96,7 @@ function App(): React.JSX.Element {
         });
     });
     const unsubscribeLogs = window.fastMpa.application.onLog((entry) => {
-      if (active) setLogs((current) => [...current.slice(-499), entry]);
+      if (active) appendLog(entry);
     });
     const unsubscribeClosing = window.fastMpa.desktop.onClosing(() => {
       if (active) setClosing(true);
@@ -110,7 +108,7 @@ function App(): React.JSX.Element {
       unsubscribeLogs();
       unsubscribeClosing();
     };
-  }, [setSelectedWorkspaceId]);
+  }, [appendLog, setSelectedWorkspaceId]);
 
   useEffect(() => {
     if (!selectedWorkspaceId) return;
@@ -127,17 +125,8 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     if (page !== "Logs") return;
-    void window.fastMpa.application.getRecentLogs(100).then((history) => {
-      setLogs((current) => {
-        const entries = new Map(
-          [...history, ...current].map((entry) => [entry.sequence, entry]),
-        );
-        return [...entries.values()]
-          .sort((left, right) => left.sequence - right.sequence)
-          .slice(-500);
-      });
-    });
-  }, [page]);
+    void window.fastMpa.application.getRecentLogs(100).then(mergeLogHistory);
+  }, [mergeLogHistory, page]);
 
   const workspace =
     snapshot?.workspaces.find((item) => item.id === selectedWorkspaceId) ??
