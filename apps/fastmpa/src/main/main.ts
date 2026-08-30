@@ -23,11 +23,22 @@ function createWindow(): BrowserWindow {
     titleBarStyle: "hidden",
     titleBarOverlay: true,
     webPreferences: {
-      preload: join(import.meta.dirname, "../preload/preload.js"),
+      preload: join(import.meta.dirname, "../preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("app://") && !url.startsWith("http://localhost:")) {
+      event.preventDefault();
+      if (url.startsWith("https://")) void shell.openExternal(url);
+    }
   });
 
   if (!app.isPackaged)
