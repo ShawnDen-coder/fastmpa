@@ -358,6 +358,59 @@ body {
   flex: 1;
   flex-direction: column;
 }
+.inspector-pane {
+  width: 420px;
+  min-width: 320px;
+  overflow: auto;
+  border-left: 1px solid #e7edf4;
+  background: #fbfcfe;
+  padding: 28px 24px;
+}
+.inspector-content dl {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  margin: 24px 0;
+  font-size: 12px;
+}
+.inspector-content dt {
+  color: #75849a;
+}
+.inspector-content dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #34445a;
+}
+.inspector-status {
+  display: flex;
+  justify-content: space-between;
+  color: #3276d8;
+}
+.inspector-events {
+  display: grid;
+  gap: 8px;
+}
+.inspector-events div {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: #f0f4f9;
+  padding: 10px;
+  font-size: 12px;
+}
+.inspector-events small {
+  color: #75849a;
+  overflow-wrap: anywhere;
+}
+.run-select {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #3276d8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
 .logs-toolbar {
   display: flex;
   justify-content: space-between;

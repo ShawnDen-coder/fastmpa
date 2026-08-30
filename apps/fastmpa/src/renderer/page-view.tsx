@@ -12,6 +12,7 @@ interface PageViewProps {
   readonly logs: readonly ApplicationLogEntry[];
   readonly events: readonly ApplicationEvent[];
   readonly desktopInfo?: DesktopInfo;
+  readonly onRunSelect?: (runId: string) => void;
 }
 
 function Card({
@@ -48,8 +49,10 @@ function approvalId(
 
 function RunCard({
   run,
+  onSelect,
 }: {
   readonly run: ApplicationSnapshot["runs"][number];
+  readonly onSelect?: (runId: string) => void;
 }): React.JSX.Element {
   const pendingApprovalId =
     run.status === "waiting" ? approvalId(run) : undefined;
@@ -59,6 +62,13 @@ function RunCard({
   const canRetry = ["failed", "cancelled", "interrupted"].includes(run.status);
   return (
     <article className="run-card">
+      <button
+        type="button"
+        className="run-select"
+        onClick={() => onSelect?.(run.runId)}
+      >
+        Inspect run
+      </button>
       <Card
         label={run.phase}
         value={run.status}
@@ -245,6 +255,7 @@ export function PageView({
   logs,
   events,
   desktopInfo,
+  onRunSelect,
 }: PageViewProps): React.JSX.Element {
   if (page === "Agents")
     return (
@@ -266,7 +277,7 @@ export function PageView({
       <div className="run-page">
         <div className="page-grid">
           {(snapshot?.runs ?? []).map((run) => (
-            <RunCard key={run.runId} run={run} />
+            <RunCard key={run.runId} run={run} onSelect={onRunSelect} />
           ))}
         </div>
         <div className="event-timeline">

@@ -37,6 +37,7 @@ function App(): React.JSX.Element {
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
   const [streamingText, setStreamingText] = useState("");
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
+  const [inspectorRunId, setInspectorRunId] = useState<string>();
 
   useEffect(() => {
     let active = true;
@@ -255,6 +256,18 @@ function App(): React.JSX.Element {
               <span />
               Ready
             </span>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setInspectorRunId((current) =>
+                  current ? undefined : snapshot?.runs[0]?.runId,
+                )
+              }
+              disabled={!snapshot?.runs.length}
+            >
+              {inspectorRunId ? "Hide inspector" : "Show inspector"}
+            </button>
           </div>
           {page === "Conversations" ? (
             <div className="message-list">
@@ -309,6 +322,7 @@ function App(): React.JSX.Element {
               logs={logs}
               events={events}
               desktopInfo={desktopInfo}
+              onRunSelect={setInspectorRunId}
             />
           )}
           {page === "Conversations" && (
@@ -344,6 +358,55 @@ function App(): React.JSX.Element {
             </div>
           )}
         </section>
+        {inspectorRunId && snapshot && (
+          <aside className="inspector-pane" aria-label="Run inspector">
+            <div className="pane-heading">
+              <div>
+                <p className="eyebrow">Inspector</p>
+                <h2>Run details</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Close inspector"
+                onClick={() => setInspectorRunId(undefined)}
+              >
+                ×
+              </button>
+            </div>
+            {(() => {
+              const run = snapshot.runs.find(
+                (item) => item.runId === inspectorRunId,
+              );
+              if (!run) return <p className="empty-state">Run unavailable.</p>;
+              return (
+                <div className="inspector-content">
+                  <div className="inspector-status">
+                    <span>{run.phase}</span>
+                    <strong>{run.status}</strong>
+                  </div>
+                  <dl>
+                    <dt>Run ID</dt>
+                    <dd>{run.runId}</dd>
+                    <dt>Attempt</dt>
+                    <dd>{run.attempt}</dd>
+                  </dl>
+                  <h3>Lifecycle events</h3>
+                  <div className="inspector-events">
+                    {events
+                      .filter((event) => event.runId === run.runId)
+                      .map((event, index) => (
+                        <div key={`${event.type}-${index}`}>
+                          <strong>{event.type}</strong>
+                          <small>{JSON.stringify(event)}</small>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </aside>
+        )}
       </div>
     </main>
   );
