@@ -119,6 +119,11 @@ body {
   align-items: center;
   justify-content: space-between;
 }
+.composer-error {
+  margin: 6px 0;
+  color: #c85a5a;
+  font-size: 12px;
+}
 .pane-heading h2,
 .chat-header h2 {
   margin: 2px 0 22px;

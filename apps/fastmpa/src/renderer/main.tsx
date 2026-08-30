@@ -27,6 +27,7 @@ function App(): React.JSX.Element {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string>();
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
   const [streamingText, setStreamingText] = useState("");
@@ -94,6 +95,7 @@ function App(): React.JSX.Element {
   async function submit(): Promise<void> {
     if (!draft.trim() || !workspace || !conversationId || sending) return;
     setSending(true);
+    setSendError(undefined);
     try {
       await window.fastMpa.application.dispatch({
         type: "submit",
@@ -102,6 +104,10 @@ function App(): React.JSX.Element {
         body: draft.trim(),
       });
       setDraft("");
+    } catch (error: unknown) {
+      setSendError(
+        error instanceof Error ? error.message : "Message failed to send",
+      );
     } finally {
       setSending(false);
     }
@@ -302,6 +308,11 @@ function App(): React.JSX.Element {
                 placeholder="Message FastMPA…"
                 rows={3}
               />
+              {sendError && (
+                <div className="composer-error" role="alert">
+                  {sendError}
+                </div>
+              )}
               <div className="composer-footer">
                 <span>Enter to send · Shift+Enter for new line</span>
                 <button
