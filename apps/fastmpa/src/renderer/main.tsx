@@ -13,6 +13,7 @@ import remarkGfm from "remark-gfm";
 import { PageView } from "./page-view.js";
 import {
   useApplicationStore,
+  useConversationStore,
   useLogStore,
   useRuntimeStore,
   useSelectionStore,
@@ -52,10 +53,13 @@ function App(): React.JSX.Element {
   const setSelectedAgentId = useSelectionStore((state) => state.setAgentId);
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("all");
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const [sendQueue, setSendQueue] = useState<readonly string[]>([]);
   const [sendError, setSendError] = useState<string>();
+  const drafts = useConversationStore((state) => state.drafts);
+  const setDraftValue = useConversationStore((state) => state.setDraft);
+  const sendQueue = useConversationStore((state) => state.sendQueue);
+  const enqueue = useConversationStore((state) => state.enqueue);
+  const dequeue = useConversationStore((state) => state.dequeue);
   const logs = useLogStore((state) => state.entries);
   const appendLog = useLogStore((state) => state.append);
   const mergeLogHistory = useLogStore((state) => state.mergeHistory);
@@ -170,7 +174,7 @@ function App(): React.JSX.Element {
     : "";
   function setDraft(value: string): void {
     if (!conversationKey) return;
-    setDrafts((current) => ({ ...current, [conversationKey]: value }));
+    setDraftValue(conversationKey, value);
   }
   const messages = useMemo(
     () =>
@@ -195,7 +199,7 @@ function App(): React.JSX.Element {
         });
       } catch (error: unknown) {
         if (conversationKey) {
-          setDrafts((current) => ({ ...current, [conversationKey]: body }));
+          setDraftValue(conversationKey, body);
         }
         setSendError(
           error instanceof Error ? error.message : "Message failed to send",
@@ -204,7 +208,7 @@ function App(): React.JSX.Element {
         setSending(false);
       }
     },
-    [activeAgentId, conversationId, conversationKey, workspace],
+    [activeAgentId, conversationId, conversationKey, setDraftValue, workspace],
   );
 
   async function submit(): Promise<void> {
@@ -212,7 +216,7 @@ function App(): React.JSX.Element {
     const body = draft.trim();
     setDraft("");
     if (sending) {
-      setSendQueue((current) => [...current, body]);
+      enqueue(body);
       return;
     }
     await dispatchMessage(body);
@@ -220,10 +224,10 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     if (sending || sendQueue.length === 0) return;
-    const [next, ...remaining] = sendQueue;
-    setSendQueue(remaining);
+    const next = sendQueue[0];
+    dequeue();
     void dispatchMessage(next);
-  }, [dispatchMessage, sending, sendQueue]);
+  }, [dequeue, dispatchMessage, sending, sendQueue]);
 
   return (
     <main className="app-shell">

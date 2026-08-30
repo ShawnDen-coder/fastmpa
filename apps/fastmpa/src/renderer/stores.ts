@@ -45,6 +45,14 @@ interface ApplicationState {
   readonly setClosing: (closing: boolean) => void;
 }
 
+interface ConversationState {
+  readonly drafts: Readonly<Record<string, string>>;
+  readonly sendQueue: readonly string[];
+  readonly setDraft: (conversationKey: string, draft: string) => void;
+  readonly enqueue: (body: string) => void;
+  readonly dequeue: () => void;
+}
+
 export const useShellStore = create<ShellState>((set) => ({
   page: "Conversations",
   setPage: (page) => set({ page }),
@@ -99,4 +107,14 @@ export const useApplicationStore = create<ApplicationState>((set) => ({
   setSnapshot: (snapshot) => set({ snapshot }),
   setDesktopInfo: (desktopInfo) => set({ desktopInfo }),
   setClosing: (closing) => set({ closing }),
+}));
+
+export const useConversationStore = create<ConversationState>((set) => ({
+  drafts: {},
+  sendQueue: [],
+  setDraft: (conversationKey, draft) =>
+    set((state) => ({ drafts: { ...state.drafts, [conversationKey]: draft } })),
+  enqueue: (body) =>
+    set((state) => ({ sendQueue: [...state.sendQueue, body] })),
+  dequeue: () => set((state) => ({ sendQueue: state.sendQueue.slice(1) })),
 }));
