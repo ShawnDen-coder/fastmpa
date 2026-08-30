@@ -1,6 +1,7 @@
 import { Box, Text, useApp, useInput } from "ink";
 import React from "react";
 import type {
+  ApplicationLogEntry,
   ApplicationSnapshot,
   FastMpaApplication,
 } from "../application.js";
@@ -15,6 +16,8 @@ export function FastMpaTui({
   >();
   const [input, setInput] = React.useState("");
   const [error, setError] = React.useState<string>();
+  const [logs, setLogs] = React.useState<readonly ApplicationLogEntry[]>([]);
+  const [logsVisible, setLogsVisible] = React.useState(true);
   const { exit } = useApp();
   const approval = snapshot?.runs.find((run) => {
     if (run.status !== "waiting") return false;
@@ -27,9 +30,22 @@ export function FastMpaTui({
   });
   React.useEffect(() => {
     void application.getSnapshot().then(setSnapshot);
-    return application.subscribe(setSnapshot);
+    setLogs(application.getRecentLogs?.(100) ?? []);
+    const unsubscribeSnapshot = application.subscribe(setSnapshot);
+    const unsubscribeLogs =
+      application.subscribeLogs?.((entry) =>
+        setLogs((current) => [...current.slice(-99), entry]),
+      ) ?? (() => undefined);
+    return () => {
+      unsubscribeSnapshot();
+      unsubscribeLogs();
+    };
   }, [application]);
   useInput((value, key) => {
+    if (key.ctrl && value === "l") {
+      setLogsVisible((visible) => !visible);
+      return;
+    }
     if (key.escape || (key.ctrl && value === "c")) {
       exit();
       return;
@@ -95,6 +111,25 @@ export function FastMpaTui({
           ))}
         </Box>
       </Box>
+      {logsVisible ? (
+        <Box flexDirection="column" borderStyle="single" borderColor="gray">
+          <Text color="gray">Live Logs [on]</Text>
+          {logs.slice(-8).map((entry) => (
+            <Text
+              key={entry.sequence}
+              color={
+                entry.level === "error"
+                  ? "red"
+                  : entry.level === "warn"
+                    ? "yellow"
+                    : "gray"
+              }
+            >
+              {entry.timestamp} {entry.component}: {entry.message}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       <Text color="gray">&gt; {input}</Text>
       {approval ? (
         <Text color="yellow">

@@ -14,6 +14,7 @@ flowchart LR
     RUNTIME[agent-runtime\nRun / queue / lease / recovery\nTooling / approval / audit]
     WORKSPACE[workspace\nWorkspace / conversation / message / attention\nboard / schedule facts]
     DB[(SQLite\nshared application state)]
+    LOG[(fastmpa.log\nJSONL + 500-entry ring)]
     EXT[Application Orchestrator\nWorkspace facts → Runtime enqueue]
     PROJ[CompletionProjector\nreply + cursor + receipt]
 
@@ -29,6 +30,8 @@ flowchart LR
     APP --> PROJ
     PROJ --> WORKSPACE
     PROJ --> DB
+    APP --> LOG
+    RUNTIME --> LOG
 ```
 
 ## Task execution sequence
@@ -105,3 +108,8 @@ creates one persisted `Run`. Application snapshots may be filtered by
 loading unrelated messages or runs into the active view. Historical records are
 backfilled with a Workspace record when SQLite starts; the legacy `default`
 workspace is displayed as `Default Workspace`.
+
+Application logs are an independent observation stream. The root Pino logger
+tees structured JSONL to the absolute `fastmpa.log` path and a bounded
+500-entry in-memory buffer. Log subscribers update only the log panel; message
+and model content is not emitted as log context.

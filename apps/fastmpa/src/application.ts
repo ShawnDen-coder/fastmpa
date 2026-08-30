@@ -29,6 +29,10 @@ import {
   type Workspace,
   type WorkspaceRepository,
 } from "workspace";
+import {
+  type ApplicationLogEntry,
+  ApplicationLogStore,
+} from "./application-log.js";
 import { ConversationRunCoordinator } from "./conversation-run-coordinator.js";
 import { CompletionProjector } from "./orchestrator.js";
 
@@ -81,6 +85,7 @@ export interface ApplicationSnapshot {
   readonly runs: readonly (AgentRun & { readonly phase: RunPhase })[];
   readonly schedules: readonly import("workspace").Schedule[];
 }
+export type { ApplicationLogEntry };
 export type RunPhase = "pending" | "active" | "waiting" | "terminal";
 export type CommandResult = {
   readonly run?: AgentRun;
@@ -96,6 +101,8 @@ export interface FastMpaApplication {
   }): Promise<ApplicationSnapshot>;
   dispatch(command: ApplicationCommand): Promise<CommandResult>;
   subscribe(listener: ApplicationEventListener): () => void;
+  getRecentLogs?(limit?: number): readonly ApplicationLogEntry[];
+  subscribeLogs?(listener: (entry: ApplicationLogEntry) => void): () => void;
 }
 export interface FastMpaApplicationOptions {
   readonly databasePath: string;
@@ -110,14 +117,18 @@ export interface FastMpaApplicationOptions {
 export async function createApplication(
   options: FastMpaApplicationOptions,
 ): Promise<FastMpaApplication> {
+  const logPath =
+    options.logPath ??
+    process.env.FASTMPA_LOG_PATH ??
+    join(dirname(options.databasePath), "fastmpa.log");
+  const logStore = options.logger
+    ? undefined
+    : new ApplicationLogStore(logPath);
   const logger =
     options.logger ??
     createLogger(undefined, {
       component: "application",
-      logPath:
-        options.logPath ??
-        process.env.FASTMPA_LOG_PATH ??
-        join(dirname(options.databasePath), "fastmpa.log"),
+      destination: logStore,
       pretty: options.prettyLogs ?? false,
     });
   // Application 持有唯一 root logger，下面的 Runtime/Scheduler 只消费 child logger。
@@ -195,6 +206,7 @@ export async function createApplication(
       (repository as SqliteWorkspaceRepository).close();
       database.client.close();
       logger.info("application stopped");
+      if (logStore) await logStore.close();
     },
     async getSnapshot(query = {}) {
       const now = new Date().toISOString();
@@ -366,6 +378,12 @@ export async function createApplication(
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    getRecentLogs(limit = 100) {
+      return logStore?.getRecent(limit) ?? [];
+    },
+    subscribeLogs(listener) {
+      return logStore?.subscribe(listener) ?? (() => undefined);
     },
   };
   return app;
