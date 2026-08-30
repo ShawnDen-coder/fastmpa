@@ -15,6 +15,7 @@ flowchart LR
     WORKSPACE[workspace\nconversation / message / attention\nboard / schedule facts]
     DB[(SQLite\nshared application state)]
     EXT[Application Orchestrator\nWorkspace facts → Runtime enqueue]
+    PROJ[CompletionProjector\nreply + cursor + receipt]
 
     TUI --> APP
     CLI --> APP
@@ -25,6 +26,9 @@ flowchart LR
     RUNTIME --> DB
     WORKSPACE --> DB
     EXT --> RUNTIME
+    APP --> PROJ
+    PROJ --> WORKSPACE
+    PROJ --> DB
 ```
 
 ## Task execution sequence
@@ -50,8 +54,8 @@ sequenceDiagram
     alt read-only or completed execution
         Model-->>RT: result
         RT->>DB: persist result and completed state
-        App->>WS: append assistant message
-        App->>WS: advance ReadCursor projection
+        App->>PROJ: project reply + ReadCursor + receipt
+        PROJ->>DB: one SQLite transaction
     else write operation
         Model-->>RT: approval required
         RT->>DB: persist waiting Run and Approval(runId)
