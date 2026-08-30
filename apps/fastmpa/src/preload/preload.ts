@@ -42,6 +42,7 @@ const api: FastMpaDesktopApi = {
   desktop: {
     getInfo: () => invoke(desktopChannels.getInfo),
     revealLogFile: () => invoke(desktopChannels.revealLogFile),
+    revealDataDirectory: () => invoke(desktopChannels.revealDataDirectory),
     openExternal: (url) => invoke(desktopChannels.openExternal, url),
     onClosing: (listener) => subscribe(desktopChannels.closing, listener),
   },

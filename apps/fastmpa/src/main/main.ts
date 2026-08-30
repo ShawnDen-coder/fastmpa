@@ -165,6 +165,11 @@ function registerIpc(): void {
         version: app.getVersion(),
         platform: process.platform,
         arch: process.arch,
+        model: process.env.OPENROUTER_MODEL ?? "Default OpenRouter model",
+        databasePath: join(app.getPath("userData"), "fastmpa.sqlite"),
+        logPath: join(app.getPath("userData"), "fastmpa.log"),
+        dataDirectory: app.getPath("userData"),
+        logLevel: process.env.FASTMPA_LOG_LEVEL ?? "info",
       },
     }),
   );
@@ -179,6 +184,12 @@ function registerIpc(): void {
   ipcMain.handle(desktopChannels.revealLogFile, () =>
     respond(() => {
       shell.showItemInFolder(requireApplication().getLogPath());
+    }),
+  );
+  ipcMain.handle(desktopChannels.revealDataDirectory, () =>
+    respond(async () => {
+      const error = await shell.openPath(app.getPath("userData"));
+      if (error) throw new Error(error);
     }),
   );
 }

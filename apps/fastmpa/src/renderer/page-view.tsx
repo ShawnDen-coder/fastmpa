@@ -359,7 +359,7 @@ export function PageView({
     <div className="settings-grid">
       <Card
         label="Model"
-        value="OpenRouter"
+        value={desktopInfo?.model ?? "Loading"}
         detail="Configured in the Main process"
       />
       <Card
@@ -376,6 +376,21 @@ export function PageView({
             : "FastMPA Desktop"
         }
       />
+      <Card label="Log level" value={desktopInfo?.logLevel ?? "Loading"} />
+      <Card
+        label="Database path"
+        value={desktopInfo?.databasePath ?? "Loading"}
+      />
+      <Card label="Log path" value={desktopInfo?.logPath ?? "Loading"} />
+      <div className="settings-action">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => void window.fastMpa.desktop.revealDataDirectory()}
+        >
+          Open data directory
+        </button>
+      </div>
     </div>
   );
 }

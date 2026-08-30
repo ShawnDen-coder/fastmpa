@@ -16,6 +16,7 @@ export const desktopChannels = {
   closing: "desktop:closing",
   getInfo: "desktop:get-info",
   revealLogFile: "desktop:reveal-log-file",
+  revealDataDirectory: "desktop:reveal-data-directory",
   openExternal: "desktop:open-external",
 } as const;
 
@@ -28,6 +29,11 @@ export interface DesktopInfo {
   readonly version: string;
   readonly platform: NodeJS.Platform;
   readonly arch: string;
+  readonly model: string;
+  readonly databasePath: string;
+  readonly logPath: string;
+  readonly dataDirectory: string;
+  readonly logLevel: string;
 }
 
 export type FastMpaDesktopApi = {
@@ -42,6 +48,7 @@ export type FastMpaDesktopApi = {
   readonly desktop: {
     getInfo(): Promise<DesktopInfo>;
     revealLogFile(): Promise<void>;
+    revealDataDirectory(): Promise<void>;
     openExternal(url: string): Promise<void>;
     onClosing(listener: () => void): () => void;
   };
