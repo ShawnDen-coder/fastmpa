@@ -34,9 +34,9 @@ typecheck:
 test:
     pnpm --config.confirmModulesPurge=false -r --if-present run test
 
-# Run the built CLI against a throwaway database.
-cli-smoke:
-    powershell -NoProfile -Command "Set-Item Env:FASTMPA_DB (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite'); Remove-Item -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite') -Force -ErrorAction SilentlyContinue; node apps/fastmpa/dist/index.js doctor; node apps/fastmpa/dist/index.js run smoke; Remove-Item -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'fastmpa-cli-smoke.sqlite') -Force -ErrorAction SilentlyContinue"
+# Verify the built Electron Main, Preload and Renderer entrypoints.
+desktop-smoke:
+    node apps/fastmpa/scripts/desktop-host-smoke.mjs
 
 # Reproduce the GitHub CI checks locally
 ci:
@@ -44,7 +44,7 @@ ci:
     just build
     just typecheck
     just test
-    just cli-smoke
+    just desktop-smoke
 
 # Prepare the package selected by a release tag, for example agent-core-0.2.0.
 package tag:
