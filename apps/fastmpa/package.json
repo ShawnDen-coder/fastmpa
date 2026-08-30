@@ -44,7 +44,9 @@
     "appId": "io.fastmpa.desktop",
     "productName": "FastMPA",
     "asar": true,
-    "files": ["dist/**/*", "package.json"],
+    "npmRebuild": true,
+    "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
+    "files": ["dist/**/*", "resources/**/*", "package.json"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": { "artifactName": "FastMPA-Setup-${version}.exe" }
   }

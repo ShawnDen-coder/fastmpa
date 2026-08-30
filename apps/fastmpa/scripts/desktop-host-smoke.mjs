@@ -19,6 +19,12 @@ assert(
   ),
   "Windows x64 NSIS target is missing",
 );
+assert(manifest.build.npmRebuild === true, "native dependency rebuild is disabled");
+assert(
+  manifest.build.asarUnpack?.includes("**/node_modules/better-sqlite3/**/*"),
+  "better-sqlite3 is not unpacked from asar",
+);
+assert(manifest.build.files?.includes("resources/**/*"), "resources are not packaged");
 for (const file of requiredFiles) await access(join(appRoot, file));
 assert(mainSource.includes('contextIsolation: true'), "context isolation is disabled");
 assert(mainSource.includes('nodeIntegration: false'), "node integration is enabled");
