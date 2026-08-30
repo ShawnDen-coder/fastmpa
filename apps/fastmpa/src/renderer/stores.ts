@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { ApplicationEvent, ApplicationLogEntry } from "../application.js";
+import type {
+  ApplicationEvent,
+  ApplicationLogEntry,
+  ApplicationSnapshot,
+} from "../application.js";
+import type { DesktopInfo } from "../shared/desktop-api.js";
 
 interface ShellState {
   readonly page: string;
@@ -29,6 +34,15 @@ interface RuntimeState {
   readonly appendEvent: (event: ApplicationEvent) => void;
   readonly appendTextDelta: (conversationKey: string, delta: string) => void;
   readonly clearStreaming: (conversationKey: string) => void;
+}
+
+interface ApplicationState {
+  readonly snapshot?: ApplicationSnapshot;
+  readonly desktopInfo?: DesktopInfo;
+  readonly closing: boolean;
+  readonly setSnapshot: (snapshot: ApplicationSnapshot) => void;
+  readonly setDesktopInfo: (desktopInfo: DesktopInfo) => void;
+  readonly setClosing: (closing: boolean) => void;
 }
 
 export const useShellStore = create<ShellState>((set) => ({
@@ -78,4 +92,11 @@ export const useRuntimeStore = create<RuntimeState>((set) => ({
       delete streamingByConversation[conversationKey];
       return { streamingByConversation };
     }),
+}));
+
+export const useApplicationStore = create<ApplicationState>((set) => ({
+  closing: false,
+  setSnapshot: (snapshot) => set({ snapshot }),
+  setDesktopInfo: (desktopInfo) => set({ desktopInfo }),
+  setClosing: (closing) => set({ closing }),
 }));

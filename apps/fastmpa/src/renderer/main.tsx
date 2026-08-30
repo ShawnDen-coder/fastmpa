@@ -10,10 +10,9 @@ import { createRoot } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
-import type { ApplicationSnapshot } from "../application.js";
-import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
 import {
+  useApplicationStore,
   useLogStore,
   useRuntimeStore,
   useSelectionStore,
@@ -31,7 +30,12 @@ const pages = [
 ];
 
 function App(): React.JSX.Element {
-  const [snapshot, setSnapshot] = useState<ApplicationSnapshot>();
+  const snapshot = useApplicationStore((state) => state.snapshot);
+  const setSnapshot = useApplicationStore((state) => state.setSnapshot);
+  const desktopInfo = useApplicationStore((state) => state.desktopInfo);
+  const setDesktopInfo = useApplicationStore((state) => state.setDesktopInfo);
+  const closing = useApplicationStore((state) => state.closing);
+  const setClosing = useApplicationStore((state) => state.setClosing);
   const page = useShellStore((state) => state.page);
   const setPage = useShellStore((state) => state.setPage);
   const selectedWorkspaceId = useSelectionStore((state) => state.workspaceId);
@@ -62,9 +66,7 @@ function App(): React.JSX.Element {
   );
   const appendTextDelta = useRuntimeStore((state) => state.appendTextDelta);
   const clearStreaming = useRuntimeStore((state) => state.clearStreaming);
-  const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
   const [inspectorRunId, setInspectorRunId] = useState<string>();
-  const [closing, setClosing] = useState(false);
   const messageListRef = useRef<VirtuosoHandle>(null);
   const [messagesAtLatest, setMessagesAtLatest] = useState(true);
 
@@ -113,6 +115,9 @@ function App(): React.JSX.Element {
     appendLog,
     appendTextDelta,
     clearStreaming,
+    setClosing,
+    setDesktopInfo,
+    setSnapshot,
     setSelectedWorkspaceId,
   ]);
 
@@ -127,7 +132,7 @@ function App(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [selectedWorkspaceId]);
+  }, [selectedWorkspaceId, setSnapshot]);
 
   useEffect(() => {
     if (page !== "Logs") return;
