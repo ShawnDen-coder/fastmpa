@@ -388,6 +388,13 @@ body {
 .approval-inline small {
   color: #9b7a2f;
 }
+.tool-card:focus-visible {
+  outline: 2px solid #4c86c6;
+  outline-offset: 2px;
+}
+.tool-card .selected {
+  box-shadow: 0 0 0 2px rgba(76, 134, 198, 0.28);
+}
 @keyframes pulse {
   50% {
     opacity: 0.25;
