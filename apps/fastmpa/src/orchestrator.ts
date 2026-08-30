@@ -29,9 +29,11 @@ export class CompletionProjector {
       .listMessages(context.workspaceId, conversation.id)
       .find((message) => message.id === context.sourceRef?.id);
     if (!source) return;
-    const messages = (run.result?.messages ?? []).filter(
-      (message) => message.role === "assistant",
-    );
+    // Result 会包含本轮输入历史；只投影输入之后新增的 Agent 消息，避免连续对话重复回复。
+    const inputMessageCount = run.input?.turn.messages.length ?? 0;
+    const messages = (run.result?.messages ?? [])
+      .slice(inputMessageCount)
+      .filter((message) => message.role === "assistant");
     const agentId = context.agentId;
     const now = new Date().toISOString();
     let sequence = this.repository

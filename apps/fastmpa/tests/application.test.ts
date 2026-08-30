@@ -56,4 +56,41 @@ describe("FastMpaApplication", () => {
     await second.stop();
     await rm(directory, { recursive: true, force: true });
   });
+
+  it("passes the existing conversation history into the next turn", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const inputs: { role: string; content: string }[][] = [];
+    const model = {
+      complete: async (input: {
+        messages: readonly { role: string; content: string }[];
+      }) => {
+        inputs.push([...input.messages]);
+        return { type: "text" as const, content: `reply-${inputs.length}` };
+      },
+    };
+    const app = await createApplication({
+      databasePath: join(directory, "state.sqlite"),
+      model,
+    });
+    await app.start();
+    await app.dispatch({
+      type: "submit",
+      workspaceId: "default",
+      conversationId: "default",
+      body: "第一轮",
+    });
+    await app.dispatch({
+      type: "submit",
+      workspaceId: "default",
+      conversationId: "default",
+      body: "第二轮",
+    });
+    expect(inputs[1]).toEqual([
+      { role: "user", content: "第一轮" },
+      { role: "assistant", content: "reply-1" },
+      { role: "user", content: "第二轮" },
+    ]);
+    await app.stop();
+    await rm(directory, { recursive: true, force: true });
+  });
 });

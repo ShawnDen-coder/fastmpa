@@ -1,4 +1,4 @@
-import { FakeModel } from "@shawnden-coder/agent-core";
+import { OpenRouterModel } from "@shawnden-coder/agent-core";
 import {
   createApplication,
   type FastMpaApplication,
@@ -13,6 +13,12 @@ export function bootstrap(
     ...options,
     model:
       options.model ??
-      new FakeModel([{ type: "text", content: "演示 Agent 已完成任务。" }]),
+      new OpenRouterModel({
+        apiKey: process.env.OPENROUTER_API_KEY ?? "",
+        model: process.env.OPENROUTER_MODEL ?? "",
+        baseUrl: process.env.OPENROUTER_BASE_URL,
+        httpReferer: process.env.OPENROUTER_HTTP_REFERER,
+        appTitle: process.env.OPENROUTER_APP_TITLE ?? "FastMPA",
+      }),
   });
 }

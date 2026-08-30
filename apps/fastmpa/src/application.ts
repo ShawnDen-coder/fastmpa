@@ -286,9 +286,18 @@ export async function createApplication(
         createdAt: new Date().toISOString(),
       }).message;
       const runId = `run:${message.id}`;
+      const conversationMessages = repository
+        .listMessages(command.workspaceId, command.conversationId)
+        .map((item) => ({
+          role:
+            item.senderId === agentId
+              ? ("assistant" as const)
+              : ("user" as const),
+          content: item.body,
+        }));
       const enqueued = await worker.enqueue({
         runId,
-        turn: { messages: [{ role: "user", content: command.body }] },
+        turn: { messages: conversationMessages },
         dependencies: { modelKey: "demo", toolsetKey: "local" },
         context: {
           workspaceId: command.workspaceId,

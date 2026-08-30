@@ -10,7 +10,7 @@ FastMPA 的目标不是提供一个只会回答问题的聊天机器人，也不
 
 未来可以通过 Skills、MCP 和平台适配器连接 TAPD、ShotGrid 等外部系统；外部写操作始终经过 Runtime Tooling 的审批、幂等和审计边界。
 
-一个典型场景是：用户提交一个项目任务，指定或自动匹配 Agent。Agent 创建持久化 Run，执行过程中展示步骤和工具调用；需要写入时进入审批，批准后恢复执行，完成后把结果写回 Conversation。用户也可以将任务保存为周期计划。
+一个典型场景是：用户提交一个项目任务，指定或自动匹配 Agent。Agent 通过 `.env` 配置的 OpenRouter 模型创建持久化 Run，执行过程中展示步骤和工具调用；需要写入时进入审批，批准后恢复执行，完成后把结果写回 Conversation。用户也可以将任务保存为周期计划。
 
 ## 使用逻辑
 
@@ -54,3 +54,15 @@ FastMPA 通过统一 Workspace、Runtime Scheduler、可恢复执行和受控 To
 Application 创建唯一 root Pino logger，并向 Core、Runtime、Scheduler 和 Tooling 注入 child logger。默认日志只包含组件、关联 ID、状态、耗时、计数和错误，不写入消息正文、工具参数、工具结果或模型响应；密码、token、authorization、apiKey、cookie 和 secret 会被 redacted。
 
 `FASTMPA_LOG_LEVEL` 控制级别，默认 `info`；`FASTMPA_LOG_PATH` 可指定日志文件，默认与 SQLite 文件同目录的 `fastmpa.log`。TUI 默认只写 JSONL 文件，CLI 日志写 stderr，`run` 的 JSON 结果保持纯 stdout。V1 不轮转日志，生产环境请使用外部轮转工具。
+
+## 本地配置
+
+CLI 启动时会自动读取仓库根目录的 `.env` 文件；已有的系统环境变量优先级更高。建议在 `.env` 中配置本地数据库和日志路径，例如：
+
+```dotenv
+FASTMPA_DB=./tmp/fastmpa.sqlite
+FASTMPA_LOG_PATH=./tmp/fastmpa.log
+FASTMPA_LOG_LEVEL=info
+```
+
+`.env` 只用于本地配置，禁止提交 API key、密码或其他凭据。
