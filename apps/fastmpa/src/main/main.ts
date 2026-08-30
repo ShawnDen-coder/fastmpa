@@ -82,7 +82,7 @@ function createWindow(): BrowserWindow {
     titleBarStyle: "hidden",
     titleBarOverlay: true,
     webPreferences: {
-      preload: join(import.meta.dirname, "../preload/preload.mjs"),
+      preload: join(import.meta.dirname, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

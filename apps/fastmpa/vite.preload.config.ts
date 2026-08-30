@@ -8,8 +8,8 @@ export default defineConfig({
     target: "node22",
     lib: {
       entry: resolve(import.meta.dirname, "src/preload/preload.ts"),
-      formats: ["es"],
-      fileName: () => "preload.mjs",
+      formats: ["cjs"],
+      fileName: () => "preload.cjs",
     },
     rollupOptions: { external: ["electron"] },
   },
