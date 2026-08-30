@@ -402,15 +402,18 @@ export async function createApplication(
       createdAt: new Date().toISOString(),
     }).message;
     const runId = `run:${message.id}`;
-    const conversationMessages = repository
-      .listMessages(command.workspaceId, command.conversationId)
-      .map((item) => ({
-        role:
-          item.senderId === agentId
-            ? ("assistant" as const)
-            : ("user" as const),
-        content: item.body,
-      }));
+    const conversationMessages = selectConversationContext(
+      repository
+        .listMessages(command.workspaceId, command.conversationId)
+        .map((item) => ({
+          role:
+            item.senderId === agentId
+              ? ("assistant" as const)
+              : ("user" as const),
+          content: item.body,
+        })),
+      50,
+    );
     const enqueued = await worker.enqueue({
       runId,
       turn: { messages: conversationMessages },
@@ -499,6 +502,16 @@ function withPhase(run: AgentRun): AgentRun & { readonly phase: RunPhase } {
       phase = "terminal";
   }
   return { ...run, phase };
+}
+
+export function selectConversationContext(
+  messages: readonly { role: "user" | "assistant"; content: string }[],
+  limit: number,
+): readonly { role: "user" | "assistant"; content: string }[] {
+  if (messages.length <= limit) return messages;
+  const selected = messages.slice(-limit);
+  while (selected[0]?.role === "assistant") selected.shift();
+  return selected;
 }
 
 function createDefaultTooling(

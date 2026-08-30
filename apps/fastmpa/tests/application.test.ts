@@ -1,9 +1,25 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createApplication } from "../src/application.js";
+import {
+  createApplication,
+  selectConversationContext,
+} from "../src/application.js";
 
 describe("FastMpaApplication", () => {
+  it("trims model context to the latest complete user/assistant boundary", () => {
+    const messages = Array.from({ length: 52 }, (_, index) => ({
+      role: (index % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: String(index),
+    }));
+    expect(selectConversationContext(messages, 50)).toHaveLength(50);
+    expect(selectConversationContext(messages, 50)[0]).toEqual({
+      role: "user",
+      content: "2",
+    });
+    expect(selectConversationContext(messages, 50).at(-1)?.content).toBe("51");
+  });
+
   it("creates, renames, and filters workspace snapshots", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
