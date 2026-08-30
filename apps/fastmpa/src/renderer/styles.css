@@ -22,6 +22,11 @@ body {
   -webkit-app-region: drag;
   font-weight: 700;
 }
+.title-bar button,
+.title-bar select,
+.title-bar input {
+  -webkit-app-region: no-drag;
+}
 .brand-mark,
 .rail-logo,
 .avatar,
@@ -68,6 +73,7 @@ body {
   cursor: not-allowed;
 }
 .desktop-layout {
+  position: relative;
   display: grid;
   grid-template-columns: 72px 320px minmax(0, 1fr);
   height: calc(100vh - 44px);
@@ -359,12 +365,24 @@ body {
   flex-direction: column;
 }
 .inspector-pane {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 420px;
   min-width: 320px;
   overflow: auto;
   border-left: 1px solid #e7edf4;
   background: #fbfcfe;
   padding: 28px 24px;
+}
+
+@media (max-width: 1100px) {
+  .inspector-pane {
+    width: min(420px, calc(100vw - 72px));
+    box-shadow: -12px 0 30px rgb(24 34 48 / 12%);
+  }
 }
 .inspector-content dl {
   display: grid;
