@@ -129,6 +129,52 @@ function RunCard({
   );
 }
 
+function ScheduleCard({
+  schedule,
+}: {
+  readonly schedule: ApplicationSnapshot["schedules"][number];
+}): React.JSX.Element {
+  const action: "schedule.pause" | "schedule.resume" =
+    schedule.enabled === false ? "schedule.resume" : "schedule.pause";
+  return (
+    <article className="run-card">
+      <Card
+        label="Schedule"
+        value={schedule.instruction}
+        detail={`${schedule.enabled === false ? "paused" : "active"} · ${schedule.intervalMs}ms`}
+      />
+      <div className="run-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() =>
+            void window.fastMpa.application.dispatch({
+              type: action,
+              workspaceId: schedule.workspaceId,
+              scheduleId: schedule.id,
+            })
+          }
+        >
+          {schedule.enabled === false ? "Resume" : "Pause"}
+        </button>
+        <button
+          type="button"
+          className="secondary-button danger-button"
+          onClick={() =>
+            void window.fastMpa.application.dispatch({
+              type: "schedule.delete",
+              workspaceId: schedule.workspaceId,
+              scheduleId: schedule.id,
+            })
+          }
+        >
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
 export function PageView({
   page,
   snapshot,
@@ -175,12 +221,7 @@ export function PageView({
     return (
       <div className="page-grid">
         {(snapshot?.schedules ?? []).map((schedule) => (
-          <Card
-            key={schedule.id}
-            label="Schedule"
-            value={schedule.instruction}
-            detail={`${schedule.enabled === false ? "paused" : "active"} · ${schedule.intervalMs}ms`}
-          />
+          <ScheduleCard key={schedule.id} schedule={schedule} />
         ))}
       </div>
     );
