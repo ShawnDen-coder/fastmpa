@@ -45,7 +45,9 @@ function App(): React.JSX.Element {
   const [sendError, setSendError] = useState<string>();
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
   const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
-  const [streamingText, setStreamingText] = useState("");
+  const [streamingByConversation, setStreamingByConversation] = useState<
+    Record<string, string>
+  >({});
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo>();
   const [inspectorRunId, setInspectorRunId] = useState<string>();
   const [closing, setClosing] = useState(false);
@@ -71,9 +73,21 @@ function App(): React.JSX.Element {
     const unsubscribeEvents = window.fastMpa.application.onEvent((event) => {
       if (!active) return;
       setEvents((current) => [...current.slice(-199), event]);
-      if (event.type === "text.delta")
-        setStreamingText((current) => current + event.delta);
-      if (event.type === "turn.completed") setStreamingText("");
+      const eventKey =
+        event.context?.workspaceId && event.context.conversationId
+          ? `${event.context.workspaceId}:${event.context.conversationId}`
+          : undefined;
+      if (eventKey && event.type === "text.delta")
+        setStreamingByConversation((current) => ({
+          ...current,
+          [eventKey]: (current[eventKey] ?? "") + event.delta,
+        }));
+      if (eventKey && event.type === "turn.completed")
+        setStreamingByConversation((current) => {
+          const next = { ...current };
+          delete next[eventKey];
+          return next;
+        });
     });
     const unsubscribeLogs = window.fastMpa.application.onLog((entry) => {
       if (active) setLogs((current) => [...current.slice(-499), entry]);
@@ -134,14 +148,13 @@ function App(): React.JSX.Element {
       ? `${workspace.id}:${conversationId}`
       : undefined;
   const draft = conversationKey ? (drafts[conversationKey] ?? "") : "";
+  const streamingText = conversationKey
+    ? (streamingByConversation[conversationKey] ?? "")
+    : "";
   function setDraft(value: string): void {
     if (!conversationKey) return;
     setDrafts((current) => ({ ...current, [conversationKey]: value }));
   }
-  useEffect(() => {
-    if (conversationId === undefined) setStreamingText("");
-    else setStreamingText("");
-  }, [conversationId]);
   const messages = useMemo(
     () =>
       snapshot?.messages.filter(
