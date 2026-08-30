@@ -6,7 +6,11 @@ export default defineConfig({
     outDir: resolve(import.meta.dirname, "dist/preload"),
     emptyOutDir: true,
     target: "node22",
-    lib: { entry: resolve(import.meta.dirname, "src/preload/preload.ts"), formats: ["es"], fileName: "preload" },
+    lib: {
+      entry: resolve(import.meta.dirname, "src/preload/preload.ts"),
+      formats: ["es"],
+      fileName: () => "preload.mjs",
+    },
     rollupOptions: { external: ["electron"] },
   },
 });
