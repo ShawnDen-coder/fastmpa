@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -21,6 +21,7 @@ import {
   isSnapshotQuery,
 } from "../shared/ipc.js";
 import { EventBatcher } from "./event-batcher.js";
+import { importLegacyDatabase } from "./legacy-database.js";
 import {
   isAllowedExternalUrl,
   isAllowedNavigation,
@@ -296,9 +297,7 @@ async function prepareLegacyDatabase(databasePath: string): Promise<boolean> {
   });
   if (choice.response === 2) return false;
   if (choice.response === 1) return true;
-  const backupPath = `${legacyPath}.backup-${Date.now()}`;
-  copyFileSync(legacyPath, backupPath);
-  copyFileSync(legacyPath, databasePath);
+  importLegacyDatabase(legacyPath, databasePath);
   return true;
 }
 
