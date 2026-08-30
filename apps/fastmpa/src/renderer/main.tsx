@@ -1,6 +1,10 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ApplicationSnapshot } from "../application.js";
+import type {
+  ApplicationLogEntry,
+  ApplicationSnapshot,
+} from "../application.js";
+import { PageView } from "./page-view.js";
 import "./styles.css";
 
 const pages = [
@@ -19,6 +23,7 @@ function App(): React.JSX.Element {
     useState<string>();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
 
   useEffect(() => {
     const active = true;
@@ -29,6 +34,11 @@ function App(): React.JSX.Element {
       if (active) setSnapshot(next);
     });
   }, []);
+
+  useEffect(() => {
+    if (page !== "Logs") return;
+    void window.fastMpa.application.getRecentLogs(100).then(setLogs);
+  }, [page]);
 
   const workspace = snapshot?.workspaces[0];
   const conversations =
@@ -148,59 +158,65 @@ function App(): React.JSX.Element {
               Ready
             </span>
           </div>
-          <div className="message-list">
-            {messages.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">✦</div>
-                <h3>Start a conversation</h3>
-                <p>Send a message to begin a durable FastMPA run.</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <article
-                  className={
-                    message.senderId === "human" ? "message user" : "message"
-                  }
-                  key={message.id}
-                >
-                  <div className="avatar">
-                    {message.senderId === "human" ? "You" : "A"}
-                  </div>
-                  <div>
-                    <div className="message-meta">
-                      {message.senderId === "human" ? "You" : "Agent"}
+          {page === "Conversations" ? (
+            <div className="message-list">
+              {messages.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">✦</div>
+                  <h3>Start a conversation</h3>
+                  <p>Send a message to begin a durable FastMPA run.</p>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <article
+                    className={
+                      message.senderId === "human" ? "message user" : "message"
+                    }
+                    key={message.id}
+                  >
+                    <div className="avatar">
+                      {message.senderId === "human" ? "You" : "A"}
                     </div>
-                    <p>{message.body}</p>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-          <div className="composer">
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void submit();
-                }
-              }}
-              placeholder="Message FastMPA…"
-              rows={3}
-            />
-            <div className="composer-footer">
-              <span>Enter to send · Shift+Enter for new line</span>
-              <button
-                type="button"
-                className="send-button"
-                disabled={!draft.trim() || sending}
-                onClick={() => void submit()}
-              >
-                {sending ? "…" : "Send"}
-              </button>
+                    <div>
+                      <div className="message-meta">
+                        {message.senderId === "human" ? "You" : "Agent"}
+                      </div>
+                      <p>{message.body}</p>
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
-          </div>
+          ) : (
+            <PageView page={page} snapshot={snapshot} logs={logs} />
+          )}
+          {page === "Conversations" && (
+            <div className="composer">
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void submit();
+                  }
+                }}
+                placeholder="Message FastMPA…"
+                rows={3}
+              />
+              <div className="composer-footer">
+                <span>Enter to send · Shift+Enter for new line</span>
+                <button
+                  type="button"
+                  className="send-button"
+                  disabled={!draft.trim() || sending}
+                  onClick={() => void submit()}
+                >
+                  {sending ? "…" : "Send"}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </main>

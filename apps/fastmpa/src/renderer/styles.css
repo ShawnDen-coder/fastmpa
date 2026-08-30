@@ -265,6 +265,70 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.page-grid,
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  overflow: auto;
+  padding: 42px 8%;
+}
+.info-card {
+  display: flex;
+  min-height: 126px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+.info-card strong {
+  margin: 8px 0 5px;
+  color: #263445;
+  font-size: 18px;
+}
+.info-card small,
+.card-label {
+  color: #7c8999;
+  font-size: 12px;
+}
+.card-label {
+  color: #3276d8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.log-items {
+  overflow: auto;
+  padding: 28px 8%;
+}
+.log-item {
+  display: grid;
+  grid-template-columns: 60px 120px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 12px;
+}
+.log-item span {
+  color: #3276d8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.log-item.level-warn span {
+  color: #bf8313;
+}
+.log-item.level-error span {
+  color: #c44d4d;
+}
+.log-item p {
+  margin: 0;
+  color: #607086;
+}
+.log-item time {
+  color: #9aa6b5;
+}
 .eyebrow {
   color: #3276d8;
   font-size: 12px;
