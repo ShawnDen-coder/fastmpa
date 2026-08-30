@@ -1,7 +1,6 @@
 import { Box, Text, useApp, useInput } from "ink";
 import React from "react";
 import type {
-  ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
   FastMpaApplication,
@@ -12,6 +11,25 @@ import { ConversationView } from "./conversation-view.js";
 import { LogView } from "./log-view.js";
 import { RunDetails } from "./run-details.js";
 import { StatusBar } from "./status-bar.js";
+
+interface ConversationUiState {
+  readonly streamingText: string;
+  readonly liveTool?: string;
+  readonly queuedCount: number;
+  readonly failedDraft?: string;
+}
+
+const emptyConversationUiState: ConversationUiState = {
+  streamingText: "",
+  queuedCount: 0,
+};
+
+function conversationKey(
+  workspaceId: string | undefined,
+  conversationId: string | undefined,
+): string {
+  return `${workspaceId ?? "default"}:${conversationId ?? "default"}`;
+}
 
 export function FastMpaTui({
   application,
@@ -26,8 +44,9 @@ export function FastMpaTui({
   const [logs, setLogs] = React.useState<readonly ApplicationLogEntry[]>([]);
   const [logsVisible, setLogsVisible] = React.useState(false);
   const [commandPalette, setCommandPalette] = React.useState(false);
-  const [streamingText, setStreamingText] = React.useState("");
-  const [liveTool, setLiveTool] = React.useState<string>();
+  const [conversationUi, setConversationUi] = React.useState<
+    Readonly<Record<string, ConversationUiState>>
+  >({});
   const [focus, setFocus] = React.useState<
     "left" | "middle" | "right" | "logs"
   >("middle");
@@ -35,12 +54,6 @@ export function FastMpaTui({
     React.useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
     React.useState<string>();
-  const [queuedCount, setQueuedCount] = React.useState(0);
-  const [failedDraft, setFailedDraft] = React.useState<{
-    readonly body: string;
-    readonly workspaceId: string;
-    readonly conversationId: string;
-  }>();
   const [minimumLogLevel, setMinimumLogLevel] = React.useState(0);
   const [currentRunOnly, setCurrentRunOnly] = React.useState(false);
   const [confirmExit, setConfirmExit] = React.useState(false);
@@ -51,6 +64,31 @@ export function FastMpaTui({
   const [dialog, setDialog] = React.useState<
     "workspace" | "conversation" | "rename" | undefined
   >();
+  const activeConversationKey = conversationKey(
+    selectedWorkspaceId,
+    selectedConversationId,
+  );
+  const activeConversationUi =
+    conversationUi[activeConversationKey] ?? emptyConversationUiState;
+  const updateConversationUi = React.useCallback(
+    (
+      key: string,
+      update: (state: ConversationUiState) => ConversationUiState,
+    ) =>
+      setConversationUi((states) => ({
+        ...states,
+        [key]: update(states[key] ?? emptyConversationUiState),
+      })),
+    [],
+  );
+  const clearFailedDraft = React.useCallback(
+    (key: string) =>
+      updateConversationUi(key, (state) => ({
+        ...state,
+        failedDraft: undefined,
+      })),
+    [updateConversationUi],
+  );
   const { exit } = useApp();
   const approval = [
     snapshot?.runs[selectedRunIndex],
@@ -89,23 +127,31 @@ export function FastMpaTui({
       setLogs((current) => [...current.slice(-99), entry]),
     );
     const unsubscribeEvents = application.subscribeEvents((event) => {
-      if (!isSelectedEvent(event, selectedWorkspaceId, selectedConversationId))
-        return;
-      if (event.type === "text.delta")
-        setStreamingText((current) => current + event.delta);
-      else if (event.type === "tool.started") setLiveTool(event.toolName);
-      else if (event.type === "tool.completed") setLiveTool(undefined);
-      else if (event.type === "turn.completed") {
-        setStreamingText("");
-        setLiveTool(undefined);
-      }
+      const key = conversationKey(
+        event.context?.workspaceId,
+        event.context?.conversationId,
+      );
+      updateConversationUi(key, (current) => {
+        if (event.type === "text.delta")
+          return {
+            ...current,
+            streamingText: current.streamingText + event.delta,
+          };
+        if (event.type === "tool.started")
+          return { ...current, liveTool: event.toolName };
+        if (event.type === "tool.completed")
+          return { ...current, liveTool: undefined };
+        if (event.type === "turn.completed")
+          return { ...current, streamingText: "", liveTool: undefined };
+        return current;
+      });
     });
     return () => {
       unsubscribeSnapshot();
       unsubscribeLogs();
       unsubscribeEvents();
     };
-  }, [application, selectedWorkspaceId, selectedConversationId]);
+  }, [application, updateConversationUi]);
   const refreshSelection = React.useCallback(
     (workspaceId: string, conversationId?: string) => {
       setSelectedWorkspaceId(workspaceId);
@@ -153,21 +199,21 @@ export function FastMpaTui({
         setInput("");
         return;
       }
-      if (failedDraft && value === "y") {
+      if (activeConversationUi.failedDraft && value === "y") {
         setCommandPalette(false);
-        setInput(failedDraft.body);
-        setFailedDraft(undefined);
+        setInput(activeConversationUi.failedDraft);
+        clearFailedDraft(activeConversationKey);
         return;
       }
-      if (failedDraft && value === "e") {
+      if (activeConversationUi.failedDraft && value === "e") {
         setCommandPalette(false);
-        setInput(failedDraft.body);
-        setFailedDraft(undefined);
+        setInput(activeConversationUi.failedDraft);
+        clearFailedDraft(activeConversationKey);
         return;
       }
-      if (failedDraft && value === "d") {
+      if (activeConversationUi.failedDraft && value === "d") {
         setCommandPalette(false);
-        setFailedDraft(undefined);
+        clearFailedDraft(activeConversationKey);
         setError(undefined);
         return;
       }
@@ -231,7 +277,7 @@ export function FastMpaTui({
       );
       if (activeRun) {
         void application.dispatch({ type: "cancel", runId: activeRun.runId });
-      } else if (queuedCount > 0) {
+      } else if (activeConversationUi.queuedCount > 0) {
         setConfirmExit(true);
       } else exit();
       return;
@@ -375,7 +421,11 @@ export function FastMpaTui({
     if ((key.return || value === "\r" || value === "\n") && input.trim()) {
       const task = input;
       setInput("");
-      setQueuedCount((count) => count + 1);
+      const submissionKey = activeConversationKey;
+      updateConversationUi(submissionKey, (state) => ({
+        ...state,
+        queuedCount: state.queuedCount + 1,
+      }));
       void application
         .dispatch({
           type: "submit",
@@ -383,18 +433,22 @@ export function FastMpaTui({
           conversationId: selectedConversationId ?? "default",
           body: task,
         })
-        .finally(() => setQueuedCount((count) => Math.max(0, count - 1)))
+        .finally(() =>
+          updateConversationUi(submissionKey, (state) => ({
+            ...state,
+            queuedCount: Math.max(0, state.queuedCount - 1),
+          })),
+        )
         .then(() => {
           setError(undefined);
-          setFailedDraft(undefined);
+          clearFailedDraft(submissionKey);
         })
         .catch((reason: unknown) => {
           setError(reason instanceof Error ? reason.message : String(reason));
-          setFailedDraft({
-            body: task,
-            workspaceId: selectedWorkspaceId ?? "default",
-            conversationId: selectedConversationId ?? "default",
-          });
+          updateConversationUi(submissionKey, (state) => ({
+            ...state,
+            failedDraft: task,
+          }));
         });
     } else if (key.backspace) setInput((current) => current.slice(0, -1));
     else if (!key.ctrl && !key.meta && value)
@@ -421,8 +475,8 @@ export function FastMpaTui({
       {!logsVisible && focus === "middle" ? (
         <ConversationView
           messages={snapshot?.messages ?? []}
-          streamingText={streamingText}
-          liveTool={liveTool}
+          streamingText={activeConversationUi.streamingText}
+          liveTool={activeConversationUi.liveTool}
         />
       ) : null}
       {!logsVisible && focus !== "middle" ? (
@@ -464,8 +518,8 @@ export function FastMpaTui({
           </Box>
           <ConversationView
             messages={snapshot?.messages ?? []}
-            streamingText={streamingText}
-            liveTool={liveTool}
+            streamingText={activeConversationUi.streamingText}
+            liveTool={activeConversationUi.liveTool}
           />
           <Box width="25%" flexDirection="column">
             <Text color="yellow">
@@ -512,7 +566,11 @@ export function FastMpaTui({
       <StatusBar
         workspace={selectedWorkspaceId ?? "default"}
         conversation={selectedConversationId ?? "default"}
-        status={composerStatus(snapshot, queuedCount, Boolean(error))}
+        status={composerStatus(
+          snapshot,
+          activeConversationUi.queuedCount,
+          Boolean(error),
+        )}
       />
       <Text color="gray">&gt; {input}</Text>
       {approval ? (
@@ -530,7 +588,7 @@ export function FastMpaTui({
         <RunDetails run={snapshot.runs[selectedRunIndex]} />
       ) : null}
       {error ? <Text color="red">Error: {error}</Text> : null}
-      {failedDraft ? (
+      {activeConversationUi.failedDraft ? (
         <Text color="yellow">
           Failed message retained · Ctrl+K then [y] Retry [e] Edit [d] Discard
         </Text>
@@ -541,20 +599,11 @@ export function FastMpaTui({
         </Text>
       ) : null}
       {commandPalette ? (
-        <CommandPalette hasFailedDraft={failedDraft !== undefined} />
+        <CommandPalette
+          hasFailedDraft={activeConversationUi.failedDraft !== undefined}
+        />
       ) : null}
     </Box>
-  );
-}
-
-function isSelectedEvent(
-  event: ApplicationEvent,
-  workspaceId: string | undefined,
-  conversationId: string | undefined,
-): boolean {
-  return (
-    event.context?.workspaceId === workspaceId &&
-    event.context?.conversationId === conversationId
   );
 }
 
