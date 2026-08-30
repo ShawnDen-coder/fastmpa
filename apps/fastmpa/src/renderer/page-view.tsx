@@ -1,4 +1,5 @@
 import type {
+  ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
 } from "../application.js";
@@ -7,6 +8,7 @@ interface PageViewProps {
   readonly page: string;
   readonly snapshot?: ApplicationSnapshot;
   readonly logs: readonly ApplicationLogEntry[];
+  readonly events: readonly ApplicationEvent[];
 }
 
 function Card({
@@ -31,6 +33,7 @@ export function PageView({
   page,
   snapshot,
   logs,
+  events,
 }: PageViewProps): React.JSX.Element {
   if (page === "Agents")
     return (
@@ -49,15 +52,28 @@ export function PageView({
     );
   if (page === "Runs")
     return (
-      <div className="page-grid">
-        {(snapshot?.runs ?? []).map((run) => (
-          <Card
-            key={run.runId}
-            label={run.phase}
-            value={run.status}
-            detail={`${run.runId.slice(0, 8)} · attempt ${run.attempt}`}
-          />
-        ))}
+      <div className="run-page">
+        <div className="page-grid">
+          {(snapshot?.runs ?? []).map((run) => (
+            <Card
+              key={run.runId}
+              label={run.phase}
+              value={run.status}
+              detail={`${run.runId.slice(0, 8)} · attempt ${run.attempt}`}
+            />
+          ))}
+        </div>
+        <div className="event-timeline">
+          {events.map((event) => (
+            <div
+              className="event-row"
+              key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+            >
+              <span>{event.type}</span>
+              <small>{event.runId.slice(0, 8)}</small>
+            </div>
+          ))}
+        </div>
       </div>
     );
   if (page === "Schedules")

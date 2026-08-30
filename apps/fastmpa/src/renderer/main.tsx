@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type {
+  ApplicationEvent,
   ApplicationLogEntry,
   ApplicationSnapshot,
 } from "../application.js";
@@ -26,9 +27,10 @@ function App(): React.JSX.Element {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [logs, setLogs] = useState<readonly ApplicationLogEntry[]>([]);
+  const [events, setEvents] = useState<readonly ApplicationEvent[]>([]);
 
   useEffect(() => {
-    const active = true;
+    let active = true;
     void window.fastMpa.application.getSnapshot().then((next) => {
       if (active) {
         setSnapshot(next);
@@ -37,9 +39,19 @@ function App(): React.JSX.Element {
         );
       }
     });
-    return window.fastMpa.application.onSnapshot((next) => {
-      if (active) setSnapshot(next);
+    const unsubscribeSnapshot = window.fastMpa.application.onSnapshot(
+      (next) => {
+        if (active) setSnapshot(next);
+      },
+    );
+    const unsubscribeEvents = window.fastMpa.application.onEvent((event) => {
+      if (active) setEvents((current) => [...current.slice(-199), event]);
     });
+    return () => {
+      active = false;
+      unsubscribeSnapshot();
+      unsubscribeEvents();
+    };
   }, []);
 
   useEffect(() => {
@@ -247,7 +259,12 @@ function App(): React.JSX.Element {
               )}
             </div>
           ) : (
-            <PageView page={page} snapshot={snapshot} logs={logs} />
+            <PageView
+              page={page}
+              snapshot={snapshot}
+              logs={logs}
+              events={events}
+            />
           )}
           {page === "Conversations" && (
             <div className="composer">
