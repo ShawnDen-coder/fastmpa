@@ -30,6 +30,7 @@ const pages = [
   "Logs",
   "Settings",
 ];
+const emptySendQueue: readonly string[] = [];
 
 function runDuration(run: {
   readonly createdAt: string;
@@ -347,7 +348,9 @@ function App(): React.JSX.Element {
       ? `${workspace.id}:${conversationId}`
       : undefined;
   const sendQueue = useConversationStore((state) =>
-    conversationKey ? (state.sendQueues[conversationKey] ?? []) : [],
+    conversationKey
+      ? (state.sendQueues[conversationKey] ?? emptySendQueue)
+      : emptySendQueue,
   );
   const draft = conversationKey ? (drafts[conversationKey] ?? "") : "";
   const failedMessage = conversationKey
