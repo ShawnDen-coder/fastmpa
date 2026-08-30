@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Virtuoso } from "react-virtuoso";
 import type {
   ApplicationEvent,
   ApplicationLogEntry,
@@ -196,10 +197,44 @@ function LogPage({
   const [level, setLevel] = useState<"all" | ApplicationLogEntry["level"]>(
     "all",
   );
+  const [workspaceId, setWorkspaceId] = useState("all");
+  const [conversationId, setConversationId] = useState("all");
+  const [runId, setRunId] = useState("all");
+  const [followLatest, setFollowLatest] = useState(true);
+  const contextValues = (field: string): string[] =>
+    [...new Set(logs.map((entry) => entry.context[field]).filter(Boolean))].map(
+      String,
+    );
   const filteredLogs = useMemo(
     () =>
-      level === "all" ? logs : logs.filter((entry) => entry.level === level),
-    [level, logs],
+      logs.filter((entry) => {
+        const context = entry.context;
+        return (
+          (level === "all" || entry.level === level) &&
+          (workspaceId === "all" || String(context.workspaceId) === workspaceId) &&
+          (conversationId === "all" || String(context.conversationId) === conversationId) &&
+          (runId === "all" || String(context.runId) === runId)
+        );
+      }),
+    [conversationId, level, logs, runId, workspaceId],
+  );
+  const filter = (
+    label: string,
+    value: string,
+    setValue: (value: string) => void,
+    values: readonly string[],
+  ): React.JSX.Element => (
+    <label>
+      {label}
+      <select value={value} onChange={(event) => setValue(event.target.value)}>
+        <option value="all">All</option>
+        {values.map((item) => (
+          <option key={item} value={item}>
+            {item.slice(0, 12)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
   return (
     <div className="logs-page">
@@ -223,6 +258,22 @@ function LogPage({
               <option value="error">Error</option>
             </select>
           </label>
+          {filter("Workspace", workspaceId, setWorkspaceId, contextValues("workspaceId"))}
+          {filter(
+            "Conversation",
+            conversationId,
+            setConversationId,
+            contextValues("conversationId"),
+          )}
+          {filter("Run", runId, setRunId, contextValues("runId"))}
+          <label className="follow-toggle">
+            <input
+              type="checkbox"
+              checked={followLatest}
+              onChange={(event) => setFollowLatest(event.target.checked)}
+            />
+            Follow latest
+          </label>
           <button
             type="button"
             className="secondary-button"
@@ -233,17 +284,18 @@ function LogPage({
         </div>
       </div>
       <div className="log-items">
-        {filteredLogs.map((entry) => (
-          <article
-            className={`log-item level-${entry.level}`}
-            key={entry.sequence}
-          >
-            <span>{entry.level}</span>
-            <strong>{entry.component}</strong>
-            <p>{entry.message}</p>
-            <time>{entry.timestamp}</time>
-          </article>
-        ))}
+        <Virtuoso
+          data={filteredLogs}
+          followOutput={followLatest ? "smooth" : false}
+          itemContent={(_index, entry) => (
+            <article className={`log-item level-${entry.level}`}>
+              <span>{entry.level}</span>
+              <strong>{entry.component}</strong>
+              <p>{entry.message}</p>
+              <time>{entry.timestamp}</time>
+            </article>
+          )}
+        />
       </div>
     </div>
   );

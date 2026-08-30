@@ -442,6 +442,7 @@ body {
 .log-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .log-controls label {
@@ -456,6 +457,12 @@ body {
   background: #fff;
   color: #34445a;
   font: inherit;
+}
+.follow-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 .log-item {
   display: grid;
