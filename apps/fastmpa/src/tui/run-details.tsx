@@ -1,12 +1,14 @@
 import type { AgentRun } from "@shawnden-coder/agent-runtime";
 import { Box, Text } from "ink";
 import type React from "react";
+import { tuiLayout } from "./terminal-layout.js";
 
 export function RunDetails({
   run,
 }: {
   readonly run: AgentRun;
 }): React.ReactElement {
+  const layout = tuiLayout(Number(process.stdout.columns ?? 80));
   const toolCalls = (run.result?.messages ?? [])
     .flatMap((message) => message.toolCalls ?? [])
     .map((call) => `${call.id} (${call.name})`);
@@ -21,16 +23,22 @@ export function RunDetails({
       <Text>
         Status: {run.status} · Attempt: {run.attempt}
       </Text>
-      <Text>Created: {run.createdAt}</Text>
-      {run.startedAt ? <Text>Started: {run.startedAt}</Text> : null}
-      {run.finishedAt ? <Text>Finished: {run.finishedAt}</Text> : null}
-      {run.context ? (
+      {layout.showSecondaryMetadata ? (
+        <Text>Created: {run.createdAt}</Text>
+      ) : null}
+      {layout.showSecondaryMetadata && run.startedAt ? (
+        <Text>Started: {run.startedAt}</Text>
+      ) : null}
+      {layout.showSecondaryMetadata && run.finishedAt ? (
+        <Text>Finished: {run.finishedAt}</Text>
+      ) : null}
+      {layout.showRunContext && run.context ? (
         <Text>
           Workspace: {run.context.workspaceId} · Conversation:{" "}
           {run.context.conversationId ?? "-"}
         </Text>
       ) : null}
-      {toolCalls.length > 0 ? (
+      {layout.showSecondaryMetadata && toolCalls.length > 0 ? (
         <Text>Tool Calls: {toolCalls.join(", ")}</Text>
       ) : null}
       {run.error ? (
