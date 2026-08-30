@@ -10,6 +10,7 @@ import {
   isApplicationCommand,
   isSnapshotQuery,
 } from "../shared/ipc.js";
+import { EventBatcher } from "./event-batcher.js";
 import {
   defaultWindowState,
   isWindowStateVisible,
@@ -20,6 +21,9 @@ import {
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
 let isQuitting = false;
+const eventBatcher = new EventBatcher((events) => {
+  for (const event of events) broadcast(desktopChannels.event, event);
+});
 
 function windowStatePath(): string {
   return join(app.getPath("userData"), "window-state.json");
@@ -209,9 +213,7 @@ async function start(): Promise<void> {
   application.subscribe((snapshot) =>
     broadcast(desktopChannels.snapshot, snapshot),
   );
-  application.subscribeEvents((event) =>
-    broadcast(desktopChannels.event, event),
-  );
+  application.subscribeEvents((event) => eventBatcher.push(event));
   application.subscribeLogs((entry) => broadcast(desktopChannels.log, entry));
   await application.start();
   mainWindow = createWindow();
@@ -223,6 +225,7 @@ async function start(): Promise<void> {
 async function shutdown(): Promise<void> {
   if (isQuitting) return;
   isQuitting = true;
+  eventBatcher.flush();
   broadcast(desktopChannels.closing, undefined);
   const currentApplication = application;
   application = undefined;
