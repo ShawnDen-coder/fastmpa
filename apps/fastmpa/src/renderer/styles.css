@@ -214,6 +214,9 @@ body {
   overflow: auto;
   padding: 36px 12%;
 }
+.message-list > div {
+  height: 100%;
+}
 .message {
   display: flex;
   gap: 12px;

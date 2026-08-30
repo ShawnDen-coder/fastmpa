@@ -1,5 +1,8 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import ReactMarkdown from "react-markdown";
+import { Virtuoso } from "react-virtuoso";
+import remarkGfm from "remark-gfm";
 import type {
   ApplicationEvent,
   ApplicationLogEntry,
@@ -7,6 +10,7 @@ import type {
 } from "../application.js";
 import type { DesktopInfo } from "../shared/desktop-api.js";
 import { PageView } from "./page-view.js";
+import { useShellStore } from "./stores.js";
 import "./styles.css";
 
 const pages = [
@@ -20,7 +24,8 @@ const pages = [
 
 function App(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<ApplicationSnapshot>();
-  const [page, setPage] = useState("Conversations");
+  const page = useShellStore((state) => state.page);
+  const setPage = useShellStore((state) => state.setPage);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>();
   const [selectedConversationId, setSelectedConversationId] =
     useState<string>();
@@ -256,24 +261,32 @@ function App(): React.JSX.Element {
                   <p>Send a message to begin a durable FastMPA run.</p>
                 </div>
               ) : (
-                messages.map((message) => (
-                  <article
-                    className={
-                      message.senderId === "human" ? "message user" : "message"
-                    }
-                    key={message.id}
-                  >
-                    <div className="avatar">
-                      {message.senderId === "human" ? "You" : "A"}
-                    </div>
-                    <div>
-                      <div className="message-meta">
-                        {message.senderId === "human" ? "You" : "Agent"}
+                <Virtuoso
+                  data={messages}
+                  followOutput="smooth"
+                  itemContent={(_index, message) => (
+                    <article
+                      className={
+                        message.senderId === "human"
+                          ? "message user"
+                          : "message"
+                      }
+                      key={message.id}
+                    >
+                      <div className="avatar">
+                        {message.senderId === "human" ? "You" : "A"}
                       </div>
-                      <p>{message.body}</p>
-                    </div>
-                  </article>
-                ))
+                      <div>
+                        <div className="message-meta">
+                          {message.senderId === "human" ? "You" : "Agent"}
+                        </div>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.body}
+                        </ReactMarkdown>
+                      </div>
+                    </article>
+                  )}
+                />
               )}
               {streamingText && (
                 <article className="message streaming">
