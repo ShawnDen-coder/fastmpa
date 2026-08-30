@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "desktop:smoke": "node scripts/desktop-host-smoke.mjs",
+    "desktop:package-smoke": "node scripts/desktop-package-smoke.mjs",
     "check": "biome check .",
     "format": "biome format --write .",
     "package:win": "electron-builder --win nsis --x64"

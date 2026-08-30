@@ -61,6 +61,8 @@ jobs:
         run: pnpm --filter fastmpa build
       - name: Package Windows x64 NSIS installer
         run: pnpm --filter fastmpa package:win
+      - name: Verify packaged Desktop
+        run: pnpm --filter fastmpa desktop:package-smoke
       - uses: actions/upload-artifact@v7
         with:
           name: fastmpa-windows-x64-installer
