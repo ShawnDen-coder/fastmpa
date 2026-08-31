@@ -1,0 +1,282 @@
+.conversation-list {
+  overflow: auto;
+  padding: 28px 18px;
+  background: #f8fafc;
+  border-right: 1px solid #dfe6ef;
+}
+
+.pane-heading,
+.chat-header,
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.composer-error {
+  margin: 6px 0;
+  color: #c85a5a;
+  font-size: 12px;
+}
+
+.composer-error-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.composer-error-actions button {
+  padding: 3px 8px;
+  border: 1px solid #e1b5b5;
+  border-radius: 6px;
+  color: #9d4343;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.composer-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.composer-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.composer-options select {
+  border: 1px solid #dfe6ef;
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: #fff;
+  color: #34445a;
+  font: inherit;
+}
+
+.conversation-items {
+  display: grid;
+  gap: 6px;
+}
+
+.conversation-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.conversation-status {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #48a878;
+}
+
+.conversation-status.status-waiting {
+  background: #d69b2d;
+}
+
+.conversation-status.status-failed {
+  background: #c44d4d;
+}
+
+.conversation-item.selected,
+.conversation-item:hover {
+  background: #e8f0fc;
+}
+
+.conversation-item strong,
+.conversation-item small {
+  display: block;
+  overflow: hidden;
+  max-width: 240px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-item small {
+  margin-top: 5px;
+  color: #8a97a8;
+}
+
+.conversation-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #57b890;
+}
+
+.message-list {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  padding: 36px 12%;
+}
+
+.back-latest-button {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  border: 1px solid #c8daf4;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #3276d8;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(24 34 48 / 12%);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.message-list > div {
+  height: 100%;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+
+.message.user {
+  margin-left: auto;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.message-meta {
+  color: #607086;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.message p {
+  margin: 5px 0 0;
+  color: #263445;
+  white-space: pre-wrap;
+}
+
+.markdown-pre {
+  position: relative;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 10px;
+  background: #1f2937;
+  color: #e5edf7;
+}
+
+.message.streaming {
+  opacity: 0.82;
+}
+
+.message.error-message {
+  max-width: 760px;
+  padding: 12px;
+  border: 1px solid #efcaca;
+  border-radius: 12px;
+  background: #fff5f5;
+}
+
+.error-message .message-meta,
+.error-message p {
+  color: #9d4343;
+}
+
+.message.streaming .message-meta::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #3276d8;
+  animation: pulse 1s infinite;
+}
+
+.tool-card {
+  max-width: 760px;
+  margin: 0 0 14px auto;
+  padding: 12px 14px;
+  border: 1px solid #d8e1ec;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.tool-card span,
+.tool-card strong,
+.tool-card small {
+  display: block;
+}
+
+.tool-card span {
+  color: #607086;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tool-card strong {
+  margin-top: 3px;
+  color: #263445;
+}
+
+.tool-card small {
+  margin-top: 4px;
+  color: #78879a;
+}
+
+.tool-card:focus-visible {
+  outline: 2px solid #4c86c6;
+  outline-offset: 2px;
+}
+
+.tool-card .selected {
+  box-shadow: 0 0 0 2px rgba(76, 134, 198, 0.28);
+}
+
+.composer {
+  margin: 0 auto 28px;
+  width: min(760px, 76%);
+  padding: 12px;
+  border: 1px solid #cdd8e6;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgb(38 55 77 / 8%);
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  color: #263445;
+  font: inherit;
+}
+
+.composer-footer {
+  color: #98a5b5;
+  font-size: 11px;
+}
+
+.inspector-tools .tool-card {
+  margin: 0 0 10px;
+}
+
+.event-timeline {
+  margin: 0 8% 36px;
+  padding: 14px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}

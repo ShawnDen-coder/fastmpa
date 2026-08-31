@@ -1,0 +1,148 @@
+.approval-inline {
+  border-color: #f1d58e;
+  background: #fff9e8;
+}
+
+.approval-inline span,
+.approval-inline small {
+  color: #9b7a2f;
+}
+
+.inspector-pane {
+  position: relative;
+  width: 420px;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid #e7edf4;
+  background: #fbfcfe;
+  padding: 28px 24px;
+}
+
+.inspector-content dl {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  margin: 24px 0;
+  font-size: 12px;
+}
+
+.inspector-content dt {
+  color: #75849a;
+}
+
+.inspector-content dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #34445a;
+}
+
+.inspector-status {
+  display: flex;
+  justify-content: space-between;
+  color: #3276d8;
+}
+
+.inspector-events {
+  display: grid;
+  gap: 8px;
+}
+
+.inspector-events div {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: #f0f4f9;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.inspector-events small {
+  color: #75849a;
+  overflow-wrap: anywhere;
+}
+
+.inspector-error {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #efcaca;
+  border-radius: 9px;
+  color: #9d4343;
+  background: #fff5f5;
+  font-size: 12px;
+}
+
+.inspector-error small {
+  color: #b86c6c;
+}
+
+.run-select {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #3276d8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.run-page {
+  overflow: auto;
+}
+
+.event-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef2f7;
+  color: #3276d8;
+  font-size: 12px;
+}
+
+.event-row:last-child {
+  border-bottom: 0;
+}
+
+.event-row small {
+  color: #95a1b0;
+}
+
+.run-card {
+  min-width: 0;
+}
+
+.approval-card {
+  margin-top: -8px;
+  padding: 14px;
+  border: 1px solid #f1d58e;
+  border-radius: 12px;
+  background: #fff9e8;
+}
+
+.approval-card strong,
+.approval-card small {
+  display: block;
+}
+
+.approval-card small {
+  margin: 5px 0 12px;
+  color: #9b7a2f;
+}
+
+.approval-card button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.run-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}

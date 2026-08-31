@@ -1,0 +1,193 @@
+.brand-mark,
+.rail-logo,
+.avatar,
+.empty-icon {
+  display: grid;
+  place-items: center;
+}
+
+.rail-logo {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 20px;
+  border-radius: 13px;
+  color: #fff;
+  background: #182230;
+  font-weight: 800;
+}
+
+.log-items {
+  overflow: auto;
+  padding: 28px 8%;
+}
+
+.logs-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.logs-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 28px 8% 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef2f7;
+  color: #607086;
+  font-size: 12px;
+}
+
+.log-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.log-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.log-controls select {
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #34445a;
+  font: inherit;
+}
+
+.log-item {
+  display: grid;
+  grid-template-columns: 60px 120px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 12px;
+}
+
+.log-item span {
+  color: #3276d8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.log-item.level-warn span {
+  color: #bf8313;
+}
+
+.log-item.level-error span {
+  color: #c44d4d;
+}
+
+.log-item p {
+  margin: 0;
+  color: #607086;
+}
+
+.log-item time {
+  color: #9aa6b5;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgb(24 39 61 / 24%);
+}
+
+.dialog-card {
+  display: grid;
+  gap: 14px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgb(33 55 84 / 18%);
+}
+
+.dialog-card h2 {
+  margin: 0;
+}
+
+.dialog-card label {
+  display: grid;
+  gap: 6px;
+  color: #607086;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dialog-card input {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid #cfd9e5;
+  border-radius: 7px;
+  color: #25364d;
+  font: inherit;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-tabs {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5ebf2;
+}
+
+.dialog-tabs button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 6px;
+  color: #607086;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.dialog-tabs button.active {
+  color: #2368c9;
+  background: #e9f2ff;
+}
+
+.dialog-card fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+}
+
+.dialog-card legend {
+  padding: 0 4px;
+  color: #607086;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dialog-card .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog-form-row {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 10px;
+}

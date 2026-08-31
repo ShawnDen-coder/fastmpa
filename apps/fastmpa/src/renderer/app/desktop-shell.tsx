@@ -16,7 +16,13 @@ import {
 } from "../stores/index.js";
 import { PageView } from "./page-view.js";
 import "../styles/tailwind.css";
-import "../styles/components.css";
+import "../styles/shell.css";
+import "../styles/conversations.css";
+import "../styles/agents.css";
+import "../styles/runs.css";
+import "../styles/schedules.css";
+import "../styles/settings.css";
+import "../styles/logs.css";
 
 const EMPTY_PERSISTED_EVENTS = [] as const;
 
