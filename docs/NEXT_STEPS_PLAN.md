@@ -95,7 +95,7 @@ apps/fastmpa/
 
 - [x] Renderer 接入 Tailwind CSS 4 和 Vite 插件；Main、Preload、Application 与核心包不得依赖 Tailwind。
 - [x] 建立 FastMPA 设计令牌，统一颜色、字体、间距、圆角、阴影、状态色、面板宽度和动画时长。
-- [x] 全局 Tailwind 入口只保留窗口拖动、滚动条、Markdown、文本选择、动画和设计令牌；组件规则移入 `styles/components.css`。
+- [x] 全局 Tailwind 入口只保留窗口拖动、滚动条、Markdown、文本选择、动画和设计令牌；组件规则按功能移入 `styles/{shell,conversations,runs,logs,schedules,agents,settings}.css`。
 - [x] 按目标目录渐进迁移：先建立 shared contract，再拆 Store 和 Shell，随后按 Feature 移动页面，最后删除旧 `page-view.tsx` 和集中式 `styles.css`。
 - [x] 可序列化 Command、Event、DTO 和 Snapshot 查询移动到 `shared/contracts`；Renderer 和 Preload 不再导入 Application 实现文件。
 - [x] Application 继续保留在 `apps/fastmpa`，不提前提取共享包。
