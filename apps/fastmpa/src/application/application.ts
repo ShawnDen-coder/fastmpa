@@ -457,7 +457,15 @@ export async function createApplication(
       )
         return handleConversationCommand(
           repository,
-          command,
+          command.type === "conversation.group.create" && !command.routing
+            ? {
+                ...command,
+                routing: {
+                  maxAgents: settingsStore.get(command.workspaceId).workspace
+                    .maxAgents,
+                },
+              }
+            : command,
           models,
           () => runStore.listRuns(),
           ensureOwner,
