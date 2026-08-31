@@ -49,7 +49,7 @@ clean-deps:
 
 # Reject tracked logs, databases and build output.
 check-generated:
-    if (git ls-files | Select-String -Pattern '(^|[\\/])(tmp|logs|release|dist|dist-types)([\\/]|$)|\\.(sqlite|log)$$') { Write-Error "Generated files are tracked"; exit 1 } else { Write-Output "Tracked-generated-files check passed" }
+    if (git ls-files | Select-String -Pattern '(^|[\\/])(tmp|release|release-verify|dist|dist-types)([\\/]|$)|^logs[\\/]|\\.(sqlite|log)$$') { Write-Error "Generated files are tracked"; exit 1 } else { Write-Output "Tracked-generated-files check passed" }
 
 # Verify the built Electron Main, Preload and Renderer entrypoints.
 desktop-smoke:
