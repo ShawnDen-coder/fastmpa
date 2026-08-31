@@ -15,6 +15,7 @@ export interface RuntimeTooling {
     runId: string,
     reason?: string,
   ): ToolApprovalResult;
+  expireApprovals?(): readonly { approvalId: string; runId: string }[];
 }
 
 export class DefaultRuntimeTooling implements RuntimeTooling {
@@ -53,5 +54,9 @@ export class DefaultRuntimeTooling implements RuntimeTooling {
 
   public reject(approvalId: string, runId: string, reason?: string) {
     return this.pipeline.reject(approvalId, runId, reason);
+  }
+
+  public expireApprovals(): readonly { approvalId: string; runId: string }[] {
+    return this.pipeline.expireApprovals();
   }
 }

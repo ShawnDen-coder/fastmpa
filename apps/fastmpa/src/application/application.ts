@@ -295,6 +295,7 @@ export async function createApplication(
   let started = false;
   let stopping = false;
   let closing: Promise<void> | undefined;
+  let approvalTimeoutTimer: ReturnType<typeof setInterval> | undefined;
   const app: FastMpaApplication = {
     async start() {
       if (started) return;
@@ -305,6 +306,16 @@ export async function createApplication(
       logger.info("application started");
       worker.startWorkers();
       scheduleRunner.start();
+      const expireApprovals = (): void => {
+        for (const expired of tooling.expireApprovals?.() ?? []) {
+          void worker.cancel(expired.runId).then((run) => {
+            if (run) projector.project(run);
+            void publish({ scope: "run", runId: expired.runId });
+          });
+        }
+      };
+      expireApprovals();
+      approvalTimeoutTimer = setInterval(expireApprovals, 30_000);
       const persistedRuns = (await runStore.listRuns()).runs;
       projector.projectAll(persistedRuns);
       reconcileDispatches(persistedRuns);
@@ -317,6 +328,7 @@ export async function createApplication(
       if (!started) return Promise.resolve();
       stopping = true;
       started = false;
+      if (approvalTimeoutTimer) clearInterval(approvalTimeoutTimer);
       closing = createApplicationStop({
         worker,
         scheduleRunner,

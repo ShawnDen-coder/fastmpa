@@ -172,6 +172,25 @@ export class ToolPipeline {
     return this.approvalStore.listJournal?.() ?? [...this.journal];
   }
 
+  public expireApprovals(
+    now = Date.now(),
+  ): readonly { approvalId: string; runId: string }[] {
+    const expired: { approvalId: string; runId: string }[] = [];
+    for (const approval of this.approvalStore.list?.() ?? []) {
+      if (!approval.expiresAt || Date.parse(approval.expiresAt) > now) continue;
+      try {
+        this.reject(approval.approvalId, approval.runId, "审批已超时");
+        expired.push({
+          approvalId: approval.approvalId,
+          runId: approval.runId,
+        });
+      } catch {
+        // A concurrent human decision won the idempotent race.
+      }
+    }
+    return expired;
+  }
+
   private async runTool(
     call: ToolCall,
     options: ToolExecutionOptions,
