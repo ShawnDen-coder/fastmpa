@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 import { useConversationStore, useSelectionStore } from "../../stores/index.js";
 import { shouldSubmitOnEnter } from "./composer-policy.js";
 
@@ -13,7 +13,7 @@ export function Composer({
 }: {
   readonly workspaceId?: string;
   readonly conversationId?: string;
-  readonly agents: readonly ApplicationSnapshot["participants"][number][];
+  readonly agents: ShellSnapshot["participants"];
   readonly closing: boolean;
 }): React.JSX.Element {
   const selectedAgentId = useSelectionStore((state) => state.agentId);

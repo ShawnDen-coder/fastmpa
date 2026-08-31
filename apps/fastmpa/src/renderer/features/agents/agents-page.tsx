@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 import { InfoCard } from "../../components/ui/info-card.js";
 
 export function AgentsPage({
@@ -7,7 +7,7 @@ export function AgentsPage({
   participants,
 }: {
   readonly workspaceId?: string;
-  readonly participants: readonly ApplicationSnapshot["participants"][number][];
+  readonly participants: ShellSnapshot["participants"];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState<string>();
@@ -34,7 +34,7 @@ export function AgentsPage({
     setOpen(true);
   };
   const openEdit = (
-    participant: ApplicationSnapshot["participants"][number],
+    participant: ShellSnapshot["participants"][number],
   ): void => {
     setEditingAgentId(participant.id);
     setName(participant.name);
@@ -103,7 +103,7 @@ export function AgentsPage({
     }
   };
   const toggleStatus = async (
-    participant: ApplicationSnapshot["participants"][number],
+    participant: ShellSnapshot["participants"][number],
   ): Promise<void> => {
     setPending(true);
     setError(undefined);

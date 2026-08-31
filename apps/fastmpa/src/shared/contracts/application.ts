@@ -1,26 +1,21 @@
 import type { AgentRun, RuntimeLiveEvent } from "@shawnden-coder/agent-runtime";
-import type {
-  AgentInput,
-  AgentPatch,
-  AttentionSnapshot,
-  ConversationDispatch,
-  GroupRoutingPolicy,
-  Message,
-  Participant,
-  Schedule,
-  Workspace,
-} from "workspace";
 import type { ApplicationLogEntry } from "./logging.js";
+import type {
+  AgentInputDto,
+  AgentPatchDto,
+  GroupRoutingPolicyDto,
+  ParticipantDto,
+} from "./workspace.js";
 
 export type ApplicationCommand =
   | { type: "workspace.create"; name: string; workspaceId?: string }
   | { type: "workspace.rename"; workspaceId: string; name: string }
-  | { type: "agent.create"; workspaceId: string; input: AgentInput }
+  | { type: "agent.create"; workspaceId: string; input: AgentInputDto }
   | {
       type: "agent.update";
       workspaceId: string;
       agentId: string;
-      patch: AgentPatch;
+      patch: AgentPatchDto;
     }
   | { type: "agent.activate"; workspaceId: string; agentId: string }
   | { type: "agent.archive"; workspaceId: string; agentId: string }
@@ -30,7 +25,7 @@ export type ApplicationCommand =
       workspaceId: string;
       title: string;
       agentIds: readonly string[];
-      routing?: Partial<GroupRoutingPolicy>;
+      routing?: Partial<GroupRoutingPolicyDto>;
     }
   | {
       type: "conversation.group.rename";
@@ -82,39 +77,13 @@ export type ApplicationCommand =
       scheduleId: string;
     };
 
-export type RunPhase = "pending" | "active" | "waiting" | "terminal";
-
-export interface ApplicationSnapshot {
-  readonly workspaces: readonly Workspace[];
-  readonly selectedWorkspaceId?: string;
-  readonly selectedConversationId?: string;
-  readonly attention?: AttentionSnapshot;
-  readonly conversations: readonly {
-    id: string;
-    workspaceId: string;
-    kind?: "direct" | "group";
-    title?: string;
-    participantIds: readonly string[];
-    lastMessagePreview?: string;
-    lastMessageAt?: string;
-    activeRunStatus?: string;
-    unread?: boolean;
-  }[];
-  readonly participants: readonly Participant[];
-  readonly messages: readonly Message[];
-  readonly runs: readonly (AgentRun & { readonly phase: RunPhase })[];
-  readonly schedules: readonly Schedule[];
-  readonly dispatches: readonly ConversationDispatch[];
-}
-
 export type CommandResult = {
   readonly run?: AgentRun;
   readonly runs?: readonly AgentRun[];
   readonly created?: boolean;
   readonly conversationId?: string;
-  readonly participant?: Participant;
+  readonly participant?: ParticipantDto;
 };
 
 export type ApplicationEvent = RuntimeLiveEvent;
-export type ApplicationEventListener = (snapshot: ApplicationSnapshot) => void;
 export type { ApplicationLogEntry };

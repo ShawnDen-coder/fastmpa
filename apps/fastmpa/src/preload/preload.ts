@@ -35,7 +35,6 @@ function subscribe<Arguments extends unknown[]>(
 
 const api: FastMpaDesktopApi = {
   application: {
-    getSnapshot: (query) => invoke(desktopChannels.getSnapshot, query),
     getShellSnapshot: () => invoke(desktopChannels.getShellSnapshot),
     getConversationSnapshot: (query) =>
       invoke(desktopChannels.getConversationSnapshot, query),
@@ -44,7 +43,6 @@ const api: FastMpaDesktopApi = {
     getRunSnapshot: (runId) => invoke(desktopChannels.getRunSnapshot, runId),
     dispatch: (command) => invoke(desktopChannels.dispatch, command),
     getRecentLogs: (limit) => invoke(desktopChannels.getRecentLogs, limit),
-    onSnapshot: (listener) => subscribe(desktopChannels.snapshot, listener),
     onEvents: (listener) =>
       subscribe<[readonly ApplicationEvent[]]>(desktopChannels.event, listener),
     onSnapshotInvalidated: (listener) =>

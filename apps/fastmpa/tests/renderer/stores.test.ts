@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { shouldSubmitOnEnter } from "../../src/renderer/features/conversations/composer-policy.js";
 import {
-  useApplicationStore,
   useConversationStore,
   useLogStore,
   useRuntimeStore,
@@ -97,6 +96,7 @@ describe("shellStore", () => {
 describe("conversationStore", () => {
   beforeEach(() =>
     useConversationStore.setState({
+      snapshots: {},
       drafts: {},
       failedMessages: {},
       sendQueues: {},
@@ -134,6 +134,7 @@ describe("conversationStore", () => {
 describe("runtimeStore", () => {
   beforeEach(() =>
     useRuntimeStore.setState({
+      snapshots: {},
       events: [],
       streamingByConversation: {},
       persistedEventsByConversation: {},
@@ -220,6 +221,7 @@ describe("composer policy", () => {
 describe("renderer performance envelope", () => {
   it("merges a 100-conversation workspace without growing live buffers unboundedly", () => {
     useRuntimeStore.setState({
+      snapshots: {},
       events: [],
       streamingByConversation: {},
       persistedEventsByConversation: {},
@@ -247,19 +249,17 @@ describe("renderer performance envelope", () => {
         createdAt: new Date(sequence).toISOString(),
       })),
     );
-    useApplicationStore.setState({
+    useShellStore.setState({
       snapshot: {
         workspaces: [],
         selectedWorkspaceId: "workspace",
         conversations,
         participants: [],
-        messages,
-        runs: [],
         schedules: [],
         dispatches: [],
       },
     });
-    useApplicationStore.getState().mergeConversationSnapshot(
+    useConversationStore.getState().setSnapshot(
       { workspaceId: "workspace", conversationId: "conversation-42" },
       {
         conversation: conversations[42],
@@ -272,9 +272,9 @@ describe("renderer performance envelope", () => {
       },
     );
     expect(
-      useApplicationStore
+      useConversationStore
         .getState()
-        .snapshot?.messages.filter(
+        .snapshots["workspace:conversation-42"]?.messages.filter(
           (message) => message.conversationId === "conversation-42",
         ),
     ).toHaveLength(500);

@@ -1,4 +1,4 @@
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 
 export function ConversationList({
   workspace,
@@ -12,9 +12,9 @@ export function ConversationList({
   onConversationSelect,
   onCreateConversation,
 }: {
-  readonly workspace?: ApplicationSnapshot["workspaces"][number];
-  readonly conversations: ApplicationSnapshot["conversations"];
-  readonly participants: ApplicationSnapshot["participants"];
+  readonly workspace?: ShellSnapshot["workspaces"][number];
+  readonly conversations: ShellSnapshot["conversations"];
+  readonly participants: ShellSnapshot["participants"];
   readonly selectedConversationId?: string;
   readonly search: string;
   readonly agentFilter: string;

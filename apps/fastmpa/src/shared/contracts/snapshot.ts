@@ -1,14 +1,14 @@
 import type { AgentRun } from "@shawnden-coder/agent-runtime";
 import type {
-  AttentionSnapshot,
-  Conversation,
-  ConversationDispatch,
-  Message,
-  Participant,
-  Schedule,
-  Workspace,
-} from "workspace";
-import type { RunPhase } from "./application.js";
+  AttentionSnapshotDto,
+  ConversationDispatchDto,
+  ConversationDto,
+  MessageDto,
+  ParticipantDto,
+  ScheduleDto,
+  WorkspaceDto,
+} from "./workspace.js";
+export type RunPhase = "pending" | "active" | "waiting" | "terminal";
 
 export interface PersistedRuntimeEvent {
   readonly runId: string;
@@ -21,7 +21,7 @@ export interface PersistedRuntimeEvent {
 export interface ConversationSummary {
   readonly id: string;
   readonly workspaceId: string;
-  readonly kind?: Conversation["kind"];
+  readonly kind?: ConversationDto["kind"];
   readonly title?: string;
   readonly participantIds: readonly string[];
   readonly lastMessagePreview?: string;
@@ -31,13 +31,13 @@ export interface ConversationSummary {
 }
 
 export interface ShellSnapshot {
-  readonly workspaces: readonly Workspace[];
+  readonly workspaces: readonly WorkspaceDto[];
   readonly selectedWorkspaceId?: string;
-  readonly attention?: AttentionSnapshot;
+  readonly attention?: AttentionSnapshotDto;
   readonly conversations: readonly ConversationSummary[];
-  readonly participants: readonly Participant[];
-  readonly schedules: readonly Schedule[];
-  readonly dispatches: readonly ConversationDispatch[];
+  readonly participants: readonly ParticipantDto[];
+  readonly schedules: readonly ScheduleDto[];
+  readonly dispatches: readonly ConversationDispatchDto[];
 }
 
 export interface ConversationQuery {
@@ -46,15 +46,15 @@ export interface ConversationQuery {
 }
 
 export interface ConversationSnapshot {
-  readonly conversation?: Conversation;
-  readonly messages: readonly Message[];
+  readonly conversation?: ConversationDto;
+  readonly messages: readonly MessageDto[];
   readonly runs: readonly (AgentRun & { readonly phase: RunPhase })[];
-  readonly dispatches: readonly ConversationDispatch[];
+  readonly dispatches: readonly ConversationDispatchDto[];
   readonly events: readonly PersistedRuntimeEvent[];
 }
 
 export interface RunSnapshot {
   readonly run: (AgentRun & { readonly phase: RunPhase }) | undefined;
-  readonly dispatch?: ConversationDispatch;
+  readonly dispatch?: ConversationDispatchDto;
   readonly events: readonly PersistedRuntimeEvent[];
 }

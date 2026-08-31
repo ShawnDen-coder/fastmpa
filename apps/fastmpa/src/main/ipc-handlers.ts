@@ -8,7 +8,6 @@ import {
   invalidPayload,
   isApplicationCommand,
   isConversationQuery,
-  isSnapshotQuery,
 } from "../shared/ipc/index.js";
 import {
   isAllowedExternalUrl,
@@ -29,16 +28,6 @@ export function registerIpcHandlers({
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
     return respond(() => getApplication().getShellSnapshot());
-  });
-  ipcMain.handle(desktopChannels.getSnapshot, (event, query) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    if (!isSnapshotQuery(query))
-      return Promise.resolve({
-        ok: false,
-        error: invalidPayload("Invalid snapshot query"),
-      });
-    return respond(() => getApplication().getSnapshot(query));
   });
   ipcMain.handle(desktopChannels.getConversationSnapshot, (event, query) => {
     const rejected = rejectUntrustedSender(event);

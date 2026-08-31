@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import type {
-  ApplicationEvent,
-  ApplicationSnapshot,
-} from "../../../shared/contracts/application.js";
-import type { PersistedRuntimeEvent } from "../../../shared/contracts/snapshot.js";
+import type { ApplicationEvent } from "../../../shared/contracts/application.js";
+import type { RunSnapshot } from "../../../shared/contracts/snapshot.js";
 import { ToolEventCard } from "../../components/ui/tool-event-card.js";
 
 function runDuration(run: {
@@ -24,25 +20,14 @@ export function RunInspector({
   runId,
   onClose,
 }: {
-  readonly snapshot: ApplicationSnapshot;
+  readonly snapshot: RunSnapshot;
   readonly events: readonly ApplicationEvent[];
   readonly runId: string;
   readonly onClose: () => void;
 }): React.JSX.Element {
-  const [persistedEvents, setPersistedEvents] = useState<
-    readonly PersistedRuntimeEvent[]
-  >([]);
-  const run = snapshot.runs.find((item) => item.runId === runId);
+  const persistedEvents = snapshot.events;
+  const run = snapshot.run;
   const runEvents = events.filter((event) => event.runId === runId);
-  useEffect(() => {
-    let active = true;
-    void window.fastMpa.application.getRunSnapshot(runId).then((next) => {
-      if (active) setPersistedEvents(next.events);
-    });
-    return () => {
-      active = false;
-    };
-  }, [runId]);
   const toolEvents = runEvents.filter(
     (event) =>
       event.type === "tool.started" ||

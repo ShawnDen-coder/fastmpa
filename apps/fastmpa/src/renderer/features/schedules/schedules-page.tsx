@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 import { InfoCard } from "../../components/ui/info-card.js";
 
 function ScheduleCard({
   schedule,
 }: {
-  readonly schedule: ApplicationSnapshot["schedules"][number];
+  readonly schedule: ShellSnapshot["schedules"][number];
 }): React.JSX.Element {
   const action: "schedule.pause" | "schedule.resume" =
     schedule.enabled === false ? "schedule.resume" : "schedule.pause";
@@ -53,7 +53,7 @@ function ScheduleCreateCard({
   agents,
 }: {
   readonly workspaceId?: string;
-  readonly agents: readonly ApplicationSnapshot["participants"][number][];
+  readonly agents: ShellSnapshot["participants"];
 }): React.JSX.Element {
   const [instruction, setInstruction] = useState("");
   const [intervalMinutes, setIntervalMinutes] = useState("60");
@@ -145,8 +145,8 @@ export function SchedulesPage({
   schedules,
 }: {
   readonly workspaceId?: string;
-  readonly agents: readonly ApplicationSnapshot["participants"][number][];
-  readonly schedules: readonly ApplicationSnapshot["schedules"][number][];
+  readonly agents: ShellSnapshot["participants"];
+  readonly schedules: ShellSnapshot["schedules"];
 }): React.JSX.Element {
   return (
     <div className="schedule-page">

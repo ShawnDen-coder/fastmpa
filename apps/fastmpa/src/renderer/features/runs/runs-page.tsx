@@ -1,12 +1,8 @@
-import type {
-  ApplicationEvent,
-  ApplicationSnapshot,
-} from "../../../shared/contracts/application.js";
+import type { ApplicationEvent } from "../../../shared/contracts/application.js";
+import type { RunSnapshot } from "../../../shared/contracts/snapshot.js";
 import { InfoCard } from "../../components/ui/info-card.js";
 
-function approvalId(
-  run: ApplicationSnapshot["runs"][number],
-): string | undefined {
+function approvalId(run: NonNullable<RunSnapshot["run"]>): string | undefined {
   const details = run.error?.details;
   if (
     typeof details !== "object" ||
@@ -22,7 +18,7 @@ function RunCard({
   run,
   onSelect,
 }: {
-  readonly run: ApplicationSnapshot["runs"][number];
+  readonly run: NonNullable<RunSnapshot["run"]>;
   readonly onSelect?: (runId: string) => void;
 }): React.JSX.Element {
   const pendingApprovalId =
@@ -118,7 +114,7 @@ export function RunsPage({
   events,
   onRunSelect,
 }: {
-  readonly runs: readonly ApplicationSnapshot["runs"][number][];
+  readonly runs: readonly NonNullable<RunSnapshot["run"]>[];
   readonly events: readonly ApplicationEvent[];
   readonly onRunSelect?: (runId: string) => void;
 }): React.JSX.Element {

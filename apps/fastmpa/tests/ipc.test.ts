@@ -1,17 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  isApplicationCommand,
-  isSnapshotQuery,
-} from "../src/shared/ipc/index.js";
+import { isApplicationCommand } from "../src/shared/ipc/index.js";
 
 describe("desktop IPC payload guards", () => {
-  it("accepts supported snapshot queries and rejects unknown shapes", () => {
-    expect(isSnapshotQuery(undefined)).toBe(true);
-    expect(isSnapshotQuery({ workspaceId: "workspace-1" })).toBe(true);
-    expect(isSnapshotQuery({ workspaceId: 42 })).toBe(false);
-    expect(isSnapshotQuery({ unexpected: true })).toBe(false);
-  });
-
   it("validates command-specific required fields", () => {
     expect(
       isApplicationCommand({

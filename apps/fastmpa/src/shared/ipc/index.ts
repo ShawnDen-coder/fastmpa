@@ -1,5 +1,4 @@
 import type { ApplicationCommand } from "../contracts/application.js";
-import type { SnapshotQuery } from "../desktop-api.js";
 
 export interface ApplicationErrorDto {
   readonly code:
@@ -38,23 +37,6 @@ function isAgentInput(value: unknown): boolean {
     isStringArray(value.capabilities) &&
     isStringArray(value.toolNames) &&
     (value.id === undefined || typeof value.id === "string")
-  );
-}
-
-export function isSnapshotQuery(value: unknown): value is SnapshotQuery {
-  if (value === undefined) return true;
-  if (!isRecord(value)) return false;
-  if (
-    Object.keys(value).some(
-      (key) => key !== "workspaceId" && key !== "conversationId",
-    )
-  )
-    return false;
-  return (
-    (value.workspaceId === undefined ||
-      typeof value.workspaceId === "string") &&
-    (value.conversationId === undefined ||
-      typeof value.conversationId === "string")
   );
 }
 

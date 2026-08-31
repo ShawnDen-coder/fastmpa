@@ -26,21 +26,19 @@ import {
 import {
   type AgentInput,
   type AgentPatch,
-  type AttentionSnapshot,
   type ConversationDispatch,
   type DispatchAssignmentStatus,
   loadAttention,
-  type Message,
   type Participant,
   SqliteWorkspaceRepository,
   sendMessage,
-  type Workspace,
   type WorkspaceRepository,
 } from "workspace";
 import type { SnapshotInvalidation } from "../shared/contracts/invalidation.js";
 import type {
   ConversationQuery,
   ConversationSnapshot,
+  RunPhase,
   RunSnapshot,
   ShellSnapshot,
 } from "../shared/contracts/snapshot.js";
@@ -128,30 +126,7 @@ export type ApplicationCommand =
       workspaceId: string;
       scheduleId: string;
     };
-export interface ApplicationSnapshot {
-  readonly workspaces: readonly Workspace[];
-  readonly selectedWorkspaceId?: string;
-  readonly selectedConversationId?: string;
-  readonly attention?: AttentionSnapshot;
-  readonly conversations: readonly {
-    id: string;
-    workspaceId: string;
-    kind?: "direct" | "group";
-    title?: string;
-    participantIds: readonly string[];
-    lastMessagePreview?: string;
-    lastMessageAt?: string;
-    activeRunStatus?: string;
-    unread?: boolean;
-  }[];
-  readonly participants: readonly Participant[];
-  readonly messages: readonly Message[];
-  readonly runs: readonly (AgentRun & { readonly phase: RunPhase })[];
-  readonly schedules: readonly import("workspace").Schedule[];
-  readonly dispatches: readonly ConversationDispatch[];
-}
 export type { ApplicationLogEntry };
-export type RunPhase = "pending" | "active" | "waiting" | "terminal";
 export type CommandResult = {
   readonly run?: AgentRun;
   readonly runs?: readonly AgentRun[];
@@ -159,15 +134,10 @@ export type CommandResult = {
   readonly conversationId?: string;
   readonly participant?: Participant;
 };
-export type ApplicationEventListener = (snapshot: ApplicationSnapshot) => void;
 export type ApplicationEvent = RuntimeLiveEvent;
 export interface FastMpaApplication {
   start(): Promise<void>;
   stop(deadlineMs?: number): Promise<void>;
-  getSnapshot(query?: {
-    workspaceId?: string;
-    conversationId?: string;
-  }): Promise<ApplicationSnapshot>;
   getShellSnapshot(): Promise<ShellSnapshot>;
   getConversationSnapshot(
     query: ConversationQuery,
@@ -175,7 +145,6 @@ export interface FastMpaApplication {
   getDispatchSnapshot(dispatchId: string): Promise<ConversationDispatch>;
   getRunSnapshot(runId: string): Promise<RunSnapshot>;
   dispatch(command: ApplicationCommand): Promise<CommandResult>;
-  subscribe(listener: ApplicationEventListener): () => void;
   subscribeEvents(listener: (event: ApplicationEvent) => void): () => void;
   subscribeSnapshotInvalidated(
     listener: (scope: SnapshotInvalidation) => void,
@@ -285,7 +254,6 @@ export async function createApplication(
     onError: (error) => logger.warn({ err: error }, "schedule dispatch failed"),
     logger: logger.child({ component: "runtime-scheduler" }),
   });
-  const listeners = new Set<ApplicationEventListener>();
   const eventListeners = new Set<(event: ApplicationEvent) => void>();
   const invalidationListeners = new Set<
     (scope: SnapshotInvalidation) => void
@@ -298,13 +266,14 @@ export async function createApplication(
       if (started) return;
       if (stopping) throw new Error("Application has been stopped");
       started = true;
+      ensureDefaultWorkspace();
       logger.info("application started");
       worker.startWorkers();
       scheduleRunner.start();
       const persistedRuns = (await runStore.listRuns()).runs;
       projector.projectAll(persistedRuns);
       reconcileDispatches(persistedRuns);
-      await publish({ scope: "shell" }, true);
+      await publish({ scope: "shell" });
     },
     async stop(deadlineMs = 15_000) {
       if (!started || stopping) return;
@@ -357,91 +326,8 @@ export async function createApplication(
         if (logStore) await logStore.close();
       }
     },
-    async getSnapshot(query = {}) {
-      const now = new Date().toISOString();
-      if (!repository.getWorkspace("default"))
-        repository.saveWorkspace({
-          id: "default",
-          name: "Default Workspace",
-          createdAt: now,
-          updatedAt: now,
-        });
-      const workspaces = repository.listWorkspaces();
-      const selectedWorkspaceId = query.workspaceId ?? workspaces[0]?.id;
-      const selectedConversationId = query.conversationId;
-      const persistedRuns = (await runStore.listRuns()).runs;
-      const attention = selectedWorkspaceId
-        ? loadAttention(repository, selectedWorkspaceId, "human")
-        : undefined;
-      const conversations = selectedWorkspaceId
-        ? repository
-            .listConversations(selectedWorkspaceId)
-            .filter(
-              (conversation) =>
-                !selectedConversationId ||
-                conversation.id === selectedConversationId,
-            )
-            .map((conversation) => {
-              const conversationMessages = repository.listMessages(
-                conversation.workspaceId,
-                conversation.id,
-              );
-              const lastMessage = conversationMessages.at(-1);
-              const activeRun = persistedRuns
-                .filter(
-                  (run) =>
-                    run.context?.workspaceId === conversation.workspaceId &&
-                    run.context?.conversationId === conversation.id,
-                )
-                .find((run) =>
-                  ["queued", "running", "retrying", "waiting"].includes(
-                    run.status,
-                  ),
-                );
-              return {
-                ...conversation,
-                lastMessagePreview: lastMessage?.body,
-                lastMessageAt: lastMessage?.createdAt,
-                activeRunStatus: activeRun?.status,
-                unread: attention?.inbox.some(
-                  (message) => message.conversationId === conversation.id,
-                ),
-              };
-            })
-        : [];
-      const messages = conversations.flatMap((conversation) =>
-        repository.listMessages(conversation.workspaceId, conversation.id),
-      );
-      return {
-        workspaces,
-        selectedWorkspaceId,
-        selectedConversationId,
-        attention,
-        conversations,
-        participants: selectedWorkspaceId
-          ? repository.listParticipants(selectedWorkspaceId)
-          : [],
-        messages,
-        runs: persistedRuns
-          .filter(
-            (run) =>
-              !selectedWorkspaceId ||
-              run.context?.workspaceId === selectedWorkspaceId,
-          )
-          .map(withPhase),
-        schedules: repository.listSchedules(selectedWorkspaceId),
-        dispatches: repository.listDispatches(selectedWorkspaceId),
-      };
-    },
     async getShellSnapshot() {
-      const now = new Date().toISOString();
-      if (!repository.getWorkspace("default"))
-        repository.saveWorkspace({
-          id: "default",
-          name: "Default Workspace",
-          createdAt: now,
-          updatedAt: now,
-        });
+      ensureDefaultWorkspace();
       const workspaces = repository.listWorkspaces();
       const selectedWorkspaceId = workspaces[0]?.id;
       const attention = selectedWorkspaceId
@@ -494,8 +380,21 @@ export async function createApplication(
       };
     },
     async getConversationSnapshot(query) {
-      const snapshot = await app.getSnapshot(query);
-      const conversationRuns = snapshot.runs.filter(
+      const runs = (await runStore.listRuns()).runs
+        .filter(
+          (run) =>
+            run.context?.workspaceId === query.workspaceId &&
+            run.context?.conversationId === query.conversationId,
+        )
+        .map(withPhase);
+      const messages = repository.listMessages(
+        query.workspaceId,
+        query.conversationId,
+      );
+      const dispatches = repository
+        .listDispatches(query.workspaceId)
+        .filter((dispatch) => dispatch.conversationId === query.conversationId);
+      const conversationRuns = runs.filter(
         (run) => run.context?.conversationId === query.conversationId,
       );
       const events = (
@@ -508,9 +407,9 @@ export async function createApplication(
           query.workspaceId,
           query.conversationId,
         ),
-        messages: snapshot.messages,
-        runs: snapshot.runs,
-        dispatches: snapshot.dispatches,
+        messages,
+        runs,
+        dispatches,
         events,
       };
     },
@@ -903,10 +802,6 @@ export async function createApplication(
         () => submit(command),
       );
     },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
     subscribeEvents(listener) {
       eventListeners.add(listener);
       return () => eventListeners.delete(listener);
@@ -1122,14 +1017,20 @@ export async function createApplication(
   }
   async function publish(
     invalidation: SnapshotInvalidation = { scope: "shell" },
-    broadcastFullSnapshot = false,
   ): Promise<void> {
     reconcileDispatches((await runStore.listRuns()).runs);
     for (const listener of invalidationListeners) listener(invalidation);
-    if (broadcastFullSnapshot) {
-      const snapshot = await app.getSnapshot();
-      for (const listener of listeners) listener(snapshot);
-    }
+  }
+
+  function ensureDefaultWorkspace(): void {
+    if (repository.getWorkspace("default")) return;
+    const now = new Date().toISOString();
+    repository.saveWorkspace({
+      id: "default",
+      name: "Default Workspace",
+      createdAt: now,
+      updatedAt: now,
+    });
   }
   async function publishRuntimeUpdate(run: AgentRun): Promise<void> {
     reconcileDispatches((await runStore.listRuns()).runs);

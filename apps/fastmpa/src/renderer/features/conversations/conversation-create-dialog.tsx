@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 
 export function ConversationCreateDialog({
   workspaceId,
@@ -8,7 +8,7 @@ export function ConversationCreateDialog({
   onCreated,
 }: {
   readonly workspaceId: string;
-  readonly agents: readonly ApplicationSnapshot["participants"][number][];
+  readonly agents: ShellSnapshot["participants"];
   readonly onClose: () => void;
   readonly onCreated: (conversationId?: string) => void;
 }): React.JSX.Element {

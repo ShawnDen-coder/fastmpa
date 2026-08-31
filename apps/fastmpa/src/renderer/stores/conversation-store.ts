@@ -1,6 +1,11 @@
 import { create } from "zustand";
+import type {
+  ConversationQuery,
+  ConversationSnapshot,
+} from "../../shared/contracts/snapshot.js";
 
 export interface ConversationState {
+  readonly snapshots: Readonly<Record<string, ConversationSnapshot>>;
   readonly drafts: Readonly<Record<string, string>>;
   readonly failedMessages: Readonly<Record<string, string>>;
   readonly sendQueues: Readonly<Record<string, readonly string[]>>;
@@ -9,9 +14,14 @@ export interface ConversationState {
   readonly clearFailedMessage: (conversationKey: string) => void;
   readonly enqueue: (conversationKey: string, body: string) => void;
   readonly dequeue: (conversationKey: string) => void;
+  readonly setSnapshot: (
+    query: ConversationQuery,
+    snapshot: ConversationSnapshot,
+  ) => void;
 }
 
 export const useConversationStore = create<ConversationState>((set) => ({
+  snapshots: {},
   drafts: {},
   failedMessages: {},
   sendQueues: {},
@@ -39,6 +49,13 @@ export const useConversationStore = create<ConversationState>((set) => ({
       sendQueues: {
         ...state.sendQueues,
         [conversationKey]: (state.sendQueues[conversationKey] ?? []).slice(1),
+      },
+    })),
+  setSnapshot: (query, snapshot) =>
+    set((state) => ({
+      snapshots: {
+        ...state.snapshots,
+        [`${query.workspaceId}:${query.conversationId}`]: snapshot,
       },
     })),
 }));

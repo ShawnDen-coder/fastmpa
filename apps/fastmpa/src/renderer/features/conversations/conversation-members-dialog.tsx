@@ -1,12 +1,12 @@
-import type { ApplicationSnapshot } from "../../../shared/contracts/application.js";
+import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
 
 export function ConversationMembersDialog({
   conversation,
   agents,
   onClose,
 }: {
-  readonly conversation: ApplicationSnapshot["conversations"][number];
-  readonly agents: readonly ApplicationSnapshot["participants"][number][];
+  readonly conversation: ShellSnapshot["conversations"][number];
+  readonly agents: ShellSnapshot["participants"];
   readonly onClose: () => void;
 }): React.JSX.Element {
   const members = agents.filter((agent) =>

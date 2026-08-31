@@ -1,25 +1,25 @@
 import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import remarkGfm from "remark-gfm";
+import type { ApplicationEvent } from "../../../shared/contracts/application.js";
 import type {
-  ApplicationEvent,
-  ApplicationSnapshot,
-} from "../../../shared/contracts/application.js";
-import type { PersistedRuntimeEvent } from "../../../shared/contracts/snapshot.js";
+  ConversationSnapshot,
+  PersistedRuntimeEvent,
+} from "../../../shared/contracts/snapshot.js";
 import { MarkdownPre } from "../../components/ui/markdown-pre.js";
 import { ToolEventCard } from "../../components/ui/tool-event-card.js";
 
 type TimelineItem =
   | {
       readonly kind: "message";
-      readonly value: ApplicationSnapshot["messages"][number];
+      readonly value: ConversationSnapshot["messages"][number];
     }
   | { readonly kind: "tool"; readonly value: ApplicationEvent }
   | { readonly kind: "persisted"; readonly value: PersistedRuntimeEvent }
   | { readonly kind: "streaming"; readonly value: string }
   | {
       readonly kind: "failed";
-      readonly value: ApplicationSnapshot["runs"][number];
+      readonly value: NonNullable<ConversationSnapshot["runs"][number]>;
     };
 
 export function ConversationTimeline({
@@ -33,14 +33,14 @@ export function ConversationTimeline({
   failedRun,
   onRunSelect,
 }: {
-  readonly messages: readonly ApplicationSnapshot["messages"][number][];
+  readonly messages: ConversationSnapshot["messages"];
   readonly messageListRef: React.RefObject<VirtuosoHandle | null>;
   readonly messagesAtLatest: boolean;
   readonly onMessagesAtLatestChange: (atLatest: boolean) => void;
   readonly toolEvents: readonly ApplicationEvent[];
   readonly persistedEvents: readonly PersistedRuntimeEvent[];
   readonly streamingText: string;
-  readonly failedRun?: ApplicationSnapshot["runs"][number];
+  readonly failedRun?: NonNullable<ConversationSnapshot["runs"][number]>;
   readonly onRunSelect: (runId: string) => void;
 }): React.JSX.Element {
   const items: readonly TimelineItem[] = [

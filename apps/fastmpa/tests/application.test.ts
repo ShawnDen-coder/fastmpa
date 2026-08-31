@@ -6,10 +6,70 @@ import {
   ToolPipeline,
 } from "@shawnden-coder/agent-runtime";
 import { describe, expect, it } from "vitest";
+import type { FastMpaApplication } from "../src/application/application.js";
 import {
   createApplication,
   selectConversationContext,
 } from "../src/application/application.js";
+import type {
+  ConversationSnapshot,
+  RunSnapshot,
+  ShellSnapshot,
+} from "../src/shared/contracts/snapshot.js";
+
+type ApplicationView = ShellSnapshot & {
+  readonly selectedConversationId?: string;
+  readonly messages: ConversationSnapshot["messages"];
+  readonly runs: readonly NonNullable<RunSnapshot["run"]>[];
+};
+
+async function readApplicationView(
+  app: FastMpaApplication,
+  query: {
+    readonly workspaceId?: string;
+    readonly conversationId?: string;
+  } = {},
+): Promise<ApplicationView> {
+  const shell = await app.getShellSnapshot();
+  const workspaceId = query.workspaceId ?? shell.selectedWorkspaceId;
+  const conversations = shell.conversations.filter(
+    (conversation) =>
+      (!workspaceId || conversation.workspaceId === workspaceId) &&
+      (!query.conversationId || conversation.id === query.conversationId),
+  );
+  const conversationSnapshots = await Promise.all(
+    conversations.map((conversation) =>
+      app.getConversationSnapshot({
+        workspaceId: conversation.workspaceId,
+        conversationId: conversation.id,
+      }),
+    ),
+  );
+  const runIds = new Set(
+    conversationSnapshots.flatMap((snapshot) =>
+      snapshot.runs.map((run) => run.runId),
+    ),
+  );
+  const runSnapshots = await Promise.all(
+    [...runIds].map((runId) => app.getRunSnapshot(runId)),
+  );
+  return {
+    ...shell,
+    selectedWorkspaceId: workspaceId,
+    selectedConversationId: query.conversationId,
+    conversations,
+    messages: conversationSnapshots.flatMap((snapshot) => snapshot.messages),
+    runs: runSnapshots.flatMap((snapshot) =>
+      snapshot.run ? [snapshot.run] : [],
+    ),
+    dispatches: shell.dispatches.filter(
+      (dispatch) =>
+        (!workspaceId || dispatch.workspaceId === workspaceId) &&
+        (!query.conversationId ||
+          dispatch.conversationId === query.conversationId),
+    ),
+  };
+}
 
 describe("FastMpaApplication", () => {
   it("validates Agent configuration, publishes Agent changes, and protects group invariants", async () => {
@@ -17,8 +77,6 @@ describe("FastMpaApplication", () => {
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
     });
-    const snapshots: unknown[] = [];
-    app.subscribe((snapshot) => snapshots.push(snapshot));
     await app.start();
     await expect(
       app.dispatch({
@@ -47,7 +105,6 @@ describe("FastMpaApplication", () => {
       },
     });
     expect(created.participant?.name).toBe("Researcher");
-    expect(snapshots.length).toBeGreaterThan(0);
     const second = await app.dispatch({
       type: "agent.create",
       workspaceId: "default",
@@ -74,7 +131,7 @@ describe("FastMpaApplication", () => {
     });
     expect(
       (
-        await app.getSnapshot({
+        await readApplicationView(app, {
           workspaceId: "default",
           conversationId: direct.conversationId,
         })
@@ -141,7 +198,7 @@ describe("FastMpaApplication", () => {
       }),
     );
     const summary = (
-      await app.getSnapshot({ workspaceId: "default" })
+      await readApplicationView(app, { workspaceId: "default" })
     ).conversations.find((item) => item.id === "scoped");
     expect(summary?.lastMessagePreview).toBeTruthy();
     const conversation = await app.getConversationSnapshot({
@@ -223,11 +280,9 @@ describe("FastMpaApplication", () => {
       conversationId: group.conversationId ?? "",
       body: "@Writer write this",
     });
-    let waitingRun:
-      | Awaited<ReturnType<typeof app.getSnapshot>>["runs"][number]
-      | undefined;
+    let waitingRun: ApplicationView["runs"][number] | undefined;
     for (let attempt = 0; attempt < 100 && !waitingRun; attempt += 1) {
-      waitingRun = (await app.getSnapshot()).runs.find(
+      waitingRun = (await readApplicationView(app)).runs.find(
         (run) => run.status === "waiting",
       );
       if (!waitingRun) await new Promise((resolve) => setTimeout(resolve, 10));
@@ -247,7 +302,9 @@ describe("FastMpaApplication", () => {
     });
     const result = await pending;
     expect(result.run?.status).toBe("completed");
-    expect((await app.getSnapshot()).dispatches[0]?.status).toBe("completed");
+    expect((await readApplicationView(app)).dispatches[0]?.status).toBe(
+      "completed",
+    );
     await app.stop();
     await rm(directory, { recursive: true, force: true });
   }, 20_000);
@@ -298,7 +355,7 @@ describe("FastMpaApplication", () => {
       body: "@Research @Writer collaborate",
     });
     expect(result.runs).toHaveLength(2);
-    const snapshot = await app.getSnapshot({
+    const snapshot = await readApplicationView(app, {
       workspaceId: "default",
       conversationId: group.conversationId,
     });
@@ -379,7 +436,7 @@ describe("FastMpaApplication", () => {
         `run:${result.runs?.[0]?.context?.sourceRef?.id}:writer`,
       ].sort(),
     );
-    const snapshot = await app.getSnapshot({
+    const snapshot = await readApplicationView(app, {
       workspaceId: "default",
       conversationId: group.conversationId,
     });
@@ -403,7 +460,7 @@ describe("FastMpaApplication", () => {
     await restored.start();
     expect(
       (
-        await restored.getSnapshot({
+        await readApplicationView(restored, {
           workspaceId: "default",
           conversationId: group.conversationId,
         })
@@ -512,7 +569,7 @@ describe("FastMpaApplication", () => {
         conversationId: "conversation-a",
         body,
       });
-    const selected = await first.getSnapshot({
+    const selected = await readApplicationView(first, {
       workspaceId: "project-a",
       conversationId: "conversation-a",
     });
@@ -521,13 +578,13 @@ describe("FastMpaApplication", () => {
     ).toHaveLength(3);
     expect(selected.runs).toHaveLength(3);
     expect(
-      (await first.getSnapshot({ workspaceId: "default" })).messages,
+      (await readApplicationView(first, { workspaceId: "default" })).messages,
     ).toEqual([]);
     await first.stop();
 
     const second = await createApplication({ databasePath });
     await second.start();
-    const restored = await second.getSnapshot({
+    const restored = await readApplicationView(second, {
       workspaceId: "project-a",
       conversationId: "conversation-a",
     });
@@ -568,7 +625,9 @@ describe("FastMpaApplication", () => {
       workspaceId: "project-a",
       name: "Renamed Project",
     });
-    const snapshot = await app.getSnapshot({ workspaceId: "project-a" });
+    const snapshot = await readApplicationView(app, {
+      workspaceId: "project-a",
+    });
     expect(snapshot.selectedWorkspaceId).toBe("project-a");
     expect(snapshot.workspaces).toContainEqual(
       expect.objectContaining({ id: "project-a", name: "Renamed Project" }),
@@ -620,7 +679,7 @@ describe("FastMpaApplication", () => {
       scheduleId: "schedule-1",
     });
     expect(
-      (await app.getSnapshot({ workspaceId: "default" })).schedules,
+      (await readApplicationView(app, { workspaceId: "default" })).schedules,
     ).toContainEqual(
       expect.objectContaining({ id: "schedule-1", enabled: true }),
     );
@@ -640,7 +699,7 @@ describe("FastMpaApplication", () => {
       scheduleId: "schedule-1",
     });
     expect(
-      (await app.getSnapshot({ workspaceId: "default" })).schedules,
+      (await readApplicationView(app, { workspaceId: "default" })).schedules,
     ).not.toContainEqual(expect.objectContaining({ id: "schedule-1" }));
     await app.stop();
     await rm(directory, { recursive: true, force: true });
@@ -658,7 +717,7 @@ describe("FastMpaApplication", () => {
       conversationId: "default",
       body: "整理今天的任务",
     });
-    const snapshot = await app.getSnapshot();
+    const snapshot = await readApplicationView(app);
     expect(result.created).toBe(true);
     expect(result.run?.status).toBe("completed");
     expect(snapshot.messages.map((message) => message.body)).toContain(
@@ -690,7 +749,7 @@ describe("FastMpaApplication", () => {
 
     const second = await createApplication({ databasePath });
     await second.start();
-    const snapshot = await second.getSnapshot();
+    const snapshot = await readApplicationView(second);
     expect(snapshot.runs).toHaveLength(2);
     expect(
       snapshot.messages.filter((message) => message.senderId === "demo-agent"),

@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import type { ApplicationEvent } from "../../shared/contracts/application.js";
-import type { PersistedRuntimeEvent } from "../../shared/contracts/snapshot.js";
+import type {
+  PersistedRuntimeEvent,
+  RunSnapshot,
+} from "../../shared/contracts/snapshot.js";
 
 export interface RuntimeState {
+  readonly snapshots: Readonly<Record<string, RunSnapshot>>;
   readonly events: readonly ApplicationEvent[];
   readonly streamingByConversation: Readonly<Record<string, string>>;
   readonly persistedEventsByConversation: Readonly<
@@ -16,9 +20,11 @@ export interface RuntimeState {
     conversationKey: string,
     events: readonly PersistedRuntimeEvent[],
   ) => void;
+  readonly setSnapshot: (snapshot: RunSnapshot, runId: string) => void;
 }
 
 export const useRuntimeStore = create<RuntimeState>((set) => ({
+  snapshots: {},
   events: [],
   streamingByConversation: {},
   persistedEventsByConversation: {},
@@ -62,5 +68,9 @@ export const useRuntimeStore = create<RuntimeState>((set) => ({
         ...state.persistedEventsByConversation,
         [conversationKey]: events,
       },
+    })),
+  setSnapshot: (snapshot, runId) =>
+    set((state) => ({
+      snapshots: { ...state.snapshots, [runId]: snapshot },
     })),
 }));

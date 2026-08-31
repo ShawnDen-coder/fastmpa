@@ -9,7 +9,7 @@ import { ConversationMembersDialog } from "../features/conversations/conversatio
 import { ConversationTimeline } from "../features/conversations/conversation-timeline.js";
 import { RunInspector } from "../features/runs/run-inspector.js";
 import {
-  useApplicationStore,
+  useConversationStore,
   useRuntimeStore,
   useSelectionStore,
   useShellStore,
@@ -76,24 +76,15 @@ function LiveConversationTimeline({
 }
 
 export function DesktopShell(): React.JSX.Element {
-  const snapshot = useApplicationStore((state) => state.snapshot);
-  const setSnapshot = useApplicationStore((state) => state.setSnapshot);
-  const mergeShellSnapshot = useApplicationStore(
-    (state) => state.mergeShellSnapshot,
+  const shellSnapshot = useShellStore((state) => state.snapshot);
+  const setShellSnapshot = useShellStore((state) => state.setSnapshot);
+  const desktopInfo = useShellStore((state) => state.desktopInfo);
+  const setDesktopInfo = useShellStore((state) => state.setDesktopInfo);
+  const closing = useShellStore((state) => state.closing);
+  const setClosing = useShellStore((state) => state.setClosing);
+  const setConversationSnapshot = useConversationStore(
+    (state) => state.setSnapshot,
   );
-  const mergeConversationSnapshot = useApplicationStore(
-    (state) => state.mergeConversationSnapshot,
-  );
-  const mergeRunSnapshot = useApplicationStore(
-    (state) => state.mergeRunSnapshot,
-  );
-  const mergeDispatchSnapshot = useApplicationStore(
-    (state) => state.mergeDispatchSnapshot,
-  );
-  const desktopInfo = useApplicationStore((state) => state.desktopInfo);
-  const setDesktopInfo = useApplicationStore((state) => state.setDesktopInfo);
-  const closing = useApplicationStore((state) => state.closing);
-  const setClosing = useApplicationStore((state) => state.setClosing);
   const page = useShellStore((state) => state.page);
   const setPage = useShellStore((state) => state.setPage);
   const inspectorRunId = useShellStore((state) => state.inspectorRunId);
@@ -114,24 +105,48 @@ export function DesktopShell(): React.JSX.Element {
   const setSelectedConversationId = useSelectionStore(
     (state) => state.setConversationId,
   );
+  const runSnapshots = useRuntimeStore((state) => state.snapshots);
+  const setRunSnapshot = useRuntimeStore((state) => state.setSnapshot);
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("all");
   const [conversationDialogOpen, setConversationDialogOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [renameWorkspaceOpen, setRenameWorkspaceOpen] = useState(false);
   const [workspaceNameDraft, setWorkspaceNameDraft] = useState("");
-  const mergeEvents = useRuntimeStore.getState().mergeEvents;
-  const mergePersistedEvents = useRuntimeStore.getState().mergePersistedEvents;
-  const events = useRuntimeStore.getState().events;
+  const mergeEvents = useRuntimeStore((state) => state.mergeEvents);
+  const mergePersistedEvents = useRuntimeStore(
+    (state) => state.mergePersistedEvents,
+  );
+  const events = useRuntimeStore((state) => state.events);
   const messageListRef = useRef<VirtuosoHandle>(null);
   const [messagesAtLatest, setMessagesAtLatest] = useState(true);
+
+  const hydrateRunSnapshots = useCallback(
+    async (next: typeof shellSnapshot): Promise<void> => {
+      if (!next) return;
+      const runIds = new Set(
+        next.dispatches.flatMap((dispatch) =>
+          dispatch.assignments.map((assignment) => assignment.runId),
+        ),
+      );
+      await Promise.all(
+        [...runIds].map(async (runId) => {
+          const snapshot =
+            await window.fastMpa.application.getRunSnapshot(runId);
+          setRunSnapshot(snapshot, runId);
+        }),
+      );
+    },
+    [setRunSnapshot],
+  );
 
   const refreshInvalidatedSnapshot = useCallback(
     async (scope: SnapshotInvalidation): Promise<void> => {
       const selection = useSelectionStore.getState();
       if (scope.scope === "shell") {
         const next = await window.fastMpa.application.getShellSnapshot();
-        mergeShellSnapshot(next);
+        setShellSnapshot(next);
+        await hydrateRunSnapshots(next);
         return;
       }
       if (scope.scope === "conversation") {
@@ -144,7 +159,7 @@ export function DesktopShell(): React.JSX.Element {
           workspaceId: scope.workspaceId,
           conversationId: scope.conversationId,
         });
-        mergeConversationSnapshot(
+        setConversationSnapshot(
           {
             workspaceId: scope.workspaceId,
             conversationId: scope.conversationId,
@@ -158,40 +173,35 @@ export function DesktopShell(): React.JSX.Element {
         return;
       }
       if (scope.scope === "dispatch") {
-        const next = await window.fastMpa.application.getDispatchSnapshot(
-          scope.dispatchId,
-        );
-        mergeDispatchSnapshot(next);
+        const next = await window.fastMpa.application.getShellSnapshot();
+        setShellSnapshot(next);
+        await hydrateRunSnapshots(next);
         return;
       }
       const next = await window.fastMpa.application.getRunSnapshot(scope.runId);
-      mergeRunSnapshot(next);
+      setRunSnapshot(next, scope.runId);
     },
     [
-      mergeConversationSnapshot,
-      mergeDispatchSnapshot,
-      mergeRunSnapshot,
-      mergeShellSnapshot,
       mergePersistedEvents,
+      hydrateRunSnapshots,
+      setConversationSnapshot,
+      setRunSnapshot,
+      setShellSnapshot,
     ],
   );
 
   useEffect(() => {
     let active = true;
-    void window.fastMpa.application.getSnapshot().then((next) => {
+    void window.fastMpa.application.getShellSnapshot().then((next) => {
       if (active) {
-        setSnapshot(next);
+        setShellSnapshot(next);
         setSelectedWorkspaceId(
           next.selectedWorkspaceId ?? next.workspaces[0]?.id,
         );
+        void hydrateRunSnapshots(next);
       }
     });
     void window.fastMpa.desktop.getInfo().then(setDesktopInfo);
-    const unsubscribeSnapshot = window.fastMpa.application.onSnapshot(
-      (next) => {
-        if (active) setSnapshot(next);
-      },
-    );
     const unsubscribeEvents = window.fastMpa.application.onEvents(
       (incoming) => {
         if (!active) return;
@@ -207,38 +217,25 @@ export function DesktopShell(): React.JSX.Element {
     });
     return () => {
       active = false;
-      unsubscribeSnapshot();
       unsubscribeEvents();
       unsubscribeInvalidation();
       unsubscribeClosing();
     };
   }, [
     mergeEvents,
+    hydrateRunSnapshots,
     setClosing,
     setDesktopInfo,
-    setSnapshot,
+    setShellSnapshot,
     setSelectedWorkspaceId,
     refreshInvalidatedSnapshot,
   ]);
 
-  useEffect(() => {
-    if (!selectedWorkspaceId) return;
-    let active = true;
-    void window.fastMpa.application
-      .getSnapshot({ workspaceId: selectedWorkspaceId })
-      .then((next) => {
-        if (active) setSnapshot(next);
-      });
-    return () => {
-      active = false;
-    };
-  }, [selectedWorkspaceId, setSnapshot]);
-
   const workspace =
-    snapshot?.workspaces.find((item) => item.id === selectedWorkspaceId) ??
-    snapshot?.workspaces[0];
+    shellSnapshot?.workspaces.find((item) => item.id === selectedWorkspaceId) ??
+    shellSnapshot?.workspaces[0];
   const conversations =
-    snapshot?.conversations.filter(
+    shellSnapshot?.conversations.filter(
       (conversation) =>
         conversation.workspaceId === workspace?.id &&
         (agentFilter === "all" ||
@@ -248,20 +245,22 @@ export function DesktopShell(): React.JSX.Element {
           .includes(search.toLowerCase()),
     ) ?? [];
   const agents =
-    snapshot?.participants.filter(
+    shellSnapshot?.participants.filter(
       (participant) =>
         participant.workspaceId === workspace?.id &&
         participant.kind === "agent",
     ) ?? [];
   const conversationId = selectedConversationId ?? conversations[0]?.id;
-  const selectedConversation = snapshot?.conversations.find(
-    (conversation) => conversation.id === conversationId,
-  );
   const conversationKey =
     workspace && conversationId
       ? `${workspace.id}:${conversationId}`
       : undefined;
-
+  const conversationSnapshot = useConversationStore((state) =>
+    conversationKey ? state.snapshots[conversationKey] : undefined,
+  );
+  const selectedConversation = shellSnapshot?.conversations.find(
+    (conversation) => conversation.id === conversationId,
+  );
   useEffect(() => {
     if (!workspace || !conversationId || !conversationKey) return;
     void window.fastMpa.application
@@ -269,24 +268,32 @@ export function DesktopShell(): React.JSX.Element {
         workspaceId: workspace.id,
         conversationId,
       })
-      .then((next) => mergePersistedEvents(conversationKey, next.events));
-  }, [conversationId, conversationKey, mergePersistedEvents, workspace]);
+      .then((next) => {
+        setConversationSnapshot(
+          { workspaceId: workspace.id, conversationId },
+          next,
+        );
+        mergePersistedEvents(conversationKey, next.events);
+      });
+  }, [
+    conversationId,
+    conversationKey,
+    mergePersistedEvents,
+    setConversationSnapshot,
+    workspace,
+  ]);
   const messages = useMemo(
-    () =>
-      snapshot?.messages.filter(
-        (message) => message.conversationId === conversationId,
-      ) ?? [],
-    [snapshot, conversationId],
+    () => conversationSnapshot?.messages ?? [],
+    [conversationSnapshot],
   );
   const failedRun = useMemo(
     () =>
-      snapshot?.runs
-        .filter((run) => run.context?.conversationId === conversationId)
+      conversationSnapshot?.runs
         .filter((run) =>
           ["failed", "cancelled", "interrupted"].includes(run.status),
         )
         .at(-1),
-    [conversationId, snapshot],
+    [conversationSnapshot],
   );
 
   function resizeConversationList(
@@ -323,7 +330,7 @@ export function DesktopShell(): React.JSX.Element {
           <option value="" disabled>
             Loading workspace
           </option>
-          {(snapshot?.workspaces ?? []).map((item) => (
+          {(shellSnapshot?.workspaces ?? []).map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
             </option>
@@ -459,8 +466,8 @@ export function DesktopShell(): React.JSX.Element {
         </nav>
         <ConversationList
           workspace={workspace}
-          conversations={snapshot?.conversations ?? []}
-          participants={snapshot?.participants ?? []}
+          conversations={shellSnapshot?.conversations ?? []}
+          participants={shellSnapshot?.participants ?? []}
           selectedConversationId={conversationId}
           search={search}
           agentFilter={agentFilter}
@@ -494,10 +501,12 @@ export function DesktopShell(): React.JSX.Element {
               className="secondary-button"
               onClick={() =>
                 setInspectorRunId(
-                  inspectorRunId ? undefined : snapshot?.runs[0]?.runId,
+                  inspectorRunId
+                    ? undefined
+                    : Object.values(runSnapshots)[0]?.run?.runId,
                 )
               }
-              disabled={!snapshot?.runs.length}
+              disabled={Object.values(runSnapshots).every((item) => !item.run)}
             >
               {inspectorRunId ? "Hide inspector" : "Show inspector"}
             </button>
@@ -525,7 +534,10 @@ export function DesktopShell(): React.JSX.Element {
           ) : (
             <PageView
               page={page}
-              snapshot={snapshot}
+              snapshot={shellSnapshot}
+              runs={Object.values(runSnapshots)
+                .map((item) => item.run)
+                .filter((run): run is NonNullable<typeof run> => Boolean(run))}
               events={events}
               desktopInfo={desktopInfo}
               workspaceId={selectedWorkspaceId}
@@ -541,9 +553,9 @@ export function DesktopShell(): React.JSX.Element {
             />
           )}
         </section>
-        {inspectorRunId && snapshot && (
+        {inspectorRunId && runSnapshots[inspectorRunId] && (
           <RunInspector
-            snapshot={snapshot}
+            snapshot={runSnapshots[inspectorRunId]}
             events={events}
             runId={inspectorRunId}
             onClose={() => setInspectorRunId(undefined)}

@@ -21,19 +21,24 @@ async function filesUnder(directory: string): Promise<string[]> {
 
 describe("Desktop layer boundaries", () => {
   it("keeps Renderer and Preload independent from Application implementation", async () => {
-    const files = [
-      "preload/preload.ts",
-      "renderer/main.tsx",
-      "renderer/app/desktop-shell.tsx",
-      "renderer/app/page-view.tsx",
-      "renderer/stores/index.ts",
-      "shared/desktop-api.ts",
-      "shared/ipc/index.ts",
-    ];
-    const contents = await Promise.all(files.map(source));
+    const files = (
+      await Promise.all([
+        filesUnder(join(sourceRoot, "renderer")),
+        filesUnder(join(sourceRoot, "preload")),
+      ])
+    )
+      .flat()
+      .filter((path) => /\.(ts|tsx)$/.test(path));
+    const contents = await Promise.all(
+      files.map((path) => readFile(path, "utf8")),
+    );
     expect(
       contents.some((content) => content.includes("application/application")),
     ).toBe(false);
+    const combined = contents.join("\n");
+    expect(combined).not.toContain("ApplicationSnapshot");
+    expect(combined).not.toMatch(/\bgetSnapshot\s*\(/);
+    expect(combined).not.toMatch(/\bonSnapshot\s*\(/);
   });
 
   it("keeps Application assembly in Main-owned source", async () => {
