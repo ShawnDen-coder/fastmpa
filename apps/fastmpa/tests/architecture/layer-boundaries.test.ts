@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -6,6 +6,17 @@ const sourceRoot = join(import.meta.dirname, "..", "..", "src");
 
 async function source(relativePath: string): Promise<string> {
   return readFile(join(sourceRoot, relativePath), "utf8");
+}
+
+async function filesUnder(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const path = join(directory, entry.name);
+      return entry.isDirectory() ? filesUnder(path) : [path];
+    }),
+  );
+  return nested.flat();
 }
 
 describe("Desktop layer boundaries", () => {
@@ -45,5 +56,16 @@ describe("Desktop layer boundaries", () => {
     expect(tailwind).not.toContain(".conversation-item");
     expect(tailwind).toContain("@theme");
     expect(tailwind).toContain("-webkit-app-region");
+  });
+
+  it("keeps tests inside the Desktop workspace test tree", async () => {
+    const repositoryRoot = join(sourceRoot, "..", "..", "..");
+    const candidates = await Promise.all([
+      filesUnder(join(repositoryRoot, "tests")).catch(() => []),
+      filesUnder(join(repositoryRoot, "src")).catch(() => []),
+    ]);
+    expect(
+      candidates.flat().filter((path) => path.endsWith(".test.ts")),
+    ).toEqual([]);
   });
 });
