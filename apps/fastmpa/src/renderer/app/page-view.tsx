@@ -34,6 +34,7 @@ export function PageView({
       <AgentsPage
         workspaceId={workspaceId}
         participants={snapshot?.participants ?? []}
+        models={snapshot?.models ?? []}
       />
     );
   if (page === "Runs")

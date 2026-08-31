@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import type { ApplicationEvent } from "../../shared/contracts/application.js";
-import type { SnapshotInvalidation } from "../../shared/contracts/invalidation.js";
 import { Composer } from "../features/conversations/composer.js";
 import { ConversationCreateDialog } from "../features/conversations/conversation-create-dialog.js";
 import { ConversationList } from "../features/conversations/conversation-list.js";
@@ -11,10 +10,12 @@ import { RunInspector } from "../features/runs/run-inspector.js";
 import {
   useConversationStore,
   useRuntimeStore,
-  useSelectionStore,
   useShellStore,
 } from "../stores/index.js";
+import { useNavigationController } from "./navigation-controller.js";
 import { PageView } from "./page-view.js";
+import { useShellSubscriptions } from "./shell-subscriptions.js";
+import { useWorkspaceController } from "./workspace-controller.js";
 import "../styles/tailwind.css";
 import "../styles/shell.css";
 import "../styles/conversations.css";
@@ -83,183 +84,53 @@ function LiveConversationTimeline({
 
 export function DesktopShell(): React.JSX.Element {
   const shellSnapshot = useShellStore((state) => state.snapshot);
-  const setShellSnapshot = useShellStore((state) => state.setSnapshot);
   const desktopInfo = useShellStore((state) => state.desktopInfo);
-  const setDesktopInfo = useShellStore((state) => state.setDesktopInfo);
   const closing = useShellStore((state) => state.closing);
-  const setClosing = useShellStore((state) => state.setClosing);
   const setConversationSnapshot = useConversationStore(
     (state) => state.setSnapshot,
   );
-  const page = useShellStore((state) => state.page);
-  const setPage = useShellStore((state) => state.setPage);
-  const inspectorRunId = useShellStore((state) => state.inspectorRunId);
-  const setInspectorRunId = useShellStore((state) => state.setInspectorRunId);
-  const conversationListWidth = useShellStore(
-    (state) => state.conversationListWidth,
-  );
-  const setConversationListWidth = useShellStore(
-    (state) => state.setConversationListWidth,
-  );
-  const selectedWorkspaceId = useSelectionStore((state) => state.workspaceId);
-  const setSelectedWorkspaceId = useSelectionStore(
-    (state) => state.setWorkspaceId,
-  );
-  const selectedConversationId = useSelectionStore(
-    (state) => state.conversationId,
-  );
-  const setSelectedConversationId = useSelectionStore(
-    (state) => state.setConversationId,
-  );
+  const {
+    page,
+    inspectorRunId,
+    conversationListWidth,
+    setPage,
+    setInspectorRunId,
+    resizeConversationList,
+  } = useNavigationController();
+  const {
+    workspace,
+    conversations,
+    agents,
+    selectedConversation,
+    conversationId,
+    selectedWorkspaceId,
+    search,
+    agentFilter,
+    setSearch,
+    setAgentFilter,
+    selectWorkspace,
+    selectConversation: setSelectedConversationId,
+  } = useWorkspaceController(shellSnapshot ?? undefined);
   const runSnapshots = useRuntimeStore((state) => state.snapshots);
-  const setRunSnapshot = useRuntimeStore((state) => state.setSnapshot);
-  const [search, setSearch] = useState("");
-  const [agentFilter, setAgentFilter] = useState("all");
   const [conversationDialogOpen, setConversationDialogOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [renameWorkspaceOpen, setRenameWorkspaceOpen] = useState(false);
   const [workspaceNameDraft, setWorkspaceNameDraft] = useState("");
-  const mergeEvents = useRuntimeStore((state) => state.mergeEvents);
+  const events = useRuntimeStore((state) => state.events);
   const mergePersistedEvents = useRuntimeStore(
     (state) => state.mergePersistedEvents,
   );
-  const events = useRuntimeStore((state) => state.events);
   const messageListRef = useRef<VirtuosoHandle>(null);
   const [messagesAtLatest, setMessagesAtLatest] = useState(true);
 
-  const hydrateRunSnapshots = useCallback(
-    async (next: typeof shellSnapshot): Promise<void> => {
-      if (!next) return;
-      const runIds = new Set(
-        next.dispatches.flatMap((dispatch) =>
-          dispatch.assignments.map((assignment) => assignment.runId),
-        ),
-      );
-      await Promise.all(
-        [...runIds].map(async (runId) => {
-          const snapshot =
-            await window.fastMpa.application.getRunSnapshot(runId);
-          setRunSnapshot(snapshot, runId);
-        }),
-      );
-    },
-    [setRunSnapshot],
-  );
+  useShellSubscriptions(selectedWorkspaceId);
 
-  const refreshInvalidatedSnapshot = useCallback(
-    async (scope: SnapshotInvalidation): Promise<void> => {
-      if (scope.scope === "shell") {
-        const next = await window.fastMpa.application.getShellSnapshot();
-        setShellSnapshot(next);
-        await hydrateRunSnapshots(next);
-        return;
-      }
-      if (scope.scope === "conversation") {
-        const next = await window.fastMpa.application.getConversationSnapshot({
-          workspaceId: scope.workspaceId,
-          conversationId: scope.conversationId,
-        });
-        setConversationSnapshot(
-          {
-            workspaceId: scope.workspaceId,
-            conversationId: scope.conversationId,
-          },
-          next,
-        );
-        mergePersistedEvents(
-          `${scope.workspaceId}:${scope.conversationId}`,
-          next.events,
-        );
-        return;
-      }
-      if (scope.scope === "dispatch") {
-        const next = await window.fastMpa.application.getShellSnapshot();
-        setShellSnapshot(next);
-        await hydrateRunSnapshots(next);
-        return;
-      }
-      const next = await window.fastMpa.application.getRunSnapshot(scope.runId);
-      setRunSnapshot(next, scope.runId);
-    },
-    [
-      mergePersistedEvents,
-      hydrateRunSnapshots,
-      setConversationSnapshot,
-      setRunSnapshot,
-      setShellSnapshot,
-    ],
-  );
-
-  useEffect(() => {
-    let active = true;
-    void window.fastMpa.application.getShellSnapshot().then((next) => {
-      if (active) {
-        setShellSnapshot(next);
-        setSelectedWorkspaceId(
-          next.selectedWorkspaceId ?? next.workspaces[0]?.id,
-        );
-        void hydrateRunSnapshots(next);
-      }
-    });
-    void window.fastMpa.desktop.getInfo().then(setDesktopInfo);
-    const unsubscribeEvents = window.fastMpa.application.onEvents(
-      (incoming) => {
-        if (!active) return;
-        mergeEvents(incoming);
-      },
-    );
-    const unsubscribeInvalidation =
-      window.fastMpa.application.onSnapshotInvalidated((scope) => {
-        void refreshInvalidatedSnapshot(scope);
-      });
-    const unsubscribeClosing = window.fastMpa.desktop.onClosing(() => {
-      if (active) setClosing(true);
-    });
-    return () => {
-      active = false;
-      unsubscribeEvents();
-      unsubscribeInvalidation();
-      unsubscribeClosing();
-    };
-  }, [
-    mergeEvents,
-    hydrateRunSnapshots,
-    setClosing,
-    setDesktopInfo,
-    setShellSnapshot,
-    setSelectedWorkspaceId,
-    refreshInvalidatedSnapshot,
-  ]);
-
-  const workspace =
-    shellSnapshot?.workspaces.find((item) => item.id === selectedWorkspaceId) ??
-    shellSnapshot?.workspaces[0];
-  const conversations =
-    shellSnapshot?.conversations.filter(
-      (conversation) =>
-        conversation.workspaceId === workspace?.id &&
-        (agentFilter === "all" ||
-          conversation.participantIds.includes(agentFilter)) &&
-        (conversation.title ?? "Untitled conversation")
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-    ) ?? [];
-  const agents =
-    shellSnapshot?.participants.filter(
-      (participant) =>
-        participant.workspaceId === workspace?.id &&
-        participant.kind === "agent",
-    ) ?? [];
-  const conversationId = selectedConversationId ?? conversations[0]?.id;
   const conversationKey =
     workspace && conversationId
       ? `${workspace.id}:${conversationId}`
       : undefined;
   const conversationSnapshot = useConversationStore((state) =>
     conversationKey ? state.snapshots[conversationKey] : undefined,
-  );
-  const selectedConversation = shellSnapshot?.conversations.find(
-    (conversation) => conversation.id === conversationId,
   );
   useEffect(() => {
     if (!workspace || !conversationId || !conversationKey) return;
@@ -296,22 +167,6 @@ export function DesktopShell(): React.JSX.Element {
     [conversationSnapshot],
   );
 
-  function resizeConversationList(
-    event: React.PointerEvent<HTMLButtonElement>,
-  ): void {
-    const startX = event.clientX;
-    const startWidth = conversationListWidth;
-    const handleMove = (moveEvent: PointerEvent): void => {
-      setConversationListWidth(startWidth + moveEvent.clientX - startX);
-    };
-    const handleUp = (): void => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp, { once: true });
-  }
-
   return (
     <main className="app-shell">
       <header className="title-bar">
@@ -322,9 +177,7 @@ export function DesktopShell(): React.JSX.Element {
           aria-label="Workspace"
           value={workspace?.id ?? ""}
           onChange={(event) => {
-            setSelectedWorkspaceId(event.target.value);
-            setSelectedConversationId(undefined);
-            setAgentFilter("all");
+            selectWorkspace(event.target.value);
           }}
         >
           <option value="" disabled>
@@ -547,6 +400,7 @@ export function DesktopShell(): React.JSX.Element {
             <Composer
               workspaceId={workspace?.id}
               conversationId={conversationId}
+              conversation={selectedConversation}
               agents={agents}
               closing={closing}
             />

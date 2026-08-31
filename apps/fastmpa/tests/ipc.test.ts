@@ -16,6 +16,15 @@ describe("desktop IPC payload guards", () => {
         type: "submit",
         workspaceId: "w",
         conversationId: "c",
+        body: "hello",
+        agentId: "legacy-agent",
+      }),
+    ).toBe(false);
+    expect(
+      isApplicationCommand({
+        type: "submit",
+        workspaceId: "w",
+        conversationId: "c",
         body: "",
       }),
     ).toBe(false);

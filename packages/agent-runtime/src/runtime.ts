@@ -116,7 +116,10 @@ export class AgentRuntime {
   }
 
   public async cancel(runId: string): Promise<AgentRun | undefined> {
-    if (this.leaseWorker) return this.leaseWorker.cancelPersistedRun(runId);
+    if (this.leaseWorker) {
+      this.leaseWorker.cancelRunning(runId);
+      return this.leaseWorker.cancelPersistedRun(runId);
+    }
     this.cancelRun(runId);
     return this.store.get(runId);
   }
@@ -162,8 +165,10 @@ export class AgentRuntime {
     this.logger.info("runtime workers started");
   }
 
-  public async stopWorkers(): Promise<void> {
-    await this.workerLoop?.stop();
+  public async stopWorkers(signal?: AbortSignal): Promise<void> {
+    if (signal) this.leaseWorker?.stop(signal);
+    await this.workerLoop?.stop(signal);
+    await this.leaseWorker?.stop(signal);
     this.logger.info("runtime workers stopped");
   }
 

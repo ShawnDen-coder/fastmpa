@@ -5,9 +5,11 @@ import { InfoCard } from "../../components/ui/info-card.js";
 export function AgentsPage({
   workspaceId,
   participants,
+  models,
 }: {
   readonly workspaceId?: string;
   readonly participants: ShellSnapshot["participants"];
+  readonly models: ShellSnapshot["models"];
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState<string>();
@@ -25,7 +27,7 @@ export function AgentsPage({
   const openCreate = (): void => {
     setEditingAgentId(undefined);
     setName("");
-    setModelKey("");
+    setModelKey(models[0]?.key ?? "");
     setRole("assistant");
     setPersona("You are a helpful FastMPA agent.");
     setCapabilities("");
@@ -202,11 +204,21 @@ export function AgentsPage({
               />
             </label>
             <label>
-              Model key
-              <input
+              Model
+              <select
                 value={modelKey}
                 onChange={(event) => setModelKey(event.target.value)}
-              />
+                disabled={!models.length}
+              >
+                {(models ?? []).map((model) => (
+                  <option key={model.key} value={model.key}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+              {!models.length && (
+                <small>No configured model is available.</small>
+              )}
             </label>
             <label>
               Role

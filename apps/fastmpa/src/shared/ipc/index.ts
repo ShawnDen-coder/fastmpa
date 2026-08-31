@@ -4,6 +4,7 @@ export interface ApplicationErrorDto {
   readonly code:
     | "INVALID_PAYLOAD"
     | "APPLICATION_ERROR"
+    | "APPLICATION_STOPPING"
     | "NOT_READY"
     | "INTERNAL_ERROR";
   readonly message: string;
@@ -90,7 +91,12 @@ export function isApplicationCommand(
     case "agent.archive":
       return hasString(value, "workspaceId") && hasString(value, "agentId");
     case "conversation.direct.open":
-      return hasString(value, "workspaceId") && hasString(value, "agentId");
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "agentId") &&
+        (value.conversationId === undefined ||
+          typeof value.conversationId === "string")
+      );
     case "conversation.group.create":
       return (
         hasString(value, "workspaceId") &&
@@ -124,14 +130,20 @@ export function isApplicationCommand(
         (value.title === undefined || typeof value.title === "string") &&
         (value.conversationId === undefined ||
           typeof value.conversationId === "string") &&
-        (value.agentId === undefined || typeof value.agentId === "string")
+        hasString(value, "agentId")
       );
     case "submit":
       return (
         hasString(value, "workspaceId") &&
         hasString(value, "conversationId") &&
         hasString(value, "body") &&
-        (value.agentId === undefined || typeof value.agentId === "string")
+        Object.keys(value).every(
+          (key) =>
+            key === "type" ||
+            key === "workspaceId" ||
+            key === "conversationId" ||
+            key === "body",
+        )
       );
     case "cancel":
     case "retry":

@@ -10,6 +10,7 @@ import type {
   ConversationSnapshot,
   RunSnapshot,
   ShellSnapshot,
+  ShellSnapshotQuery,
 } from "./contracts/snapshot.js";
 import type { ConversationDispatchDto } from "./contracts/workspace.js";
 
@@ -43,7 +44,7 @@ export interface DesktopInfo {
 
 export type FastMpaDesktopApi = {
   readonly application: {
-    getShellSnapshot(): Promise<ShellSnapshot>;
+    getShellSnapshot(query?: ShellSnapshotQuery): Promise<ShellSnapshot>;
     getConversationSnapshot(
       query: ConversationQuery,
     ): Promise<ConversationSnapshot>;

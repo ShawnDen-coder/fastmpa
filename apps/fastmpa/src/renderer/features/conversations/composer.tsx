@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ShellSnapshot } from "../../../shared/contracts/snapshot.js";
-import { useConversationStore, useSelectionStore } from "../../stores/index.js";
+import { useConversationStore } from "../../stores/index.js";
 import { shouldSubmitOnEnter } from "./composer-policy.js";
 
 const EMPTY_QUEUE: readonly string[] = [];
@@ -8,16 +8,16 @@ const EMPTY_QUEUE: readonly string[] = [];
 export function Composer({
   workspaceId,
   conversationId,
+  conversation,
   agents,
   closing,
 }: {
   readonly workspaceId?: string;
   readonly conversationId?: string;
+  readonly conversation?: ShellSnapshot["conversations"][number];
   readonly agents: ShellSnapshot["participants"];
   readonly closing: boolean;
 }): React.JSX.Element {
-  const selectedAgentId = useSelectionStore((state) => state.agentId);
-  const setSelectedAgentId = useSelectionStore((state) => state.setAgentId);
   const setDraftValue = useConversationStore((state) => state.setDraft);
   const setFailedMessage = useConversationStore(
     (state) => state.setFailedMessage,
@@ -42,8 +42,13 @@ export function Composer({
   const failedMessage = useConversationStore((state) =>
     conversationKey ? state.failedMessages[conversationKey] : undefined,
   );
-  const activeAgentId =
-    agents.find((agent) => agent.id === selectedAgentId)?.id ?? agents[0]?.id;
+  const conversationAgentIds = new Set(
+    conversation?.participantIds.filter((id) => id !== "human") ?? [],
+  );
+  const conversationAgents = agents.filter(
+    (agent) => conversationAgentIds.has(agent.id) && agent.status === "active",
+  );
+  const activeAgentId = conversationAgents[0]?.id;
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string>();
 
@@ -62,7 +67,6 @@ export function Composer({
           workspaceId,
           conversationId,
           body,
-          agentId: activeAgentId,
         });
         if (conversationKey) clearFailedMessage(conversationKey);
       } catch (error: unknown) {
@@ -127,24 +131,15 @@ export function Composer({
         rows={3}
       />
       <div className="composer-options">
-        <label>
-          Agent
-          <select
-            value={activeAgentId ?? ""}
-            onChange={(event) => setSelectedAgentId(event.target.value)}
-            disabled={!activeAgentId || sending}
-          >
-            {agents.length === 0 && <option value="">No active agent</option>}
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {conversation?.kind === "direct" && activeAgentId && (
+          <span>Agent: {conversationAgents[0]?.name} · active</span>
+        )}
+        {conversation?.kind === "group" && (
+          <span>Automatic routing · @mention to delegate</span>
+        )}
         {sendQueue.length > 0 && <span>{sendQueue.length} queued</span>}
         {!conversationId && <span>Select a conversation to start</span>}
-        {conversationId && agents.length === 0 && (
+        {conversationId && conversationAgents.length === 0 && (
           <span>No active agent is configured</span>
         )}
       </div>

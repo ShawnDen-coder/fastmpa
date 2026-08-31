@@ -48,6 +48,7 @@ export type LeaseRuntimeLiveEvent = TurnLiveEvent & {
  */
 export class LeaseRuntimeWorker {
   private readonly clock: Clock;
+  private readonly activeControllers = new Map<string, AbortController>();
 
   public constructor(
     private readonly store: RunLeaseStore,
@@ -115,6 +116,7 @@ export class LeaseRuntimeWorker {
 
     let current = await this.requireRun(runId);
     const controller = new AbortController();
+    this.activeControllers.set(runId, controller);
     let leaseLost = false;
     const stopHeartbeat = this.startHeartbeat(runId, controller, () => {
       leaseLost = true;
@@ -201,7 +203,25 @@ export class LeaseRuntimeWorker {
       return this.fail(latest, error);
     } finally {
       stopHeartbeat();
+      this.activeControllers.delete(runId);
     }
+  }
+
+  /** Cancel all executions owned by this worker before its store is closed. */
+  public async stop(signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+      for (const controller of this.activeControllers.values())
+        controller.abort();
+      return;
+    }
+    const onAbort = () => {
+      for (const controller of this.activeControllers.values())
+        controller.abort();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    for (const controller of this.activeControllers.values())
+      controller.abort();
+    signal?.removeEventListener("abort", onAbort);
   }
 
   /** 显式恢复 waiting 或 blocked Run，并使用保存的依赖键重新领取执行。 */
@@ -272,6 +292,14 @@ export class LeaseRuntimeWorker {
         this.clock.now(),
       ),
     );
+  }
+
+  /** Abort an execution currently owned by this worker. */
+  public cancelRunning(runId: string): boolean {
+    const controller = this.activeControllers.get(runId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
   }
 
   /** 恢复过期 owner 后立即尝试执行恢复出的 queued Run。 */

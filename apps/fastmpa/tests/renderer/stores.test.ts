@@ -252,7 +252,8 @@ describe("renderer performance envelope", () => {
     useShellStore.setState({
       snapshot: {
         workspaces: [],
-        selectedWorkspaceId: "workspace",
+        workspaceId: "workspace",
+        models: [],
         conversations,
         participants: [],
         schedules: [],

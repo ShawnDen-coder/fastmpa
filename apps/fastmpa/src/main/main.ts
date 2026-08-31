@@ -197,14 +197,7 @@ async function shutdown(): Promise<void> {
   broadcast(desktopChannels.closing, undefined);
   const currentApplication = application;
   application = undefined;
-  if (currentApplication) {
-    await Promise.race([
-      currentApplication.stop().then(() => true),
-      new Promise<boolean>((resolve) =>
-        setTimeout(() => resolve(false), 15_000),
-      ),
-    ]);
-  }
+  if (currentApplication) await currentApplication.stop();
   app.exit(0);
 }
 

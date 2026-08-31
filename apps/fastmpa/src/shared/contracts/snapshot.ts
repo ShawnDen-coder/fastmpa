@@ -32,12 +32,25 @@ export interface ConversationSummary {
 
 export interface ShellSnapshot {
   readonly workspaces: readonly WorkspaceDto[];
-  readonly selectedWorkspaceId?: string;
+  /** Workspace actually used to populate the scoped fields below. */
+  readonly workspaceId: string;
   readonly attention?: AttentionSnapshotDto;
   readonly conversations: readonly ConversationSummary[];
   readonly participants: readonly ParticipantDto[];
   readonly schedules: readonly ScheduleDto[];
   readonly dispatches: readonly ConversationDispatchDto[];
+  readonly models: readonly ModelDescriptor[];
+}
+
+export interface ShellSnapshotQuery {
+  readonly workspaceId?: string;
+}
+
+export interface ModelDescriptor {
+  readonly key: string;
+  readonly label: string;
+  readonly provider?: string;
+  readonly configured: boolean;
 }
 
 export interface ConversationQuery {

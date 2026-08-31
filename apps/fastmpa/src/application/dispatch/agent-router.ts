@@ -24,6 +24,7 @@ export interface AgentRoutingRequest {
   readonly maxAgents: number;
   readonly fallbackAgentId: string;
   readonly mentionedAgentIds?: readonly string[];
+  readonly onError?: (error: unknown) => void;
 }
 
 export interface AgentRoutingAssignment {
@@ -66,6 +67,7 @@ export class AgentRouter {
               "You route a workspace message to active Agents.",
               'Return JSON only: {"assignments":[{"agentId":"...","instruction":"...","reason":"..."}]}',
               `Select at most ${Math.min(5, Math.max(1, request.maxAgents))} Agents from the candidates.`,
+              `Recent conversation context (sender ID, display name, and body): ${JSON.stringify(request.recentContext)}`,
               JSON.stringify(request.candidates),
             ].join("\n"),
           },
@@ -83,13 +85,18 @@ export class AgentRouter {
       if (selected.length > 0)
         return {
           selectedAgentIds: selected,
-          assignments: assignments.filter((item) =>
-            selected.includes(item.agentId),
+          assignments: assignments.filter(
+            (item) =>
+              selected.includes(item.agentId) &&
+              assignments.findIndex(
+                (candidate) => candidate.agentId === item.agentId,
+              ) === assignments.indexOf(item),
           ),
           source: "router",
         };
-    } catch {
+    } catch (error: unknown) {
       // Invalid model output is equivalent to an unavailable router.
+      request.onError?.(error);
     }
     if (!candidates.has(request.fallbackAgentId))
       throw new Error("Routing fallback Agent is not an active candidate");

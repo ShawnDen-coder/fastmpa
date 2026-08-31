@@ -13,7 +13,6 @@ import {
   DefaultRuntimeTooling,
   openSqliteDatabase,
   type RunDependencyResolver,
-  type RunStatus,
   type RuntimeLiveEvent,
   type RuntimeTooling,
   ScheduleRunner,
@@ -26,9 +25,10 @@ import {
 import {
   type AgentInput,
   type AgentPatch,
+  type Conversation,
   type ConversationDispatch,
   type DispatchAssignmentStatus,
-  loadAttention,
+  type Message,
   type Participant,
   SqliteWorkspaceRepository,
   sendMessage,
@@ -38,14 +38,19 @@ import type { SnapshotInvalidation } from "../shared/contracts/invalidation.js";
 import type {
   ConversationQuery,
   ConversationSnapshot,
-  RunPhase,
   RunSnapshot,
   ShellSnapshot,
+  ShellSnapshotQuery,
 } from "../shared/contracts/snapshot.js";
 import {
   type ApplicationLogEntry,
   ApplicationLogStore,
 } from "./application-log.js";
+import { handleAgentCommand } from "./commands/agent-commands.js";
+import { handleConversationCommand } from "./commands/conversation-commands.js";
+import { handleRunCommand } from "./commands/run-commands.js";
+import { handleScheduleCommand } from "./commands/schedule-commands.js";
+import { handleWorkspaceCommand } from "./commands/workspace-commands.js";
 import { ConversationRunCoordinator } from "./conversation-run-coordinator.js";
 import { AgentRouter } from "./dispatch/agent-router.js";
 import {
@@ -53,7 +58,12 @@ import {
   findMentionedAgentIds,
   selectConversationContext,
 } from "./dispatch/context-builder.js";
+import { createApplicationStop } from "./lifecycle/application-stop.js";
 import { CompletionProjector } from "./orchestrator.js";
+import { getConversationSnapshot as queryConversationSnapshot } from "./queries/conversation-query.js";
+import { getDispatchSnapshot as queryDispatchSnapshot } from "./queries/dispatch-query.js";
+import { getRunSnapshot as queryRunSnapshot } from "./queries/run-query.js";
+import { getShellSnapshot as queryShellSnapshot } from "./queries/shell-query.js";
 
 export { selectConversationContext } from "./dispatch/context-builder.js";
 
@@ -69,7 +79,12 @@ export type ApplicationCommand =
     }
   | { type: "agent.activate"; workspaceId: string; agentId: string }
   | { type: "agent.archive"; workspaceId: string; agentId: string }
-  | { type: "conversation.direct.open"; workspaceId: string; agentId: string }
+  | {
+      type: "conversation.direct.open";
+      workspaceId: string;
+      agentId: string;
+      conversationId?: string;
+    }
   | {
       type: "conversation.group.create";
       workspaceId: string;
@@ -107,7 +122,6 @@ export type ApplicationCommand =
       workspaceId: string;
       conversationId: string;
       body: string;
-      agentId?: string;
     }
   | { type: "cancel"; runId: string }
   | { type: "retry"; runId: string }
@@ -138,7 +152,7 @@ export type ApplicationEvent = RuntimeLiveEvent;
 export interface FastMpaApplication {
   start(): Promise<void>;
   stop(deadlineMs?: number): Promise<void>;
-  getShellSnapshot(): Promise<ShellSnapshot>;
+  getShellSnapshot(query?: ShellSnapshotQuery): Promise<ShellSnapshot>;
   getConversationSnapshot(
     query: ConversationQuery,
   ): Promise<ConversationSnapshot>;
@@ -159,6 +173,8 @@ export interface FastMpaApplicationOptions {
   readonly models?: Readonly<
     Record<string, ModelAdapter | StreamingModelAdapter>
   >;
+  /** Override model availability for deterministic hosts and tests. */
+  readonly modelConfigured?: boolean;
   readonly tooling?: RuntimeTooling;
   readonly ownerId?: string;
   readonly logger?: Logger;
@@ -195,13 +211,22 @@ export async function createApplication(
   const model = options.model ?? {
     complete: async () => ({
       type: "text" as const,
-      content: "演示 Agent 已完成任务。",
+      content: "The configured model completed the task.",
     }),
   };
+  const defaultModelConfigured =
+    options.modelConfigured ??
+    (options.model !== undefined ||
+      process.env.FASTMPA_E2E === "1" ||
+      Boolean(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_MODEL));
   const tooling = options.tooling ?? createDefaultTooling(database.client);
   const models = new Map<string, ModelAdapter | StreamingModelAdapter>([
-    ["demo", model],
+    ["default", model],
     ...Object.entries(options.models ?? {}),
+  ]);
+  const configuredModelKeys = new Set([
+    ...(defaultModelConfigured ? ["default"] : []),
+    ...Object.keys(options.models ?? {}),
   ]);
   const resolver: RunDependencyResolver = {
     resolveModel: (modelKey) => {
@@ -239,7 +264,7 @@ export async function createApplication(
   const scheduler = new AgentScheduler({
     repository,
     runtime: worker,
-    modelKey: "demo",
+    modelKey: "default",
     toolsetKey: "local",
   });
   const scheduleRunner = new ScheduleRunner({
@@ -261,182 +286,73 @@ export async function createApplication(
   const conversationRuns = new ConversationRunCoordinator();
   let started = false;
   let stopping = false;
+  let closing: Promise<void> | undefined;
   const app: FastMpaApplication = {
     async start() {
       if (started) return;
       if (stopping) throw new Error("Application has been stopped");
       started = true;
       ensureDefaultWorkspace();
+      migrateLegacyModelKeys();
       logger.info("application started");
       worker.startWorkers();
       scheduleRunner.start();
       const persistedRuns = (await runStore.listRuns()).runs;
       projector.projectAll(persistedRuns);
       reconcileDispatches(persistedRuns);
+      await resumePendingDispatches();
+      reconcileDispatches((await runStore.listRuns()).runs);
       await publish({ scope: "shell" });
     },
-    async stop(deadlineMs = 15_000) {
-      if (!started || stopping) return;
+    stop(deadlineMs = 15_000) {
+      if (closing) return closing;
+      if (!started) return Promise.resolve();
       stopping = true;
       started = false;
-      const deadline = Date.now() + Math.max(1, deadlineMs);
-      try {
-        // 先停止新的调度，再取消活动 Run，最后关闭共享 SQLite 连接。
-        await withShutdownDeadline(
-          scheduleRunner.stop(),
-          deadline,
-          "schedule runner stop",
-          logger,
-        );
-        const activeRuns = (await runStore.listRuns()).runs.filter((run) =>
-          ["queued", "running", "retrying", "waiting", "blocked"].includes(
-            run.status,
-          ),
-        );
-        await withShutdownDeadline(
-          Promise.all(
-            activeRuns.map(async (run) => {
-              try {
-                const cancelled = await worker.cancel(run.runId);
-                if (cancelled) projector.project(cancelled);
-              } catch (error: unknown) {
-                logger.warn(
-                  { err: error, runId: run.runId },
-                  "failed to cancel Run during shutdown",
-                );
-              }
-            }),
-          ),
-          deadline,
-          "active Run cancellation",
-          logger,
-        );
-        reconcileDispatches((await runStore.listRuns()).runs);
-        await withShutdownDeadline(
-          worker.stopWorkers(),
-          deadline,
-          "runtime worker stop",
-          logger,
-        );
-      } finally {
-        runStore.close();
-        (repository as SqliteWorkspaceRepository).close();
-        database.client.close();
-        logger.info("application stopped");
-        if (logStore) await logStore.close();
-      }
+      closing = createApplicationStop({
+        worker,
+        scheduleRunner,
+        runStore,
+        repository: repository as SqliteWorkspaceRepository,
+        database,
+        logger,
+        logStore,
+        project: (run) => projector.project(run),
+        reconcile: reconcileDispatches,
+      })(deadlineMs);
+      return closing;
     },
-    async getShellSnapshot() {
+    async getShellSnapshot(query) {
       ensureDefaultWorkspace();
-      const workspaces = repository.listWorkspaces();
-      const selectedWorkspaceId = workspaces[0]?.id;
-      const attention = selectedWorkspaceId
-        ? loadAttention(repository, selectedWorkspaceId, "human")
-        : undefined;
-      const persistedRuns = (await runStore.listRuns()).runs;
-      return {
-        workspaces,
-        selectedWorkspaceId,
-        attention,
-        conversations: workspaces.flatMap((workspace) =>
-          repository.listConversations(workspace.id).map((conversation) => {
-            const messages = repository.listMessages(
-              conversation.workspaceId,
-              conversation.id,
-            );
-            const lastMessage = messages.at(-1);
-            const activeRun = persistedRuns
-              .filter(
-                (run) =>
-                  run.context?.workspaceId === conversation.workspaceId &&
-                  run.context?.conversationId === conversation.id,
-              )
-              .find((run) =>
-                ["queued", "running", "retrying", "waiting"].includes(
-                  run.status,
-                ),
-              );
-            const unread = attention?.inbox.some(
-              (message) => message.conversationId === conversation.id,
-            );
-            return {
-              id: conversation.id,
-              workspaceId: conversation.workspaceId,
-              kind: conversation.kind,
-              title: conversation.title,
-              participantIds: conversation.participantIds,
-              lastMessagePreview: lastMessage?.body,
-              lastMessageAt: lastMessage?.createdAt,
-              activeRunStatus: activeRun?.status,
-              unread,
-            };
-          }),
-        ),
-        participants: selectedWorkspaceId
-          ? repository.listParticipants(selectedWorkspaceId)
-          : [],
-        schedules: repository.listSchedules(selectedWorkspaceId),
-        dispatches: repository.listDispatches(selectedWorkspaceId),
-      };
+      return queryShellSnapshot(
+        {
+          repository,
+          runStore,
+          models,
+          configuredModelKeys,
+          defaultModelLabel: defaultModelConfigured
+            ? options.model
+              ? "Test model"
+              : (process.env.OPENROUTER_MODEL ?? "Default model")
+            : "Configure a model",
+        },
+        query,
+      );
     },
     async getConversationSnapshot(query) {
-      const runs = (await runStore.listRuns()).runs
-        .filter(
-          (run) =>
-            run.context?.workspaceId === query.workspaceId &&
-            run.context?.conversationId === query.conversationId,
-        )
-        .map(withPhase);
-      const messages = repository.listMessages(
-        query.workspaceId,
-        query.conversationId,
-      );
-      const dispatches = repository
-        .listDispatches(query.workspaceId)
-        .filter((dispatch) => dispatch.conversationId === query.conversationId);
-      const conversationRuns = runs.filter(
-        (run) => run.context?.conversationId === query.conversationId,
-      );
-      const events = (
-        await Promise.all(
-          conversationRuns.map((run) => runStore.listEvents(run.runId)),
-        )
-      ).flat();
-      return {
-        conversation: repository.getConversation(
-          query.workspaceId,
-          query.conversationId,
-        ),
-        messages,
-        runs,
-        dispatches,
-        events,
-      };
+      return queryConversationSnapshot({ repository, runStore }, query);
     },
     async getDispatchSnapshot(dispatchId) {
-      const dispatch = repository
-        .listDispatches()
-        .find((item) => item.id === dispatchId);
-      if (!dispatch) throw new Error(`Dispatch not found: ${dispatchId}`);
-      return dispatch;
+      return queryDispatchSnapshot(repository, dispatchId);
     },
     async getRunSnapshot(runId) {
-      const run = await runStore.get(runId);
-      const dispatch =
-        run?.context?.sourceRef?.type === "message"
-          ? repository
-              .listDispatches()
-              .find((item) => item.messageId === run.context?.sourceRef?.id)
-          : undefined;
-      return {
-        run: run ? withPhase(run) : undefined,
-        dispatch,
-        events: run ? await runStore.listEvents(runId) : [],
-      };
+      return queryRunSnapshot({ repository, runStore }, runId);
     },
     async dispatch(command) {
       if (stopping && command.type !== "cancel")
-        throw new Error("Application is stopping");
+        throw Object.assign(new Error("Application is stopping"), {
+          code: "APPLICATION_STOPPING",
+        });
       logger.info(
         {
           command: command.type,
@@ -449,353 +365,102 @@ export async function createApplication(
         "application command received",
       );
       if (command.type === "workspace.create") {
-        const id = command.workspaceId ?? randomUUID();
-        if (repository.getWorkspace(id))
-          throw new Error(`Workspace already exists: ${id}`);
-        const now = new Date().toISOString();
-        repository.saveWorkspace({
-          id,
-          name: command.name,
-          createdAt: now,
-          updatedAt: now,
-        });
-        await publish();
-        return { created: true };
+        return handleWorkspaceCommand(
+          repository,
+          command,
+          publish,
+          publishWorkspace,
+        );
       }
-      if (command.type === "workspace.rename") {
-        const workspace = repository.getWorkspace(command.workspaceId);
-        if (!workspace)
-          throw new Error(`Workspace not found: ${command.workspaceId}`);
-        repository.saveWorkspace({
-          ...workspace,
-          name: command.name,
-          updatedAt: new Date().toISOString(),
-        });
-        await publish();
-        return {};
-      }
+      if (command.type === "workspace.rename")
+        return handleWorkspaceCommand(
+          repository,
+          command,
+          publish,
+          publishWorkspace,
+        );
       if (command.type === "agent.create") {
-        if (!repository.getWorkspace(command.workspaceId))
-          throw new Error(`Workspace not found: ${command.workspaceId}`);
-        validateAgentInput(command.input, tooling, models);
-        const participant = repository.createAgent(
-          command.workspaceId,
-          command.input,
+        return handleAgentCommand(
+          repository,
+          command,
+          () => runStore.listRuns(),
+          normalizeModelKey,
+          (input) =>
+            validateAgentInput(input, tooling, models, configuredModelKeys),
+          (patch) =>
+            validateAgentPatch(patch, tooling, models, configuredModelKeys),
+          publishWorkspace,
         );
-        await publish();
-        return { participant, created: true };
-      }
-      if (command.type === "agent.update") {
-        validateAgentPatch(command.patch, tooling, models);
-        const participant = repository.updateAgent(
-          command.workspaceId,
-          command.agentId,
-          command.patch,
-        );
-        await publish();
-        return { participant };
       }
       if (
         command.type === "agent.activate" ||
         command.type === "agent.archive"
       ) {
-        if (command.type === "agent.archive") {
-          const activeRuns = (await runStore.listRuns()).runs.filter(
-            (run) =>
-              run.context?.workspaceId === command.workspaceId &&
-              run.context.agentId === command.agentId &&
-              ["queued", "running", "retrying", "waiting", "blocked"].includes(
-                run.status,
-              ),
-          );
-          if (activeRuns.length > 0)
-            throw new Error("Agent has active or approval-waiting Runs");
-        }
-        const participant = repository.setAgentStatus(
-          command.workspaceId,
-          command.agentId,
-          command.type === "agent.activate" ? "active" : "inactive",
+        return handleAgentCommand(
+          repository,
+          command,
+          () => runStore.listRuns(),
+          normalizeModelKey,
+          (input) =>
+            validateAgentInput(input, tooling, models, configuredModelKeys),
+          (patch) =>
+            validateAgentPatch(patch, tooling, models, configuredModelKeys),
+          publishWorkspace,
         );
-        if (command.type === "agent.archive") {
-          const groups = repository
-            .listConversations(command.workspaceId)
-            .filter(
-              (conversation) =>
-                conversation.kind === "group" &&
-                conversation.participantIds.includes(command.agentId),
-            );
-          if (
-            groups.some(
-              (conversation) =>
-                conversation.participantIds.filter(
-                  (id) => id !== "human" && id !== command.agentId,
-                ).length === 0,
-            )
-          )
-            throw new Error(
-              "Cannot archive the only Agent in a group conversation",
-            );
-          for (const conversation of groups) {
-            const participantIds = conversation.participantIds.filter(
-              (id) => id !== command.agentId,
-            );
-            repository.saveConversation({
-              ...conversation,
-              participantIds,
-              routing:
-                conversation.routing?.fallbackAgentId === command.agentId
-                  ? {
-                      ...conversation.routing,
-                      fallbackAgentId: participantIds.find(
-                        (id) => id !== "human",
-                      ) as string,
-                    }
-                  : conversation.routing,
-            });
-          }
-        }
-        await publish();
-        return { participant };
       }
-      if (command.type === "conversation.direct.open") {
-        ensureOwner(command.workspaceId);
-        const agent = repository.getParticipant(
-          command.workspaceId,
-          command.agentId,
+      if (command.type === "agent.update")
+        return handleAgentCommand(
+          repository,
+          command,
+          () => runStore.listRuns(),
+          normalizeModelKey,
+          (input) =>
+            validateAgentInput(input, tooling, models, configuredModelKeys),
+          (patch) =>
+            validateAgentPatch(patch, tooling, models, configuredModelKeys),
+          publishWorkspace,
         );
-        if (agent?.kind !== "agent" || agent.status !== "active")
-          throw new Error(`Active Agent not found: ${command.agentId}`);
-        const existing = repository.findDirectConversation(
-          command.workspaceId,
-          command.agentId,
-        );
-        if (existing) return { conversationId: existing.id, created: false };
-        const id = randomUUID();
-        repository.saveConversation({
-          id,
-          workspaceId: command.workspaceId,
-          kind: "direct",
-          participantIds: ["human", command.agentId],
-          createdAt: new Date().toISOString(),
-        });
-        await publish();
-        return { conversationId: id, created: true };
-      }
-      if (command.type === "conversation.group.create") {
-        const title = command.title.trim();
-        if (!title) throw new Error("Group conversation title is required");
-        const agentIds = [...new Set(command.agentIds)];
-        if (agentIds.length === 0)
-          throw new Error("Group conversation needs an Agent");
-        ensureOwner(command.workspaceId);
-        const agents = agentIds.map((id) =>
-          repository.getParticipant(command.workspaceId, id),
-        );
-        if (
-          agents.some(
-            (agent) => agent?.kind !== "agent" || agent.status !== "active",
-          )
-        )
-          throw new Error("Group conversation can only include active Agents");
-        const fallbackAgentId = command.routing?.fallbackAgentId ?? agentIds[0];
-        if (!agentIds.includes(fallbackAgentId))
-          throw new Error("Fallback Agent must be a group member");
-        const id = randomUUID();
-        const maxAgents = Math.min(
-          5,
-          Math.max(1, command.routing?.maxAgents ?? 3),
-        );
-        const routerModelKey = command.routing?.routerModelKey ?? "demo";
-        if (!models.has(routerModelKey))
-          throw new Error(`Unknown model: ${routerModelKey}`);
-        repository.saveConversation({
-          id,
-          workspaceId: command.workspaceId,
-          kind: "group",
-          title,
-          participantIds: ["human", ...agentIds],
-          routing: {
-            mode: "auto",
-            routerModelKey,
-            fallbackAgentId,
-            maxAgents,
-          },
-          createdAt: new Date().toISOString(),
-        });
-        await publish();
-        return { conversationId: id, created: true };
-      }
-      if (command.type === "conversation.group.rename") {
-        const conversation = repository.getConversation(
-          command.workspaceId,
-          command.conversationId,
-        );
-        if (conversation?.kind !== "group")
-          throw new Error("Group conversation not found");
-        const title = command.title.trim();
-        if (!title) throw new Error("Group conversation title is required");
-        repository.saveConversation({ ...conversation, title });
-        await publish();
-        return {};
-      }
       if (
+        command.type === "conversation.direct.open" ||
+        command.type === "conversation.group.create" ||
+        command.type === "conversation.group.rename" ||
         command.type === "conversation.member.add" ||
-        command.type === "conversation.member.remove"
-      ) {
-        const conversation = repository.getConversation(
-          command.workspaceId,
-          command.conversationId,
+        command.type === "conversation.member.remove" ||
+        command.type === "conversation.create"
+      )
+        return handleConversationCommand(
+          repository,
+          command,
+          models,
+          () => runStore.listRuns(),
+          ensureOwner,
+          publishWorkspace,
         );
-        if (conversation?.kind !== "group")
-          throw new Error("Group conversation not found");
-        if (command.type === "conversation.member.remove") {
-          const activeRuns = (await runStore.listRuns()).runs.filter(
-            (run) =>
-              run.context?.workspaceId === command.workspaceId &&
-              run.context.conversationId === command.conversationId &&
-              run.context.agentId === command.agentId &&
-              ["queued", "running", "retrying", "waiting", "blocked"].includes(
-                run.status,
-              ),
-          );
-          if (activeRuns.length > 0)
-            throw new Error(
-              "Agent has active or approval-waiting Runs in this conversation",
-            );
-        }
-        const ids =
-          command.type === "conversation.member.add"
-            ? [
-                ...new Set([
-                  ...conversation.participantIds,
-                  ...command.agentIds,
-                ]),
-              ]
-            : conversation.participantIds.filter(
-                (id) => id !== command.agentId,
-              );
-        const agents = ids
-          .filter((id) => id !== "human")
-          .map((id) => repository.getParticipant(command.workspaceId, id));
-        if (
-          agents.some(
-            (agent) => agent?.kind !== "agent" || agent.status !== "active",
-          )
-        )
-          throw new Error("Only active Agents can join a group");
-        if (agents.length === 0)
-          throw new Error("Group conversation needs an Agent");
-        repository.saveConversation({
-          ...conversation,
-          participantIds: ["human", ...ids.filter((id) => id !== "human")],
-        });
-        await publish();
-        return {};
-      }
-      if (command.type === "conversation.create") {
-        if (!repository.getWorkspace(command.workspaceId))
-          throw new Error(`Workspace not found: ${command.workspaceId}`);
-        const agentId = command.agentId ?? "demo-agent";
-        const id = command.conversationId ?? randomUUID();
-        if (repository.getConversation(command.workspaceId, id))
-          throw new Error(`Conversation already exists: ${id}`);
-        ensureWorkspace(command.workspaceId, id, agentId);
-        repository.saveConversation({
-          id,
-          workspaceId: command.workspaceId,
-          kind: "group",
-          title: command.title,
-          participantIds: ["human", agentId],
-          createdAt: new Date().toISOString(),
-        });
-        await publish();
-        return { created: true };
-      }
-      if (command.type === "cancel")
-        return publishResult({ run: await worker.cancel(command.runId) });
-      if (command.type === "retry") {
-        const run = await runStore.get(command.runId);
-        if (!run?.input) throw new Error("Run cannot be retried");
-        return publishResult({ run: await worker.retry(command.runId) });
-      }
-      if (command.type === "approve" || command.type === "reject") {
-        const run = await runStore.get(command.runId);
-        if (!run?.error?.details)
-          throw new Error(
-            `Approval ${command.approvalId} is not configured for Run ${command.runId}`,
-          );
-        const details = run.error.details as { approvalId?: unknown };
-        if (details.approvalId !== command.approvalId)
-          throw new Error("Approval does not belong to Run");
-        if (command.type === "reject") {
-          tooling.reject(command.approvalId, command.runId);
-          return publishResult({ run: await worker.cancel(command.runId) });
-        }
-        const result = await tooling.approve(command.approvalId, command.runId);
-        if (result.status !== "completed")
-          throw new Error("Approval did not complete tool execution");
-        if (!run.input) throw new Error("Waiting Run has no persisted input");
-        const messages = [
-          ...(run.result?.messages ?? run.input.turn.messages),
-          {
-            role: "tool" as const,
-            content: result.result.content,
-            toolCallId: result.result.toolCallId,
-          },
-        ];
-        return publishResult({
-          run: await worker.resume(command.runId, {
-            ...run.input.turn,
-            messages,
-          }),
-        });
-      }
-      if (command.type === "schedule.create") {
-        if (!repository.getWorkspace(command.workspaceId))
-          throw new Error(`Workspace not found: ${command.workspaceId}`);
-        const agent = repository.getParticipant(
-          command.workspaceId,
-          command.agentId,
-        );
-        if (agent?.kind !== "agent" || agent.status !== "active")
-          throw new Error(`Active Agent not found: ${command.agentId}`);
-        if (!Number.isFinite(command.intervalMs) || command.intervalMs < 60_000)
-          throw new Error("Schedule interval must be at least one minute");
-        const id = command.scheduleId ?? randomUUID();
-        scheduleRunner.upsert({
-          id,
-          workspaceId: command.workspaceId,
-          agentId: command.agentId,
-          instruction: command.instruction,
-          intervalMs: command.intervalMs,
-          nextRunAt: Date.now() + command.intervalMs,
-          createdAt: new Date().toISOString(),
-          enabled: true,
-        });
-        await publish();
-        return {};
-      }
       if (
+        command.type === "cancel" ||
+        command.type === "retry" ||
+        command.type === "approve" ||
+        command.type === "reject"
+      )
+        return handleRunCommand(
+          worker,
+          tooling,
+          command,
+          (runId) => runStore.get(runId),
+          publishResult,
+        );
+      if (
+        command.type === "schedule.create" ||
         command.type === "schedule.pause" ||
         command.type === "schedule.resume" ||
         command.type === "schedule.delete"
-      ) {
-        const schedule = repository.getSchedule(
-          command.workspaceId,
-          command.scheduleId,
+      )
+        return handleScheduleCommand(
+          repository,
+          scheduleRunner,
+          command,
+          publishWorkspace,
         );
-        if (!schedule)
-          throw new Error(`Schedule not found: ${command.scheduleId}`);
-        if (command.type === "schedule.delete")
-          repository.deleteSchedule(schedule.workspaceId, schedule.id);
-        else
-          repository.saveSchedule({
-            ...schedule,
-            enabled: command.type === "schedule.resume",
-          });
-        await publish();
-        return {};
-      }
       if (command.type !== "submit") return {};
       return conversationRuns.enqueue(
         `${command.workspaceId}:${command.conversationId}`,
@@ -828,11 +493,11 @@ export async function createApplication(
       command.workspaceId,
       command.conversationId,
     );
-    const agentId =
-      existingConversation?.kind === "direct"
-        ? (existingConversation.participantIds.find((id) => id !== "human") ??
-          "demo-agent")
-        : (command.agentId ?? "demo-agent");
+    if (!existingConversation)
+      throw new Error(`Conversation not found: ${command.conversationId}`);
+    const agentId = existingConversation.participantIds.find(
+      (id) => id !== "human",
+    );
     logger.info(
       {
         workspaceId: command.workspaceId,
@@ -841,12 +506,8 @@ export async function createApplication(
       },
       "message queued",
     );
-    ensureWorkspace(command.workspaceId, command.conversationId, agentId);
-    const conversation = repository.getConversation(
-      command.workspaceId,
-      command.conversationId,
-    );
-    if (!conversation) throw new Error("Conversation was not created");
+    if (!agentId) throw new Error("Conversation has no Agent");
+    const conversation = existingConversation;
     const agents = conversation.participantIds
       .filter((id) => id !== "human")
       .map((id) => repository.getParticipant(command.workspaceId, id))
@@ -885,27 +546,38 @@ export async function createApplication(
     const assignments =
       conversation.kind === "group"
         ? await new AgentRouter(
-            models.get(conversation.routing?.routerModelKey ?? "demo") ?? model,
+            models.get(conversation.routing?.routerModelKey ?? "default") ??
+              model,
           ).route({
             workspaceId: command.workspaceId,
             conversationId: command.conversationId,
             messageId: message.id,
             body: command.body,
-            recentContext: repository
-              .listMessages(command.workspaceId, command.conversationId)
-              .slice(-20)
-              .map((item) => ({
-                senderId: item.senderId,
-                senderName:
-                  repository.getParticipant(command.workspaceId, item.senderId)
-                    ?.name ?? item.senderId,
-                body: item.body,
-              })),
+            recentContext: buildRoutingContext(
+              repository,
+              command.workspaceId,
+              command.conversationId,
+              message.id,
+            ),
             candidates,
             maxAgents: conversation.routing?.maxAgents ?? 3,
             fallbackAgentId:
               conversation.routing?.fallbackAgentId ?? agents[0].id,
             mentionedAgentIds,
+            onError: (error) =>
+              logger.warn(
+                {
+                  err: error,
+                  workspaceId: command.workspaceId,
+                  conversationId: command.conversationId,
+                  messageId: message.id,
+                  routerModel:
+                    conversation.routing?.routerModelKey ?? "default",
+                  fallbackAgentId:
+                    conversation.routing?.fallbackAgentId ?? agents[0].id,
+                },
+                "conversation router failed; using fallback",
+              ),
           })
         : {
             selectedAgentIds: [agents[0].id],
@@ -937,77 +609,39 @@ export async function createApplication(
       workspaceId: command.workspaceId,
       conversationId: command.conversationId,
     });
-    const allMessages = repository
-      .listMessages(command.workspaceId, command.conversationId)
-      .map((item) => item);
     const results = await Promise.all(
       assignments.assignments.map(async (assignment) => {
-        const runId = `run:${message.id}:${assignment.agentId}`;
-        const contextMessages = selectConversationContext(
-          buildAgentContextMessages(
-            allMessages,
-            assignment.agentId,
-            repository,
-            command.workspaceId,
-          ),
-          50,
-        );
-        const assignedAgent = agents.find(
-          (agent) => agent.id === assignment.agentId,
-        );
-        const turnMessages = [
+        return enqueueDispatchAssignment(
           {
-            role: "system" as const,
-            content:
-              assignedAgent?.agent?.persona ?? "You are a helpful Agent.",
+            ...assignment,
+            runId: `run:${message.id}:${assignment.agentId}`,
+            status: "queued",
           },
-          ...(conversation.kind === "group"
-            ? [
-                {
-                  role: "system" as const,
-                  content: `Assignment: ${assignment.instruction}`,
-                },
-              ]
-            : []),
-          ...contextMessages,
-        ];
-        const enqueued = await worker.enqueue({
-          runId,
-          turn: {
-            messages: turnMessages,
-          },
-          dependencies: {
-            modelKey:
-              repository.getParticipant(command.workspaceId, assignment.agentId)
-                ?.agent?.modelKey ?? "demo",
-            toolsetKey: "local",
-          },
-          context: {
-            workspaceId: command.workspaceId,
-            agentId: assignment.agentId,
-            toolNames:
-              repository.getParticipant(command.workspaceId, assignment.agentId)
-                ?.agent?.toolNames ?? [],
-            conversationId: command.conversationId,
-            trigger: conversation.kind === "group" ? "mention" : "mention",
-            sourceRef: { type: "message", id: message.id },
-          },
-        });
-        if (!enqueued.created) return enqueued.run;
-        return worker.run(runId);
+          conversation,
+          message,
+          assignments.source === "mention" ? "mention" : "routing",
+        );
       }),
     );
     const runs = results.filter((run): run is AgentRun => Boolean(run));
     reconcileDispatches(runs);
     for (const run of runs) projector.project(run);
-    await publish({ scope: "dispatch", dispatchId });
+    await publish({
+      scope: "dispatch",
+      dispatchId,
+      workspaceId: command.workspaceId,
+    });
     const waiting = runs.filter(requiresApproval);
     if (waiting.length > 0) {
       const terminals = await Promise.all(
         waiting.map((run) => waitForTerminalRun(() => runStore.get(run.runId))),
       );
       for (const run of terminals) if (run) projector.project(run);
-      await publish({ scope: "dispatch", dispatchId });
+      await publish({
+        scope: "dispatch",
+        dispatchId,
+        workspaceId: command.workspaceId,
+      });
       const completed = terminals.filter((run): run is AgentRun =>
         Boolean(run),
       );
@@ -1015,11 +649,132 @@ export async function createApplication(
     }
     return { run: runs.at(-1), runs, created: true };
   }
+  async function resumePendingDispatches(): Promise<void> {
+    const runs = (await runStore.listRuns()).runs;
+    const runIds = new Set(runs.map((run) => run.runId));
+    const pending = repository
+      .listDispatches()
+      .filter((dispatch) =>
+        dispatch.assignments.some(
+          (assignment) =>
+            !runIds.has(assignment.runId) &&
+            (assignment.status === "queued" || assignment.status === "running"),
+        ),
+      );
+    for (const dispatch of pending) {
+      const conversation = repository.getConversation(
+        dispatch.workspaceId,
+        dispatch.conversationId,
+      );
+      const message = repository
+        .listMessages(dispatch.workspaceId, dispatch.conversationId)
+        .find((item) => item.id === dispatch.messageId);
+      if (!conversation || !message) {
+        logger.warn(
+          {
+            dispatchId: dispatch.id,
+            workspaceId: dispatch.workspaceId,
+            conversationId: dispatch.conversationId,
+            messageId: dispatch.messageId,
+          },
+          "cannot resume Dispatch with missing source records",
+        );
+        continue;
+      }
+      const missing = dispatch.assignments.filter(
+        (assignment) => !runIds.has(assignment.runId),
+      );
+      await Promise.all(
+        missing.map((assignment) =>
+          enqueueDispatchAssignment(
+            assignment,
+            conversation,
+            message,
+            message.mentions.length > 0 ? "mention" : "routing",
+          ),
+        ),
+      );
+    }
+  }
+  async function enqueueDispatchAssignment(
+    assignment: ConversationDispatch["assignments"][number],
+    conversation: Conversation,
+    message: Message,
+    trigger: "mention" | "routing",
+  ): Promise<AgentRun | undefined> {
+    const participant = repository.getParticipant(
+      message.workspaceId,
+      assignment.agentId,
+    );
+    if (!participant?.agent) {
+      logger.warn(
+        {
+          dispatchId: `dispatch:${message.id}`,
+          workspaceId: message.workspaceId,
+          conversationId: message.conversationId,
+          messageId: message.id,
+          agentId: assignment.agentId,
+        },
+        "cannot enqueue Dispatch assignment for missing Agent",
+      );
+      return undefined;
+    }
+    const allMessages = repository.listMessages(
+      message.workspaceId,
+      message.conversationId,
+    );
+    const contextMessages = selectConversationContext(
+      buildAgentContextMessages(
+        allMessages,
+        assignment.agentId,
+        repository,
+        message.workspaceId,
+      ),
+      50,
+    );
+    const turnMessages = [
+      {
+        role: "system" as const,
+        content: participant.agent.persona ?? "You are a helpful Agent.",
+      },
+      ...(conversation.kind === "group"
+        ? [
+            {
+              role: "system" as const,
+              content: `Assignment: ${assignment.instruction}`,
+            },
+          ]
+        : []),
+      ...contextMessages,
+    ];
+    const enqueued = await worker.enqueue({
+      runId: assignment.runId,
+      turn: { messages: turnMessages },
+      dependencies: {
+        modelKey: participant.agent.modelKey,
+        toolsetKey: "local",
+      },
+      context: {
+        workspaceId: message.workspaceId,
+        agentId: assignment.agentId,
+        toolNames: participant.agent.toolNames,
+        conversationId: message.conversationId,
+        trigger: conversation.kind === "direct" ? "direct" : trigger,
+        sourceRef: { type: "message", id: message.id },
+      },
+    });
+    if (!enqueued.created) return enqueued.run;
+    return worker.run(assignment.runId);
+  }
   async function publish(
     invalidation: SnapshotInvalidation = { scope: "shell" },
   ): Promise<void> {
     reconcileDispatches((await runStore.listRuns()).runs);
     for (const listener of invalidationListeners) listener(invalidation);
+  }
+
+  function publishWorkspace(workspaceId: string): Promise<void> {
+    return publish({ scope: "workspace", workspaceId });
   }
 
   function ensureDefaultWorkspace(): void {
@@ -1031,6 +786,15 @@ export async function createApplication(
       createdAt: now,
       updatedAt: now,
     });
+  }
+  function migrateLegacyModelKeys(): void {
+    for (const workspace of repository.listWorkspaces())
+      for (const participant of repository.listParticipants(workspace.id))
+        if (participant.agent?.modelKey === "demo")
+          repository.saveParticipant({
+            ...participant,
+            agent: { ...participant.agent, modelKey: "default" },
+          });
   }
   async function publishRuntimeUpdate(run: AgentRun): Promise<void> {
     reconcileDispatches((await runStore.listRuns()).runs);
@@ -1045,7 +809,12 @@ export async function createApplication(
       .find((item) =>
         item.assignments.some((assignment) => assignment.runId === run.runId),
       );
-    if (dispatch) scopes.push({ scope: "dispatch", dispatchId: dispatch.id });
+    if (dispatch)
+      scopes.push({
+        scope: "dispatch",
+        dispatchId: dispatch.id,
+        workspaceId: dispatch.workspaceId,
+      });
     if (run.context?.workspaceId && run.context.conversationId) {
       scopes.push({
         scope: "conversation",
@@ -1078,45 +847,6 @@ export async function createApplication(
     await publish();
     return result;
   }
-  function ensureWorkspace(
-    workspaceId: string,
-    conversationId: string,
-    agentId: string,
-  ): void {
-    if (!repository.getParticipant(workspaceId, agentId))
-      repository.saveParticipant({
-        id: agentId,
-        workspaceId,
-        kind: "agent",
-        name: "Demo Agent",
-        status: "active",
-        agent: {
-          modelKey: "demo",
-          persona: "Helpful local Agent",
-          role: "general assistant",
-          capabilities: ["general"],
-          toolNames: [],
-        },
-      });
-    if (!repository.getParticipant(workspaceId, "human"))
-      repository.saveParticipant({
-        id: "human",
-        workspaceId,
-        kind: "human",
-        name: "You",
-        status: "active",
-      });
-    if (!repository.getConversation(workspaceId, conversationId))
-      repository.saveConversation({
-        id: conversationId,
-        workspaceId,
-        kind: "direct",
-        participantIds: ["human", agentId],
-        createdAt: new Date().toISOString(),
-      });
-    // Existing conversations keep their membership invariant; submit never
-    // mutates direct or group participants.
-  }
   function ensureOwner(workspaceId: string): void {
     if (!repository.getWorkspace(workspaceId))
       throw new Error(`Workspace not found: ${workspaceId}`);
@@ -1129,54 +859,6 @@ export async function createApplication(
         status: "active",
       });
   }
-}
-
-async function withShutdownDeadline<T>(
-  operation: Promise<T>,
-  deadline: number,
-  phase: string,
-  logger: Logger,
-): Promise<T | undefined> {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) {
-    logger.warn({ phase }, "shutdown deadline reached");
-    return undefined;
-  }
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<undefined>((resolve) => {
-        timer = setTimeout(() => {
-          logger.warn({ phase }, "shutdown phase exceeded deadline");
-          resolve(undefined);
-        }, remaining);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-function withPhase(run: AgentRun): AgentRun & { readonly phase: RunPhase } {
-  let phase: RunPhase;
-  switch (run.status as RunStatus) {
-    case "queued":
-      phase = "pending";
-      break;
-    case "running":
-    case "retrying":
-      phase = "active";
-      break;
-    case "waiting":
-    case "blocked":
-    case "interrupted":
-      phase = "waiting";
-      break;
-    default:
-      phase = "terminal";
-  }
-  return { ...run, phase };
 }
 
 function statusForRun(run: AgentRun | undefined): DispatchAssignmentStatus {
@@ -1240,19 +922,61 @@ function validateAgentInput(
   input: AgentInput,
   tooling: RuntimeTooling,
   models: ReadonlyMap<string, ModelAdapter | StreamingModelAdapter>,
+  configuredModelKeys: ReadonlySet<string>,
 ): void {
   if (!models.has(input.modelKey))
     throw new Error(`Unknown model: ${input.modelKey}`);
+  if (!configuredModelKeys.has(input.modelKey))
+    throw new Error(`Model is not configured: ${input.modelKey}`);
   validateToolNames(input.toolNames, tooling);
+}
+
+function normalizeModelKey(modelKey: string): string {
+  return modelKey === "demo" ? "default" : modelKey;
+}
+
+function buildRoutingContext(
+  repository: WorkspaceRepository,
+  workspaceId: string,
+  conversationId: string,
+  currentMessageId: string,
+): readonly { senderId: string; senderName: string; body: string }[] {
+  const messages = repository
+    .listMessages(workspaceId, conversationId)
+    .filter((message) => message.id !== currentMessageId)
+    .slice(-20)
+    .map((message) => ({
+      senderId: message.senderId,
+      senderName:
+        repository.getParticipant(workspaceId, message.senderId)?.name ??
+        message.senderId,
+      body: message.body,
+    }));
+  const budget = 6_000;
+  let used = 0;
+  const selected: typeof messages = [];
+  for (const message of [...messages].reverse()) {
+    const size =
+      message.senderId.length + message.senderName.length + message.body.length;
+    if (selected.length > 0 && used + size > budget) break;
+    selected.unshift(message);
+    used += size;
+  }
+  return selected;
 }
 
 function validateAgentPatch(
   patch: AgentPatch,
   tooling: RuntimeTooling,
   models: ReadonlyMap<string, ModelAdapter | StreamingModelAdapter>,
+  configuredModelKeys: ReadonlySet<string>,
 ): void {
-  if (patch.modelKey !== undefined && !models.has(patch.modelKey))
-    throw new Error(`Unknown model: ${patch.modelKey}`);
+  if (patch.modelKey !== undefined) {
+    if (!models.has(patch.modelKey))
+      throw new Error(`Unknown model: ${patch.modelKey}`);
+    if (!configuredModelKeys.has(patch.modelKey))
+      throw new Error(`Model is not configured: ${patch.modelKey}`);
+  }
   if (patch.toolNames !== undefined)
     validateToolNames(patch.toolNames, tooling);
 }

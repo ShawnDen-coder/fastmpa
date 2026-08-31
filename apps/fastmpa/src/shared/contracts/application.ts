@@ -19,7 +19,12 @@ export type ApplicationCommand =
     }
   | { type: "agent.activate"; workspaceId: string; agentId: string }
   | { type: "agent.archive"; workspaceId: string; agentId: string }
-  | { type: "conversation.direct.open"; workspaceId: string; agentId: string }
+  | {
+      type: "conversation.direct.open";
+      workspaceId: string;
+      agentId: string;
+      conversationId?: string;
+    }
   | {
       type: "conversation.group.create";
       workspaceId: string;
@@ -57,7 +62,6 @@ export type ApplicationCommand =
       workspaceId: string;
       conversationId: string;
       body: string;
-      agentId?: string;
     }
   | { type: "cancel"; runId: string }
   | { type: "retry"; runId: string }

@@ -55,7 +55,7 @@ export class RuntimeWorkerLoop {
     }, pollIntervalMs);
   }
 
-  public async stop(): Promise<void> {
+  public async stop(_signal?: AbortSignal): Promise<void> {
     // 先取消定时器，阻止新的 tick；已有 cycle 仍需完整执行后才能关闭 Store。
     if (this.timer) {
       this.stopInterval(this.timer);

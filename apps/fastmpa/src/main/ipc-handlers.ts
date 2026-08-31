@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { app, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import type { FastMpaApplication } from "../application/application.js";
 import type { ApplicationLogEntry } from "../shared/contracts/application.js";
+import type { ShellSnapshotQuery } from "../shared/contracts/snapshot.js";
 import { desktopChannels } from "../shared/desktop-api.js";
 import {
   type IpcResponse,
@@ -24,10 +25,26 @@ export function registerIpcHandlers({
   getApplication,
   getLogPath,
 }: IpcHandlerDependencies): void {
-  ipcMain.handle(desktopChannels.getShellSnapshot, (event) => {
+  ipcMain.handle(desktopChannels.getShellSnapshot, (event, query: unknown) => {
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
-    return respond(() => getApplication().getShellSnapshot());
+    if (
+      query !== undefined &&
+      (typeof query !== "object" ||
+        query === null ||
+        Object.keys(query).some((key) => key !== "workspaceId") ||
+        ("workspaceId" in query &&
+          (typeof query.workspaceId !== "string" || query.workspaceId === "")))
+    )
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Invalid shell snapshot query"),
+      });
+    return respond(() =>
+      getApplication().getShellSnapshot(
+        query as ShellSnapshotQuery | undefined,
+      ),
+    );
   });
   ipcMain.handle(desktopChannels.getConversationSnapshot, (event, query) => {
     const rejected = rejectUntrustedSender(event);
@@ -154,8 +171,10 @@ async function respond<T>(
     return { ok: true, value: await operation() };
   } catch (error: unknown) {
     const code =
-      error instanceof Error && "code" in error && error.code === "NOT_READY"
-        ? "NOT_READY"
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "NOT_READY" || error.code === "APPLICATION_STOPPING")
+        ? error.code
         : "APPLICATION_ERROR";
     return {
       ok: false,

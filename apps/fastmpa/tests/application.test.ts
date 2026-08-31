@@ -2,10 +2,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import {
   DefaultRuntimeTooling,
+  openSqliteDatabase,
   ToolCatalog,
   ToolPipeline,
 } from "@shawnden-coder/agent-runtime";
 import { describe, expect, it } from "vitest";
+import { SqliteWorkspaceRepository } from "workspace";
 import type { FastMpaApplication } from "../src/application/application.js";
 import {
   createApplication,
@@ -23,6 +25,38 @@ type ApplicationView = ShellSnapshot & {
   readonly runs: readonly NonNullable<RunSnapshot["run"]>[];
 };
 
+const testModel = {
+  complete: async () => ({
+    type: "text" as const,
+    content: "fallback",
+  }),
+};
+
+async function provisionDirectConversation(
+  app: FastMpaApplication,
+  conversationId: string,
+  workspaceId = "default",
+): Promise<void> {
+  const agent = await app.dispatch({
+    type: "agent.create",
+    workspaceId,
+    input: {
+      name: `Test Agent ${conversationId}`,
+      modelKey: "default",
+      persona: "Helpful local Agent",
+      role: "assistant",
+      capabilities: ["general"],
+      toolNames: [],
+    },
+  });
+  await app.dispatch({
+    type: "conversation.direct.open",
+    workspaceId,
+    agentId: agent.participant?.id ?? "",
+    conversationId,
+  });
+}
+
 async function readApplicationView(
   app: FastMpaApplication,
   query: {
@@ -30,8 +64,10 @@ async function readApplicationView(
     readonly conversationId?: string;
   } = {},
 ): Promise<ApplicationView> {
-  const shell = await app.getShellSnapshot();
-  const workspaceId = query.workspaceId ?? shell.selectedWorkspaceId;
+  const shell = await app.getShellSnapshot(
+    query.workspaceId ? { workspaceId: query.workspaceId } : undefined,
+  );
+  const workspaceId = query.workspaceId ?? shell.workspaceId;
   const conversations = shell.conversations.filter(
     (conversation) =>
       (!workspaceId || conversation.workspaceId === workspaceId) &&
@@ -55,7 +91,6 @@ async function readApplicationView(
   );
   return {
     ...shell,
-    selectedWorkspaceId: workspaceId,
     selectedConversationId: query.conversationId,
     conversations,
     messages: conversationSnapshots.flatMap((snapshot) => snapshot.messages),
@@ -76,6 +111,7 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     await app.start();
     await expect(
@@ -105,18 +141,6 @@ describe("FastMpaApplication", () => {
       },
     });
     expect(created.participant?.name).toBe("Researcher");
-    const second = await app.dispatch({
-      type: "agent.create",
-      workspaceId: "default",
-      input: {
-        name: "Writer",
-        modelKey: "demo",
-        persona: "Write",
-        role: "writer",
-        capabilities: ["writing"],
-        toolNames: [],
-      },
-    });
     const direct = await app.dispatch({
       type: "conversation.direct.open",
       workspaceId: "default",
@@ -126,7 +150,6 @@ describe("FastMpaApplication", () => {
       type: "submit",
       workspaceId: "default",
       conversationId: direct.conversationId ?? "",
-      agentId: second.participant?.id,
       body: "Keep direct membership stable",
     });
     expect(
@@ -159,12 +182,14 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     const invalidations: string[] = [];
     app.subscribeSnapshotInvalidated((scope) =>
       invalidations.push(scope.scope),
     );
     await app.start();
+    await provisionDirectConversation(app, "invalidations");
     await app.dispatch({
       type: "submit",
       workspaceId: "default",
@@ -181,8 +206,10 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     await app.start();
+    await provisionDirectConversation(app, "scoped");
     const result = await app.dispatch({
       type: "submit",
       workspaceId: "default",
@@ -478,6 +505,7 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     await app.start();
     const agent = await app.dispatch({
@@ -530,6 +558,7 @@ describe("FastMpaApplication", () => {
         events.push(`${event.runId}:${event.delta}`);
     });
     await app.start();
+    await provisionDirectConversation(app, "default");
     const result = await app.dispatch({
       type: "submit",
       workspaceId: "default",
@@ -549,19 +578,14 @@ describe("FastMpaApplication", () => {
   it("supports a persistent workspace conversation across switching and restart", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const databasePath = join(directory, "state.sqlite");
-    const first = await createApplication({ databasePath });
+    const first = await createApplication({ databasePath, model: testModel });
     await first.start();
     await first.dispatch({
       type: "workspace.create",
       workspaceId: "project-a",
       name: "Project A",
     });
-    await first.dispatch({
-      type: "conversation.create",
-      workspaceId: "project-a",
-      conversationId: "conversation-a",
-      title: "Daily work",
-    });
+    await provisionDirectConversation(first, "conversation-a", "project-a");
     for (const body of ["one", "two", "three"])
       await first.dispatch({
         type: "submit",
@@ -628,7 +652,7 @@ describe("FastMpaApplication", () => {
     const snapshot = await readApplicationView(app, {
       workspaceId: "project-a",
     });
-    expect(snapshot.selectedWorkspaceId).toBe("project-a");
+    expect(snapshot.workspaceId).toBe("project-a");
     expect(snapshot.workspaces).toContainEqual(
       expect.objectContaining({ id: "project-a", name: "Renamed Project" }),
     );
@@ -647,6 +671,7 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     await app.start();
     const agent = await app.dispatch({
@@ -709,8 +734,10 @@ describe("FastMpaApplication", () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const app = await createApplication({
       databasePath: join(directory, "state.sqlite"),
+      model: testModel,
     });
     await app.start();
+    await provisionDirectConversation(app, "default");
     const result = await app.dispatch({
       type: "submit",
       workspaceId: "default",
@@ -731,8 +758,9 @@ describe("FastMpaApplication", () => {
   it("keeps identical message text idempotent per message and replays once", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
     const databasePath = join(directory, "state.sqlite");
-    const first = await createApplication({ databasePath });
+    const first = await createApplication({ databasePath, model: testModel });
     await first.start();
+    await provisionDirectConversation(first, "default");
     await first.dispatch({
       type: "submit",
       workspaceId: "default",
@@ -747,16 +775,118 @@ describe("FastMpaApplication", () => {
     });
     await first.stop();
 
-    const second = await createApplication({ databasePath });
+    const second = await createApplication({ databasePath, model: testModel });
     await second.start();
     const snapshot = await readApplicationView(second);
     expect(snapshot.runs).toHaveLength(2);
     expect(
-      snapshot.messages.filter((message) => message.senderId === "demo-agent"),
+      snapshot.messages.filter((message) => message.senderId !== "human"),
     ).toHaveLength(2);
     await second.stop();
     await rm(directory, { recursive: true, force: true });
   });
+
+  it("resumes a persisted Dispatch without routing the message again", async () => {
+    const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
+    const databasePath = join(directory, "state.sqlite");
+    const initial = await createApplication({ databasePath, model: testModel });
+    await initial.start();
+    await initial.stop();
+
+    const database = await openSqliteDatabase({
+      filePath: databasePath,
+      migrationsFolder: false,
+    });
+    const repository = SqliteWorkspaceRepository.fromDatabase(database.client);
+    const now = new Date().toISOString();
+    repository.saveParticipant({
+      id: "human",
+      workspaceId: "default",
+      kind: "human",
+      name: "You",
+      status: "active",
+    });
+    repository.saveParticipant({
+      id: "recovery-agent",
+      workspaceId: "default",
+      kind: "agent",
+      name: "Recovery Agent",
+      status: "active",
+      agent: {
+        modelKey: "default",
+        persona: "Recover persisted work",
+        role: "assistant",
+        capabilities: [],
+        toolNames: [],
+      },
+    });
+    repository.saveConversation({
+      id: "recovery-conversation",
+      workspaceId: "default",
+      kind: "direct",
+      title: "Recovery",
+      participantIds: ["human", "recovery-agent"],
+      createdAt: now,
+    });
+    repository.saveMessage({
+      id: "recovery-message",
+      workspaceId: "default",
+      conversationId: "recovery-conversation",
+      senderId: "human",
+      body: "resume this persisted task",
+      mentions: [],
+      sequence: 1,
+      createdAt: now,
+    });
+    repository.saveDispatch({
+      id: "dispatch:recovery-message",
+      workspaceId: "default",
+      conversationId: "recovery-conversation",
+      messageId: "recovery-message",
+      status: "queued",
+      assignments: [
+        {
+          agentId: "recovery-agent",
+          instruction: "Respond using the persisted assignment.",
+          reason: "Persisted before shutdown",
+          runId: "run:recovery-message:recovery-agent",
+          status: "queued",
+        },
+      ],
+      createdAt: now,
+    });
+    repository.close();
+    database.client.close();
+
+    let routerCalls = 0;
+    const model = {
+      complete: async (input: {
+        messages: readonly { role: string; content: string }[];
+      }) => {
+        if (
+          input.messages.some((message) =>
+            message.content.includes("You route"),
+          )
+        )
+          routerCalls += 1;
+        return { type: "text" as const, content: "recovered" };
+      },
+    };
+    const recovered = await createApplication({ databasePath, model });
+    await recovered.start();
+    const snapshot = await recovered.getShellSnapshot({
+      workspaceId: "default",
+    });
+    expect(routerCalls).toBe(0);
+    expect(snapshot.dispatches).toContainEqual(
+      expect.objectContaining({
+        id: "dispatch:recovery-message",
+        status: "completed",
+      }),
+    );
+    await recovered.stop();
+    await rm(directory, { recursive: true, force: true });
+  }, 20_000);
 
   it("passes the existing conversation history into the next turn", async () => {
     const directory = await mkdtemp(join(process.cwd(), "fastmpa-test-"));
@@ -774,6 +904,7 @@ describe("FastMpaApplication", () => {
       model,
     });
     await app.start();
+    await provisionDirectConversation(app, "default");
     await app.dispatch({
       type: "submit",
       workspaceId: "default",

@@ -4,7 +4,13 @@ export interface RunContext {
   readonly toolNames?: readonly string[];
   readonly workspaceId: string;
   readonly conversationId?: string;
-  readonly trigger: "mention" | "assignment" | "schedule" | "manual";
+  readonly trigger:
+    | "mention"
+    | "routing"
+    | "direct"
+    | "assignment"
+    | "schedule"
+    | "manual";
   readonly sourceRef?: {
     readonly type: "message" | "card" | "schedule";
     readonly id: string;

@@ -24,6 +24,7 @@ export class ScheduleRunner {
   private readonly stopInterval: typeof clearInterval;
   private timer: ReturnType<typeof setInterval> | undefined;
   private cycle: Promise<readonly WakeSignal[]> | undefined;
+  private stopping = false;
 
   public constructor(private readonly options: ScheduleRunnerOptions) {
     this.now = options.now ?? Date.now;
@@ -61,6 +62,7 @@ export class ScheduleRunner {
 
   /** 扫描到期 Schedule，并把每个到期定义转换成一次 WakeSignal。 */
   public tick(at = this.now()): readonly WakeSignal[] {
+    if (this.stopping) return [];
     const signals: WakeSignal[] = [];
     for (const schedule of this.options.repository.listSchedules()) {
       if (
@@ -112,6 +114,7 @@ export class ScheduleRunner {
 
   public start(): void {
     if (this.timer) return;
+    this.stopping = false;
     const pollIntervalMs = this.options.pollIntervalMs ?? 1_000;
     if (!Number.isInteger(pollIntervalMs) || pollIntervalMs < 1)
       throw new Error("Schedule pollIntervalMs must be a positive integer");
@@ -122,12 +125,17 @@ export class ScheduleRunner {
     }, pollIntervalMs);
   }
 
-  public async stop(): Promise<void> {
-    // 停止新扫描后 drain 当前派发；失败状态会在 dispatchCycle 中持久化。
+  public async stop(_signal?: AbortSignal): Promise<void> {
+    // 只停止新扫描；当前派发由 Application 在取消 Runs 后统一 drain。
+    this.stopping = true;
     if (this.timer) {
       this.stopInterval(this.timer);
       this.timer = undefined;
     }
+  }
+
+  /** Wait until an already-started dispatch cycle has finished. */
+  public async drain(): Promise<void> {
     await this.cycle;
   }
 
