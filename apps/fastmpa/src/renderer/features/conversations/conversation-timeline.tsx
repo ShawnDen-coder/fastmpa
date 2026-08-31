@@ -1,13 +1,12 @@
-import ReactMarkdown from "react-markdown";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import remarkGfm from "remark-gfm";
 import type { ApplicationEvent } from "../../../shared/contracts/application.js";
 import type {
   ConversationSnapshot,
   PersistedRuntimeEvent,
 } from "../../../shared/contracts/snapshot.js";
-import { MarkdownPre } from "../../components/ui/markdown-pre.js";
+import type { ParticipantDto } from "../../../shared/contracts/workspace.js";
 import { ToolEventCard } from "../../components/ui/tool-event-card.js";
+import { MessageRow } from "../../components/workbench/message-row.js";
 
 type TimelineItem =
   | {
@@ -35,6 +34,7 @@ export function ConversationTimeline({
   onApprove,
   onReject,
   onRetry,
+  participants,
 }: {
   readonly messages: ConversationSnapshot["messages"];
   readonly messageListRef: React.RefObject<VirtuosoHandle | null>;
@@ -48,6 +48,7 @@ export function ConversationTimeline({
   readonly onApprove: (runId: string, approvalId: string) => void;
   readonly onReject: (runId: string, approvalId: string) => void;
   readonly onRetry: (runId: string, approvalId: string) => void;
+  readonly participants: readonly ParticipantDto[];
 }): React.JSX.Element {
   const items: readonly TimelineItem[] = [
     ...messages.map((value) => ({ kind: "message" as const, value })),
@@ -77,27 +78,12 @@ export function ConversationTimeline({
           itemContent={(_index, item) => {
             if (item.kind === "message")
               return (
-                <article
-                  className={
-                    item.value.senderId === "human" ? "message user" : "message"
-                  }
-                  key={item.value.id}
-                >
-                  <div className="avatar">
-                    {item.value.senderId === "human" ? "You" : "A"}
-                  </div>
-                  <div>
-                    <div className="message-meta">
-                      {item.value.senderId === "human" ? "You" : "Agent"}
-                    </div>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{ pre: MarkdownPre }}
-                    >
-                      {item.value.body}
-                    </ReactMarkdown>
-                  </div>
-                </article>
+                <MessageRow
+                  message={item.value}
+                  participant={participants.find(
+                    (participant) => participant.id === item.value.senderId,
+                  )}
+                />
               );
             if (item.kind === "tool")
               return (

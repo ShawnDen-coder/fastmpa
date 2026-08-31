@@ -356,6 +356,7 @@ export function DesktopShell(): React.JSX.Element {
               onMessagesAtLatestChange={setMessagesAtLatest}
               failedRun={failedRun}
               onRunSelect={setInspectorRunId}
+              participants={shellSnapshot?.participants ?? []}
               onApprove={(runId, approvalId) =>
                 void window.fastMpa.application.dispatch({
                   type: "approve",
