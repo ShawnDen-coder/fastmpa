@@ -168,6 +168,14 @@
   background: #dceafd;
 }
 
+.rail-item:focus-visible,
+.secondary-button:focus-visible,
+.approve-button:focus-visible,
+.reject-button:focus-visible {
+  outline: 2px solid #3276d8;
+  outline-offset: 2px;
+}
+
 .pane-resizer {
   width: 5px;
   margin-left: -3px;

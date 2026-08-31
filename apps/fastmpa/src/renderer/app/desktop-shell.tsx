@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import type { ApplicationEvent } from "../../shared/contracts/application.js";
+import { NavigationRail } from "../components/workbench/index.js";
 import { Composer } from "../features/conversations/composer.js";
 import { ConversationCreateDialog } from "../features/conversations/conversation-create-dialog.js";
 import { ConversationList } from "../features/conversations/conversation-list.js";
@@ -26,15 +27,6 @@ import "../styles/settings.css";
 import "../styles/logs.css";
 
 const EMPTY_PERSISTED_EVENTS = [] as const;
-
-const pages = [
-  "Conversations",
-  "Agents",
-  "Runs",
-  "Schedules",
-  "Logs",
-  "Settings",
-];
 
 function LiveConversationTimeline({
   conversationKey,
@@ -166,6 +158,9 @@ export function DesktopShell(): React.JSX.Element {
         .at(-1),
     [conversationSnapshot],
   );
+  const waitingRunCount = Object.values(runSnapshots).filter(
+    (snapshot) => snapshot.run?.status === "waiting",
+  ).length;
 
   return (
     <main className="app-shell">
@@ -299,20 +294,11 @@ export function DesktopShell(): React.JSX.Element {
             : `72px ${conversationListWidth}px 5px minmax(0, 1fr)`,
         }}
       >
-        <nav className="rail" aria-label="Primary navigation">
-          <div className="rail-logo">F</div>
-          {pages.map((item) => (
-            <button
-              type="button"
-              className={page === item ? "rail-item active" : "rail-item"}
-              key={item}
-              onClick={() => setPage(item)}
-              title={item}
-            >
-              {item.slice(0, 1)}
-            </button>
-          ))}
-        </nav>
+        <NavigationRail
+          activePage={page}
+          attentionCount={waitingRunCount}
+          onPageChange={setPage}
+        />
         <ConversationList
           workspace={workspace}
           conversations={shellSnapshot?.conversations ?? []}

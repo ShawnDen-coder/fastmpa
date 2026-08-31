@@ -1,10 +1,11 @@
 import { useShellStore } from "../stores/index.js";
+import type { WorkbenchPage } from "../components/workbench/types.js";
 
 export function useNavigationController(): {
-  readonly page: string;
+  readonly page: WorkbenchPage;
   readonly inspectorRunId: string | undefined;
   readonly conversationListWidth: number;
-  readonly setPage: (page: string) => void;
+  readonly setPage: (page: WorkbenchPage) => void;
   readonly setInspectorRunId: (runId: string | undefined) => void;
   readonly resizeConversationList: (
     event: React.PointerEvent<HTMLButtonElement>,
