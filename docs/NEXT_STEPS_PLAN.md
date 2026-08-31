@@ -86,7 +86,7 @@ apps/fastmpa/
 ```
 
 - [x] 删除无实际包入口职责的 `src/index.ts`；Application 只由 Main 装配，不将 Desktop 私有实现伪装成库导出。
-- [x] 将 `legacy-database.ts` 移入 `main/migrations` 并使用迁移语义命名；迁移只能由 Main 启动流程调用。
+- [x] 删除 Desktop 旧工作目录数据库迁移；Runtime Drizzle migrations 继续保留并纳入打包验证。
 - [x] 所有测试统一移动到顶层 `tests` 的对应分层目录，源码目录不再混放 `*.test.ts`。
 - [x] `tsconfig.json` 明确覆盖 `src`、`tests` 和三个 `vite.*.config.ts`；构建配置必须进入类型检查。
 - [x] 禁止新增 `utils`、`common`、`misc` 等无职责目录；共享代码必须归属 `shared/contracts`、`shared/ipc`、`components/ui` 或具体 feature。

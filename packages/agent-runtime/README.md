@@ -35,3 +35,22 @@ store.close()
 ```bash
 pnpm --filter fastmpa-examples exec vite-node agent-runtime-run.ts
 ```
+
+## Scheduler boundary
+
+Scheduler 只负责协调唤醒、去重、Attention 查询和 Runtime dispatch，不拥有
+Conversation、Card 或 Run 的事实来源：
+
+```text
+WorkspaceChange / Schedule → notify → dedupe → loadAttention → triage → enqueueRun
+```
+
+重复 Dispatch 由稳定 occurrence/message Run ID 和 Runtime 的 SQLite 入队幂等性处理；
+Lease 只存在于 Runtime 执行层。`ScheduleRunner` 只负责周期扫描和唤醒，
+`AgentContext` 由 Persona、工具名、Attention 和 Wake 来源组成。
+
+## Tooling boundary
+
+所有 TAPD、ShotGrid、MCP 等外部动作必须经过 Tool Catalog、参数校验、Policy、审批、
+幂等和审计流程。只读 Tool 可直接执行；写入 Tool 默认需要审批。外部执行器通过
+`RuntimeTooling` 注入，本包不包含平台 SDK 或领域业务规则。

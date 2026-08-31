@@ -20,11 +20,6 @@ Participant + Workspace
 - [项目 Roadmap](ROADMAP.md) — 唯一的总体阶段顺序、架构原则和包演进规划。
 - [当前实施计划](NEXT_STEPS_PLAN.md) — 当前里程碑、手动实现步骤和验收条件。
 
-### 已完成的基础阶段
-
-- [Agent Core Turn 计划](AGENT_CORE_TURN_PLAN.md) — Turn、Model、Tool、Context 与 Guard。
-- [Agent Runtime 计划](AGENT_RUNTIME_PLAN.md) — Run 生命周期、Store、Lease 和恢复设计。
-
 ### 项目入口
 
 - [项目 README](../README.md) — 产品目标、使用逻辑与常用命令。
@@ -44,7 +39,7 @@ Participant + Workspace
 
 - `ROADMAP.md` 回答“总体按什么顺序实现”。
 - `NEXT_STEPS_PLAN.md` 回答“现在手动实现什么”。
-- `*_PLAN.md` 记录某个阶段的学习目标、设计和验收，不再定义全局顺序。
+- 已完成阶段的职责、API 和约束进入对应包 README 或 `ARCHITECTURE.md`；不保留重复的历史计划。
 - 包内 `README.md` 只说明该包的职责、API、目录和命令。
 
 ## 学习工作流
