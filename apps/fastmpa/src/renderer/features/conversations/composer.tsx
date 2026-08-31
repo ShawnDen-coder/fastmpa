@@ -42,7 +42,8 @@ export function Composer({
   const failedMessage = useConversationStore((state) =>
     conversationKey ? state.failedMessages[conversationKey] : undefined,
   );
-  const activeAgentId = selectedAgentId ?? agents[0]?.id ?? "demo-agent";
+  const activeAgentId =
+    agents.find((agent) => agent.id === selectedAgentId)?.id ?? agents[0]?.id;
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string>();
 
@@ -52,7 +53,7 @@ export function Composer({
 
   const dispatchMessage = useCallback(
     async (body: string): Promise<void> => {
-      if (!workspaceId || !conversationId) return;
+      if (!workspaceId || !conversationId || !activeAgentId) return;
       setSending(true);
       setSendError(undefined);
       try {
@@ -129,13 +130,11 @@ export function Composer({
         <label>
           Agent
           <select
-            value={activeAgentId}
+            value={activeAgentId ?? ""}
             onChange={(event) => setSelectedAgentId(event.target.value)}
-            disabled={agents.length === 0 || sending}
+            disabled={!activeAgentId || sending}
           >
-            {agents.length === 0 && (
-              <option value="demo-agent">Default agent</option>
-            )}
+            {agents.length === 0 && <option value="">No active agent</option>}
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.name}
@@ -144,6 +143,10 @@ export function Composer({
           </select>
         </label>
         {sendQueue.length > 0 && <span>{sendQueue.length} queued</span>}
+        {!conversationId && <span>Select a conversation to start</span>}
+        {conversationId && agents.length === 0 && (
+          <span>No active agent is configured</span>
+        )}
       </div>
       {sendError && (
         <div className="composer-error" role="alert">
@@ -183,7 +186,9 @@ export function Composer({
         <button
           type="button"
           className="send-button"
-          disabled={!draft.trim() || closing}
+          disabled={
+            !draft.trim() || closing || !conversationId || !activeAgentId
+          }
           onClick={() => void submit()}
         >
           {sending ? "Queue" : "Send"}

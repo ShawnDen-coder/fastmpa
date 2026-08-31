@@ -12,7 +12,7 @@ export function AgentsPage({
   const [open, setOpen] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState<string>();
   const [name, setName] = useState("");
-  const [modelKey, setModelKey] = useState("demo");
+  const [modelKey, setModelKey] = useState("");
   const [role, setRole] = useState("assistant");
   const [persona, setPersona] = useState("You are a helpful FastMPA agent.");
   const [capabilities, setCapabilities] = useState("");
@@ -25,7 +25,7 @@ export function AgentsPage({
   const openCreate = (): void => {
     setEditingAgentId(undefined);
     setName("");
-    setModelKey("demo");
+    setModelKey("");
     setRole("assistant");
     setPersona("You are a helpful FastMPA agent.");
     setCapabilities("");
@@ -38,7 +38,7 @@ export function AgentsPage({
   ): void => {
     setEditingAgentId(participant.id);
     setName(participant.name);
-    setModelKey(participant.agent?.modelKey ?? "demo");
+    setModelKey(participant.agent?.modelKey ?? "");
     setRole(participant.agent?.role ?? "assistant");
     setPersona(participant.agent?.persona ?? "");
     setCapabilities(participant.agent?.capabilities.join(", ") ?? "");
@@ -67,7 +67,7 @@ export function AgentsPage({
               agentId: editingAgentId,
               patch: {
                 name: name.trim(),
-                modelKey: modelKey.trim() || "demo",
+                modelKey: modelKey.trim(),
                 persona: persona.trim() || "You are a helpful FastMPA agent.",
                 role: role.trim() || "assistant",
                 capabilities: capabilitiesList,
@@ -79,7 +79,7 @@ export function AgentsPage({
               workspaceId,
               input: {
                 name: name.trim(),
-                modelKey: modelKey.trim() || "demo",
+                modelKey: modelKey.trim(),
                 persona: persona.trim() || "You are a helpful FastMPA agent.",
                 role: role.trim() || "assistant",
                 capabilities: capabilitiesList,
@@ -248,7 +248,7 @@ export function AgentsPage({
               <button
                 type="submit"
                 className="send-button"
-                disabled={!name.trim() || pending}
+                disabled={!name.trim() || !modelKey.trim() || pending}
               >
                 {pending
                   ? "Saving…"

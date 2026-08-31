@@ -174,7 +174,16 @@ export function ConversationCreateDialog({
           <button type="button" className="secondary-button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="send-button" disabled={pending}>
+          <button
+            type="submit"
+            className="send-button"
+            disabled={
+              pending ||
+              activeAgents.length === 0 ||
+              (kind === "group" &&
+                (!title.trim() || selectedAgentIds.length === 0))
+            }
+          >
             {pending ? "Creating…" : "Create"}
           </button>
         </div>

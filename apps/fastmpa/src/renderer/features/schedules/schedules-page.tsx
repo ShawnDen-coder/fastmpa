@@ -95,7 +95,7 @@ function ScheduleCreateCard({
         <textarea
           value={instruction}
           onChange={(event) => setInstruction(event.target.value)}
-          placeholder="Review open tasks"
+          placeholder="Enter an instruction"
           rows={3}
         />
       </label>

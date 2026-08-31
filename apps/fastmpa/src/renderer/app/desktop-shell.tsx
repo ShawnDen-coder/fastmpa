@@ -360,12 +360,8 @@ export function DesktopShell(): React.JSX.Element {
         >
           Rename
         </button>
-        <span
-          className="title-model-status"
-          role="status"
-          aria-label="Model connection status"
-        >
-          <span /> demo · connected
+        <span className="title-model-status" role="status">
+          {desktopInfo?.model ?? "Model not configured"}
         </span>
         <input
           className="title-search"
@@ -492,10 +488,13 @@ export function DesktopShell(): React.JSX.Element {
                 )?.title ?? "Select a conversation"}
               </h2>
             </div>
-            <span className="status-pill">
-              <span />
-              Ready
-            </span>
+            {selectedConversation && (
+              <span className="status-pill">
+                <span />
+                {selectedConversation.activeRunStatus ??
+                  (selectedConversation.unread ? "Waiting" : "Idle")}
+              </span>
+            )}
             <button
               type="button"
               className="secondary-button"
