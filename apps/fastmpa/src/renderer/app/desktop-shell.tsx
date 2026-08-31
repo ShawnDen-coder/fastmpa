@@ -344,6 +344,15 @@ export function DesktopShell(): React.JSX.Element {
               onMessagesAtLatestChange={setMessagesAtLatest}
               failedRun={failedRun}
               onRunSelect={setInspectorRunId}
+              onApprove={(runId, approvalId) =>
+                void window.fastMpa.application.dispatch({ type: "approve", runId, approvalId })
+              }
+              onReject={(runId, approvalId) =>
+                void window.fastMpa.application.dispatch({ type: "reject", runId, approvalId })
+              }
+              onRetry={(runId) =>
+                void window.fastMpa.application.dispatch({ type: "retry", runId })
+              }
             />
           ) : (
             <PageView

@@ -32,6 +32,9 @@ export function ConversationTimeline({
   streamingText,
   failedRun,
   onRunSelect,
+  onApprove,
+  onReject,
+  onRetry,
 }: {
   readonly messages: ConversationSnapshot["messages"];
   readonly messageListRef: React.RefObject<VirtuosoHandle | null>;
@@ -42,6 +45,9 @@ export function ConversationTimeline({
   readonly streamingText: string;
   readonly failedRun?: NonNullable<ConversationSnapshot["runs"][number]>;
   readonly onRunSelect: (runId: string) => void;
+  readonly onApprove: (runId: string, approvalId: string) => void;
+  readonly onReject: (runId: string, approvalId: string) => void;
+  readonly onRetry: (runId: string, approvalId: string) => void;
 }): React.JSX.Element {
   const items: readonly TimelineItem[] = [
     ...messages.map((value) => ({ kind: "message" as const, value })),
@@ -95,7 +101,13 @@ export function ConversationTimeline({
               );
             if (item.kind === "tool")
               return (
-                <ToolEventCard event={item.value} onDetails={onRunSelect} />
+                <ToolEventCard
+                  event={item.value}
+                  onDetails={onRunSelect}
+                  onApprove={onApprove}
+                  onReject={onReject}
+                  onRetry={onRetry}
+                />
               );
             if (item.kind === "persisted")
               return (

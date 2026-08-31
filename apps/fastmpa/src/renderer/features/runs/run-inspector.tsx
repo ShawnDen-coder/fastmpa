@@ -31,7 +31,6 @@ export function RunInspector({
   const toolEvents = runEvents.filter(
     (event) =>
       event.type === "tool.started" ||
-      event.type === "tool.approval_required" ||
       event.type === "tool.completed",
   );
   return (
@@ -127,9 +126,12 @@ export function RunInspector({
               <div className="inspector-tools">
                 {toolEvents.map((event) => (
                   <ToolEventCard
-                    key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+                  key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
                     event={event}
                     onDetails={onClose}
+                    onApprove={() => undefined}
+                    onReject={() => undefined}
+                    onRetry={() => undefined}
                   />
                 ))}
               </div>
