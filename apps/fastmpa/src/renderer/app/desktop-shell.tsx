@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import type { ApplicationEvent } from "../../shared/contracts/application.js";
-import { ConversationHeader, NavigationRail } from "../components/workbench/index.js";
+import {
+  ConversationHeader,
+  NavigationRail,
+} from "../components/workbench/index.js";
 import { Composer } from "../features/conversations/composer.js";
 import { ConversationCreateDialog } from "../features/conversations/conversation-create-dialog.js";
 import { ConversationList } from "../features/conversations/conversation-list.js";
@@ -320,9 +323,13 @@ export function DesktopShell(): React.JSX.Element {
           {page === "Conversations" ? (
             <ConversationHeader
               conversation={selectedConversation}
-              participantCount={selectedConversation?.participantIds.length ?? 0}
+              participantCount={
+                selectedConversation?.participantIds.length ?? 0
+              }
               inspectorOpen={Boolean(inspectorRunId)}
-              canOpenInspector={Object.values(runSnapshots).some((item) => Boolean(item.run))}
+              canOpenInspector={Object.values(runSnapshots).some((item) =>
+                Boolean(item.run),
+              )}
               onToggleInspector={() =>
                 setInspectorRunId(
                   inspectorRunId
@@ -333,7 +340,12 @@ export function DesktopShell(): React.JSX.Element {
               onOpenMembers={() => setMembersDialogOpen(true)}
             />
           ) : (
-            <div className="chat-header"><div><p className="eyebrow">FastMPA</p><h2>{page}</h2></div></div>
+            <div className="chat-header">
+              <div>
+                <p className="eyebrow">FastMPA</p>
+                <h2>{page}</h2>
+              </div>
+            </div>
           )}
           {page === "Conversations" ? (
             <LiveConversationTimeline
@@ -345,13 +357,24 @@ export function DesktopShell(): React.JSX.Element {
               failedRun={failedRun}
               onRunSelect={setInspectorRunId}
               onApprove={(runId, approvalId) =>
-                void window.fastMpa.application.dispatch({ type: "approve", runId, approvalId })
+                void window.fastMpa.application.dispatch({
+                  type: "approve",
+                  runId,
+                  approvalId,
+                })
               }
               onReject={(runId, approvalId) =>
-                void window.fastMpa.application.dispatch({ type: "reject", runId, approvalId })
+                void window.fastMpa.application.dispatch({
+                  type: "reject",
+                  runId,
+                  approvalId,
+                })
               }
               onRetry={(runId) =>
-                void window.fastMpa.application.dispatch({ type: "retry", runId })
+                void window.fastMpa.application.dispatch({
+                  type: "retry",
+                  runId,
+                })
               }
             />
           ) : (

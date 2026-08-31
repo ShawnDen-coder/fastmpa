@@ -24,9 +24,28 @@ export function ConversationHeader({
         {conversation && <small>{participantCount} 位参与者</small>}
       </div>
       <div className="conversation-header-actions">
-        {conversation && <span className="status-pill"><span />{conversation.activeRunStatus ?? (conversation.unread ? "等待处理" : "空闲")}</span>}
-        {conversation?.kind === "group" && <button type="button" className="secondary-button" onClick={onOpenMembers}>成员</button>}
-        <button type="button" className="secondary-button" disabled={!canOpenInspector} onClick={onToggleInspector}>
+        {conversation && (
+          <span className="status-pill">
+            <span />
+            {conversation.activeRunStatus ??
+              (conversation.unread ? "等待处理" : "空闲")}
+          </span>
+        )}
+        {conversation?.kind === "group" && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onOpenMembers}
+          >
+            成员
+          </button>
+        )}
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={!canOpenInspector}
+          onClick={onToggleInspector}
+        >
           {inspectorOpen ? "隐藏运行详情" : "查看运行详情"}
         </button>
       </div>

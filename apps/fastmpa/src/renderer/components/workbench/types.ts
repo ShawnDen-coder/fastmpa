@@ -1,4 +1,7 @@
-import type { MessageDto, ParticipantDto } from "../../../shared/contracts/workspace.js";
+import type {
+  MessageDto,
+  ParticipantDto,
+} from "../../../shared/contracts/workspace.js";
 
 export type WorkbenchPage =
   | "Conversations"
@@ -46,7 +49,12 @@ export interface ApprovalRequestViewModel {
   readonly toolName: string;
   readonly operation?: string;
   readonly target?: string;
-  readonly status: "pending" | "submitting" | "approved" | "rejected" | "failed";
+  readonly status:
+    | "pending"
+    | "submitting"
+    | "approved"
+    | "rejected"
+    | "failed";
   readonly error?: string;
 }
 

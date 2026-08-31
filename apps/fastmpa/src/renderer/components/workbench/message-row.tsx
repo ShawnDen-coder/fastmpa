@@ -1,6 +1,9 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { MessageDto, ParticipantDto } from "../../../shared/contracts/workspace.js";
+import type {
+  MessageDto,
+  ParticipantDto,
+} from "../../../shared/contracts/workspace.js";
 import { MarkdownPre } from "../ui/markdown-pre.js";
 import { AgentIdentity } from "./agent-identity.js";
 
@@ -16,9 +19,13 @@ export function MessageRow({
   const isUser = participant?.kind === "human" || message.senderId === "human";
   const name = participant?.name ?? (isUser ? "当前用户" : "Agent");
   return (
-    <article className={`message ${isUser ? "user" : ""} ${isStreaming ? "streaming" : ""}`}>
+    <article
+      className={`message ${isUser ? "user" : ""} ${isStreaming ? "streaming" : ""}`}
+    >
       {isUser ? (
-        <span className="avatar" aria-hidden="true">你</span>
+        <span className="avatar" aria-hidden="true">
+          你
+        </span>
       ) : (
         <AgentIdentity name={name} roleLabel={participant?.agent?.role} />
       )}
@@ -27,7 +34,10 @@ export function MessageRow({
           {name} · <time dateTime={message.createdAt}>{message.createdAt}</time>
           {isStreaming && " · 正在生成"}
         </div>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ pre: MarkdownPre }}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{ pre: MarkdownPre }}
+        >
           {message.body}
         </ReactMarkdown>
       </div>

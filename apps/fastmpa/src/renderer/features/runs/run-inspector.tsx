@@ -29,9 +29,7 @@ export function RunInspector({
   const run = snapshot.run;
   const runEvents = events.filter((event) => event.runId === runId);
   const toolEvents = runEvents.filter(
-    (event) =>
-      event.type === "tool.started" ||
-      event.type === "tool.completed",
+    (event) => event.type === "tool.started" || event.type === "tool.completed",
   );
   return (
     <aside className="inspector-pane" aria-label="Run inspector">
@@ -126,7 +124,7 @@ export function RunInspector({
               <div className="inspector-tools">
                 {toolEvents.map((event) => (
                   <ToolEventCard
-                  key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
+                    key={`${event.runId}-${event.type}-${JSON.stringify(event)}`}
                     event={event}
                     onDetails={onClose}
                     onApprove={() => undefined}

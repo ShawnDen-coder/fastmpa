@@ -1,5 +1,5 @@
-import { useShellStore } from "../stores/index.js";
 import type { WorkbenchPage } from "../components/workbench/types.js";
+import { useShellStore } from "../stores/index.js";
 
 export function useNavigationController(): {
   readonly page: WorkbenchPage;

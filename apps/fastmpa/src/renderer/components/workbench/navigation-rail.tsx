@@ -1,6 +1,10 @@
 import type { WorkbenchPage } from "./types.js";
 
-const pages: readonly { readonly id: WorkbenchPage; readonly label: string; readonly icon: string }[] = [
+const pages: readonly {
+  readonly id: WorkbenchPage;
+  readonly label: string;
+  readonly icon: string;
+}[] = [
   { id: "Conversations", label: "对话", icon: "对" },
   { id: "Agents", label: "Agents", icon: "A" },
   { id: "Runs", label: "Runs", icon: "R" },
@@ -20,7 +24,9 @@ export function NavigationRail({
 }): React.JSX.Element {
   return (
     <nav className="rail" aria-label="主导航">
-      <div className="rail-logo" aria-label="FastMPA">F</div>
+      <div className="rail-logo" title="FastMPA">
+        F
+      </div>
       {pages.map((page) => (
         <button
           type="button"
@@ -32,7 +38,7 @@ export function NavigationRail({
         >
           {page.icon}
           {page.id === "Conversations" && attentionCount > 0 && (
-            <span className="rail-badge" aria-label={`${attentionCount} 项待处理`}>
+            <span className="rail-badge" title={`${attentionCount} 项待处理`}>
               {attentionCount}
             </span>
           )}

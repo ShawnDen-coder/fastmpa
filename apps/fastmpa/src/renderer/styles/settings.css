@@ -7,18 +7,94 @@
   padding: 42px 8%;
 }
 
-.settings-page { display: grid; grid-template-columns: 190px minmax(0, 1fr); min-height: 0; flex: 1; overflow: auto; }
-.settings-navigation { padding: 28px 16px; background: #f8fafc; border-right: 1px solid #e2e8f0; }
-.settings-navigation button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; color: #607086; background: transparent; text-align: left; cursor: pointer; }
-.settings-navigation button.selected, .settings-navigation button:hover { color: #3276d8; background: #e8f0fc; font-weight: 700; }
-.settings-content { position: relative; width: min(860px, 100%); padding: 36px 7%; }
-.settings-header { margin-bottom: 24px; }
-.settings-header h2 { margin: 4px 0 8px; }
-.settings-group { display: grid; gap: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; }
-.settings-group h3 { margin: 0; padding: 16px 18px; background: #f8fafc; }
-.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 18px; border-top: 1px solid #eef2f7; }
-.setting-row > div:first-child { display: grid; gap: 4px; }
-.setting-row small { color: #718096; }
-.setting-row input[type="number"], .setting-row select { min-width: 150px; padding: 7px 9px; border: 1px solid #cdd8e6; border-radius: 7px; background: #fff; }
-.settings-save-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 12px 14px; border: 1px solid #d8e1ec; border-radius: 10px; background: #f8fafc; }
-.settings-save-bar > div { display: flex; gap: 8px; }
+.settings-page {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.settings-navigation {
+  padding: 28px 16px;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+}
+.settings-navigation button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #607086;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-navigation button.selected,
+.settings-navigation button:hover {
+  color: #3276d8;
+  background: #e8f0fc;
+  font-weight: 700;
+}
+.settings-content {
+  position: relative;
+  width: min(860px, 100%);
+  padding: 36px 7%;
+}
+.settings-header {
+  margin-bottom: 24px;
+}
+.settings-header h2 {
+  margin: 4px 0 8px;
+}
+.settings-group {
+  display: grid;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.settings-group h3 {
+  margin: 0;
+  padding: 16px 18px;
+  background: #f8fafc;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 18px;
+  border-top: 1px solid #eef2f7;
+}
+.setting-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.setting-row small {
+  color: #718096;
+}
+.setting-row input[type="number"],
+.setting-row select {
+  min-width: 150px;
+  padding: 7px 9px;
+  border: 1px solid #cdd8e6;
+  border-radius: 7px;
+  background: #fff;
+}
+.settings-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid #d8e1ec;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.settings-save-bar > div {
+  display: flex;
+  gap: 8px;
+}

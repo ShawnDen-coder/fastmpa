@@ -21,9 +21,15 @@
   place-items: center;
 }
 
-.workbench-conversation-header small { color: #718096; }
+.workbench-conversation-header small {
+  color: #718096;
+}
 
-.conversation-header-actions { display: flex; align-items: center; gap: 8px; }
+.conversation-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .presence-dot {
   width: 7px;
@@ -33,11 +39,17 @@
   background: #a0aec0;
 }
 
-.presence-active { background: #3d996f; }
+.presence-active {
+  background: #3d996f;
+}
 
-.presence-inactive { background: #a0aec0; }
+.presence-inactive {
+  background: #a0aec0;
+}
 
-.rail-item { position: relative; }
+.rail-item {
+  position: relative;
+}
 
 .rail-badge {
   position: absolute;

@@ -19,7 +19,7 @@ export function AgentIdentity({
       {status && (
         <span
           className={`presence-dot presence-${status}`}
-          aria-label={status === "active" ? "在线" : "离线"}
+          title={status === "active" ? "在线" : "离线"}
         />
       )}
     </div>
