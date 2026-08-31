@@ -39,6 +39,18 @@ typecheck:
 test:
     pnpm --config.confirmModulesPurge=false -r --if-present run test
 
+# Remove only generated application, package, release and log directories.
+clean:
+    Remove-Item -LiteralPath apps/fastmpa/dist, apps/fastmpa/release, apps/fastmpa/tmp, packages/agent-core/dist, packages/agent-core/dist-types, packages/agent-runtime/dist, packages/agent-runtime/dist-types, packages/workspace/dist, packages/workspace/dist-types, logs -Recurse -Force -ErrorAction SilentlyContinue
+
+# Remove dependency directories only when explicitly requested.
+clean-deps:
+    Remove-Item -LiteralPath node_modules, .pnpm-store -Recurse -Force -ErrorAction SilentlyContinue
+
+# Reject tracked logs, databases and build output.
+check-generated:
+    if (git ls-files | Select-String -Pattern '(^|[\\/])(tmp|logs|release|dist|dist-types)([\\/]|$)|\\.(sqlite|log)$$') { Write-Error "Generated files are tracked"; exit 1 } else { Write-Output "Tracked-generated-files check passed" }
+
 # Verify the built Electron Main, Preload and Renderer entrypoints.
 desktop-smoke:
     node apps/fastmpa/scripts/desktop-host-smoke.mjs
@@ -46,6 +58,7 @@ desktop-smoke:
 # Reproduce the GitHub CI checks locally
 ci:
     pnpm check
+    just check-generated
     just build
     just typecheck
     just test
