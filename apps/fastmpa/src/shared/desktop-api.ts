@@ -11,6 +11,7 @@ import type {
   RunSnapshot,
   ShellSnapshot,
 } from "./contracts/snapshot.js";
+import type { ConversationDispatchDto } from "./contracts/workspace.js";
 
 export const desktopChannels = {
   getDispatchSnapshot: "application:get-dispatch-snapshot",
@@ -47,9 +48,7 @@ export type FastMpaDesktopApi = {
       query: ConversationQuery,
     ): Promise<ConversationSnapshot>;
     getRunSnapshot(runId: string): Promise<RunSnapshot>;
-    getDispatchSnapshot(
-      dispatchId: string,
-    ): Promise<import("workspace").ConversationDispatch>;
+    getDispatchSnapshot(dispatchId: string): Promise<ConversationDispatchDto>;
     dispatch(command: ApplicationCommand): Promise<CommandResult>;
     getRecentLogs(limit?: number): Promise<readonly ApplicationLogEntry[]>;
     onEvents(
