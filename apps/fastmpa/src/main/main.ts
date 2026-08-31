@@ -12,6 +12,7 @@ import {
   isAllowedExternalUrl,
   isAllowedNavigation,
 } from "./navigation-policy.js";
+import { DesktopNotificationController } from "./notifications.js";
 import { resolveRendererPath } from "./renderer-path.js";
 import {
   defaultWindowState,
@@ -38,6 +39,7 @@ if (process.env.FASTMPA_E2E === "1")
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
 let isQuitting = false;
+let notificationController: DesktopNotificationController | undefined;
 const eventBatcher = new EventBatcher((events) => {
   broadcast(desktopChannels.event, events);
 });
@@ -178,12 +180,24 @@ async function start(): Promise<void> {
     getLogPath: () => requireApplication().getLogPath(),
   });
   application.subscribeEvents((event) => eventBatcher.push(event));
-  application.subscribeSnapshotInvalidated((scope) =>
-    broadcast(desktopChannels.snapshotInvalidated, scope),
-  );
+  application.subscribeSnapshotInvalidated((scope) => {
+    broadcast(desktopChannels.snapshotInvalidated, scope);
+    if (scope.scope === "run")
+      void requireApplication()
+        .getRunSnapshot(scope.runId)
+        .then((snapshot) => {
+          if (snapshot.run)
+            void notificationController?.handleRun(snapshot.run);
+        });
+  });
   application.subscribeLogs((entry) => logBatcher.push(entry));
   await application.start();
   mainWindow = createWindow();
+  notificationController = new DesktopNotificationController(
+    () => mainWindow,
+    (workspaceId) =>
+      requireApplication().getSettingsSnapshot(workspaceId).preferences,
+  );
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });
