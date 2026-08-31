@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isAllowedExternalUrl,
   isAllowedNavigation,
-} from "./navigation-policy.js";
+} from "../../src/main/navigation-policy.js";
 
 describe("navigation policy", () => {
   it("allows only the application origin and local development server", () => {
@@ -12,7 +12,6 @@ describe("navigation policy", () => {
     expect(isAllowedNavigation("app://fastmpa.evil/index.html")).toBe(false);
     expect(isAllowedNavigation("file:///secret.txt")).toBe(false);
   });
-
   it("allows HTTPS as the only external protocol", () => {
     expect(isAllowedExternalUrl("https://example.com")).toBe(true);
     expect(isAllowedExternalUrl("https://")).toBe(false);

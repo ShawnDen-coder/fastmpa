@@ -1,5 +1,5 @@
-import type { ApplicationCommand } from "../application/application.js";
-import type { SnapshotQuery } from "./desktop-api.js";
+import type { ApplicationCommand } from "../contracts/application.js";
+import type { SnapshotQuery } from "../desktop-api.js";
 
 export interface ApplicationErrorDto {
   readonly code:
@@ -22,6 +22,25 @@ function hasString(value: Record<string, unknown>, key: string): boolean {
   return typeof value[key] === "string" && value[key] !== "";
 }
 
+function isStringArray(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isAgentInput(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    hasString(value, "name") &&
+    hasString(value, "modelKey") &&
+    hasString(value, "persona") &&
+    hasString(value, "role") &&
+    isStringArray(value.capabilities) &&
+    isStringArray(value.toolNames) &&
+    (value.id === undefined || typeof value.id === "string")
+  );
+}
+
 export function isSnapshotQuery(value: unknown): value is SnapshotQuery {
   if (value === undefined) return true;
   if (!isRecord(value)) return false;
@@ -39,6 +58,19 @@ export function isSnapshotQuery(value: unknown): value is SnapshotQuery {
   );
 }
 
+export function isConversationQuery(
+  value: unknown,
+): value is { workspaceId: string; conversationId: string } {
+  return (
+    isRecord(value) &&
+    hasString(value, "workspaceId") &&
+    hasString(value, "conversationId") &&
+    Object.keys(value).every(
+      (key) => key === "workspaceId" || key === "conversationId",
+    )
+  );
+}
+
 export function isApplicationCommand(
   value: unknown,
 ): value is ApplicationCommand {
@@ -52,6 +84,58 @@ export function isApplicationCommand(
       );
     case "workspace.rename":
       return hasString(value, "workspaceId") && hasString(value, "name");
+    case "agent.create":
+      return hasString(value, "workspaceId") && isAgentInput(value.input);
+    case "agent.update":
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "agentId") &&
+        isRecord(value.patch) &&
+        (value.patch.name === undefined ||
+          typeof value.patch.name === "string") &&
+        (value.patch.modelKey === undefined ||
+          typeof value.patch.modelKey === "string") &&
+        (value.patch.persona === undefined ||
+          typeof value.patch.persona === "string") &&
+        (value.patch.role === undefined ||
+          typeof value.patch.role === "string") &&
+        (value.patch.capabilities === undefined ||
+          isStringArray(value.patch.capabilities)) &&
+        (value.patch.toolNames === undefined ||
+          isStringArray(value.patch.toolNames))
+      );
+    case "agent.activate":
+    case "agent.archive":
+      return hasString(value, "workspaceId") && hasString(value, "agentId");
+    case "conversation.direct.open":
+      return hasString(value, "workspaceId") && hasString(value, "agentId");
+    case "conversation.group.create":
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "title") &&
+        isStringArray(value.agentIds) &&
+        value.agentIds.length > 0 &&
+        (value.routing === undefined || isRecord(value.routing))
+      );
+    case "conversation.group.rename":
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "conversationId") &&
+        hasString(value, "title")
+      );
+    case "conversation.member.add":
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "conversationId") &&
+        isStringArray(value.agentIds) &&
+        value.agentIds.length > 0
+      );
+    case "conversation.member.remove":
+      return (
+        hasString(value, "workspaceId") &&
+        hasString(value, "conversationId") &&
+        hasString(value, "agentId")
+      );
     case "conversation.create":
       return (
         hasString(value, "workspaceId") &&

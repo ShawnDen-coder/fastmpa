@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isApplicationCommand, isSnapshotQuery } from "../src/shared/ipc.js";
+import {
+  isApplicationCommand,
+  isSnapshotQuery,
+} from "../src/shared/ipc/index.js";
 
 describe("desktop IPC payload guards", () => {
   it("accepts supported snapshot queries and rejects unknown shapes", () => {

@@ -12,6 +12,7 @@ dist
 dist-types
 .tsbuildinfo/
 release/
+release-verify/
 .pnpm-store/
 dist-ssr
 *.local

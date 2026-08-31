@@ -3,6 +3,7 @@
     "biomejs.biome",
     "formulahendry.code-runner",
     "alexcvzz.vscode-sqlite",
-    "qwtel.sqlite-viewer"
+    "qwtel.sqlite-viewer",
+    "dsznajder.es7-react-js-snippets"
   ]
 }

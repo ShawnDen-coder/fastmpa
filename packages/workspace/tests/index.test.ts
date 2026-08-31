@@ -8,6 +8,81 @@ import { InMemoryWorkspaceRepository } from "../src/testing.js";
 import { sendMessage } from "../src/workspace.js";
 
 describe("workspace", () => {
+  it("creates agents with unique trimmed names and supports lifecycle updates", () => {
+    const repository = new InMemoryWorkspaceRepository();
+    repository.saveWorkspace({
+      id: "a",
+      name: "A",
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    });
+    const agent = repository.createAgent("a", {
+      name: "  Researcher ",
+      modelKey: "demo",
+      persona: "precise",
+      role: "research",
+      capabilities: ["search"],
+      toolNames: ["web.search"],
+    });
+    expect(agent.name).toBe("Researcher");
+    expect(agent.agent?.modelKey).toBe("demo");
+    expect(() =>
+      repository.createAgent("a", {
+        name: "researcher",
+        modelKey: "demo",
+        persona: "other",
+        role: "other",
+        capabilities: [],
+        toolNames: [],
+      }),
+    ).toThrow("Agent name already exists");
+    const updated = repository.updateAgent("a", agent.id, {
+      name: "  Lead Researcher ",
+      role: "lead",
+    });
+    expect(updated.name).toBe("Lead Researcher");
+    expect(updated.agent?.role).toBe("lead");
+    expect(updated.agent).not.toHaveProperty("name");
+    expect(repository.setAgentStatus("a", agent.id, "inactive").status).toBe(
+      "inactive",
+    );
+  });
+
+  it("finds the single direct conversation for an agent", () => {
+    const repository = new InMemoryWorkspaceRepository();
+    repository.saveConversation({
+      id: "direct-1",
+      workspaceId: "a",
+      kind: "direct",
+      participantIds: ["human", "agent-1"],
+      createdAt: "2026-01-01",
+    });
+    expect(repository.findDirectConversation("a", "agent-1")?.id).toBe(
+      "direct-1",
+    );
+    expect(repository.findDirectConversation("a", "agent-2")).toBeUndefined();
+  });
+
+  it("normalizes legacy two-member conversations to direct", () => {
+    const repository = new InMemoryWorkspaceRepository();
+    repository.saveConversation({
+      id: "legacy-direct",
+      workspaceId: "a",
+      participantIds: ["human", "agent-1"],
+      createdAt: "2026-01-01",
+    });
+    repository.saveConversation({
+      id: "legacy-group",
+      workspaceId: "a",
+      participantIds: ["human", "agent-1", "agent-2"],
+      createdAt: "2026-01-01",
+    });
+    expect(repository.getConversation("a", "legacy-direct")?.kind).toBe(
+      "direct",
+    );
+    expect(repository.getConversation("a", "legacy-group")?.kind).toBe("group");
+  });
+
   it("creates, renames, and stably lists workspace facts", () => {
     const repository = new InMemoryWorkspaceRepository();
     repository.saveWorkspace({

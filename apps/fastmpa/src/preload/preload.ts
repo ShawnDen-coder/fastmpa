@@ -1,8 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ApplicationEvent } from "../application/application.js";
+import type {
+  ApplicationEvent,
+  ApplicationLogEntry,
+} from "../shared/contracts/application.js";
+import type { SnapshotInvalidation } from "../shared/contracts/invalidation.js";
 import type { FastMpaDesktopApi } from "../shared/desktop-api.js";
 import { desktopChannels } from "../shared/desktop-api.js";
-import type { ApplicationErrorDto, IpcResponse } from "../shared/ipc.js";
+import type { ApplicationErrorDto, IpcResponse } from "../shared/ipc/index.js";
 
 type IpcListener = Parameters<typeof ipcRenderer.on>[1];
 
@@ -32,12 +36,27 @@ function subscribe<Arguments extends unknown[]>(
 const api: FastMpaDesktopApi = {
   application: {
     getSnapshot: (query) => invoke(desktopChannels.getSnapshot, query),
+    getShellSnapshot: () => invoke(desktopChannels.getShellSnapshot),
+    getConversationSnapshot: (query) =>
+      invoke(desktopChannels.getConversationSnapshot, query),
+    getDispatchSnapshot: (dispatchId) =>
+      invoke(desktopChannels.getDispatchSnapshot, dispatchId),
+    getRunSnapshot: (runId) => invoke(desktopChannels.getRunSnapshot, runId),
     dispatch: (command) => invoke(desktopChannels.dispatch, command),
     getRecentLogs: (limit) => invoke(desktopChannels.getRecentLogs, limit),
     onSnapshot: (listener) => subscribe(desktopChannels.snapshot, listener),
-    onEvent: (listener) =>
-      subscribe<[ApplicationEvent]>(desktopChannels.event, listener),
-    onLog: (listener) => subscribe(desktopChannels.log, listener),
+    onEvents: (listener) =>
+      subscribe<[readonly ApplicationEvent[]]>(desktopChannels.event, listener),
+    onSnapshotInvalidated: (listener) =>
+      subscribe<[SnapshotInvalidation]>(
+        desktopChannels.snapshotInvalidated,
+        listener,
+      ),
+    onLogs: (listener) =>
+      subscribe<[readonly ApplicationLogEntry[]]>(
+        desktopChannels.log,
+        listener,
+      ),
   },
   desktop: {
     getInfo: () => invoke(desktopChannels.getInfo),

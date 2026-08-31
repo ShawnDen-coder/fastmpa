@@ -128,6 +128,7 @@ export class LeaseRuntimeWorker {
           runId,
           attempt: current.attempt,
           agentId: current.context?.agentId,
+          toolNames: current.context?.toolNames,
           workspaceId: current.context?.workspaceId,
           toolsetKey: persisted.dependencies.toolsetKey,
         }),

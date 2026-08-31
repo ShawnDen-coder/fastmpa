@@ -2,14 +2,9 @@ import { createWriteStream, mkdirSync, type WriteStream } from "node:fs";
 import { dirname } from "node:path";
 import { Writable } from "node:stream";
 
-export interface ApplicationLogEntry {
-  readonly sequence: number;
-  readonly timestamp: string;
-  readonly level: "debug" | "info" | "warn" | "error";
-  readonly component: string;
-  readonly message: string;
-  readonly context: Readonly<Record<string, string | number | boolean>>;
-}
+export type { ApplicationLogEntry } from "../shared/contracts/logging.js";
+
+import type { ApplicationLogEntry } from "../shared/contracts/logging.js";
 
 export class ApplicationLogStore extends Writable {
   private readonly entries: ApplicationLogEntry[] = [];

@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync } from "node:fs";
 
+/** Import the pre-Desktop database while preserving a recoverable source backup. */
 export function importLegacyDatabase(
   legacyPath: string,
   databasePath: string,

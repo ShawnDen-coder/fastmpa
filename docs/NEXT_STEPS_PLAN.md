@@ -1,55 +1,119 @@
-# Next Steps
+# Desktop 整改计划
 
-当前阶段是 V1 基础闭环收敛，按以下五批维护和验收：
+当前阶段是 Windows Desktop 可用性与前端架构整改。产品采用 **Slack 式 Agent Workspace**：以 Workspace 和 Conversation 组织持续协作，以 Cumora 作为视觉体系、面板交互和前端工程质量参考。FastMPA 的 Run、Approval、Schedule、Tooling 和 Logs 仍是一等能力，不复制 Cumora 的业务导航。
 
-1. Desktop 使用 Electron Main/Preload/Renderer target 构建，并在 CI 实际运行 host smoke。
-2. Runtime Tooling 统一由 `ToolCatalog`/`RuntimeTooling` 提供，Approval 必须绑定 `runId`。
-3. Application 只使用公共 `AgentRuntime` facade；生产 Run Store 使用 SQLite Lease。
-4. Schedule occurrence 使用稳定 Run ID，Workspace 不包含执行逻辑，调度不再使用 WorkClaim。
-5. Application 使用共享 SQLite connection，并通过 CompletionProjector 与 receipt 恢复投影。
+## 交付批次
 
-Skills、MCP、真实平台适配器和 Electron 不属于本轮 V1 基础架构范围。
+### 1. 输入与流式性能
 
-完成以上事项后，再从模拟工具中选择第一个真实平台适配器；所有外部写操作仍必须经过 Runtime 审批、幂等和审计。
+- [x] Composer 正确处理中文 IME；Enter 发送，Shift+Enter 换行，组合输入确认不得误发送。
+- [x] 草稿和 pending 状态按 Conversation 隔离；同一 Conversation 串行，不同 Conversation 可并行。
+- [x] 发送中再次提交进入当前 Conversation 队列；键盘和发送按钮行为一致。
+- [x] Main 将实时事件按数组批量发送，Renderer 在一次 Store 更新中归并事件、文本 delta 和工具状态。
+- [x] 持久化消息、流式消息、工具步骤和失败卡片进入同一虚拟时间线。
+- [x] Conversation 列表使用预计算摘要，禁止渲染时为每个会话扫描全部消息和 Run。
+- [x] Logs 使用独立环形缓冲区；只有 Logs 页面订阅日志正文。
 
-## Workspace 工作台推进状态（2026-08-30）
+验收：中文输入无误发送；流式输出期间输入保持响应；一个 Conversation 运行时可以在另一个 Conversation 正常发送。
 
-### 本批增量：实时事件链
+### 2. Slack 式 Agent Workspace
 
-- [x] Core 支持可选 `StreamingModelAdapter`；不支持流式的适配器继续走 `complete()`。
-- [x] Core 通过 `TurnLiveEvent` 发出文本 delta、工具开始/审批/完成和 turn 完成事件。
-- [x] Runtime 为实时事件附加 `runId`、attempt 和 RunContext；delta 只保留在内存，不写 SQLite 或 RuntimeEvent。
-- [x] Application 通过 `subscribeEvents()` 向 Desktop Renderer 暴露 UI 无关的实时事件。
-- [x] Core 与 Application 测试覆盖流式 delta、最终消息和运行上下文。
-- [x] Desktop Renderer 订阅实时事件，在当前 Conversation 中显示流式文本和工具执行指示。
-- [x] Desktop Renderer 提供 Rail 页面入口；Logs 页面显示日志面板。
-- [x] Desktop Renderer 将 Conversation、Approval、RunDetails 和 Logs 视图拆为独立组件。
-- [x] Desktop Renderer 默认使用 Conversation-first 单区渲染；Workspace、Runs 和 Logs 通过 Rail 进入。
-- [x] Desktop Logs 页面支持 Workspace、Conversation、Run 和 level 过滤，并可跟随最新日志。
-- [x] 初始加载和 Workspace 切换按选中 Conversation 重新读取消息，避免 Workspace 内会话串消息。
-- [x] 流式草稿、活动工具、队列计数和失败消息按 `workspaceId:conversationId` 隔离，切换 Conversation 不串本地状态。
-- [x] Runs、Schedules 和 Attention 通过 Rail 页面进入辅助视图，并可打开 Run Inspector。
-- [x] Composer 支持在当前 Workspace 的 Agent participant 之间切换，后续消息使用选中的 Agent。
-- [x] Approval card 支持 ←/→ 选择 Approve、Reject、Details，Enter 确认；Ctrl+A/Ctrl+X 仍作为快捷操作。
-- [x] Desktop 窄窗口将 Inspector 转为覆盖式面板，不切换到另一套业务布局。
-- [x] Run Details 展示 Run 时间线、上下文、Tool Call、错误码/可重试性、Approval ID 和可用操作。
-- [x] Desktop Renderer 发送失败时保留本地消息内容，并通过 Run Inspector 支持 Retry / Cancel。
-- [x] Retry 直接重新提交保留的失败消息；Edit 回填 Composer，Discard 清除本地草稿。
-- [x] 当前 Conversation 显示本地排队消息计数；日志视图支持按 component 循环过滤（`v`）。
+- [x] Desktop 使用 `44px TitleBar + 72px Rail + 可调 Conversation 栏 + 主内容区 + 按需 Context Pane`。
+- [x] TitleBar 提供 Workspace 切换、模型/连接状态、搜索和窗口控制。
+- [x] Rail 固定提供 Conversations、Runs、Schedules、Agents、Logs 和 Settings；未读与待审批使用徽标提示。
+- [x] Conversation 栏按对话、Agent 和计划分组，保留搜索、未读、草稿和活动 Run 摘要。
+- [x] 中央区域提供连续对话；Agent 回复、Run 摘要和工具调用保持在同一任务上下文中。
+- [x] 右侧 Context Pane 互斥展示 Conversation 信息、Run 时间线、工具调用、审批或错误详情。
+- [x] Runs、Schedules、Agents 和 Logs 保留独立完整页面，并可从 Conversation 上下文双向跳转。
+- [x] 使用应用内 Dialog 替换 `window.prompt`，统一命令 pending、成功和可恢复错误反馈。
 
-本批完成 Desktop 重构的基础边界；仍按 Assumptions 保留未实现的 thinking 展示、Workspace 删除、完整 Agent 编辑和完整 Board UI。
+Slack 只作为 Workspace、Conversation、Thread、未读和持续输入的信息架构参考；Cumora 只作为色彩、密度、圆角、面板、动效、滚动和加载细节参考。
 
-- [x] 引入持久化 Workspace DTO，并在内存/SQLite Repository 提供创建、读取和稳定排序。
-- [x] SQLite 启动时为历史 workspaceId 补建 Workspace；`default` 使用 `Default Workspace` 显示名。
-- [x] Application 支持 `workspace.create`、`workspace.rename`、`conversation.create`。
-- [x] Application Snapshot 支持按 Workspace/Conversation 选择范围读取。
-- [x] Snapshot 携带当前 Workspace 的 Attention 摘要；Desktop 退出时发送 closing 状态。
-- [x] 增加 ConversationRunCoordinator，保证同一 Conversation 的 submit 串行；不同 Conversation 可并行，失败后队列继续。
-- [x] 审批 waiting Run 会占用当前 Conversation 队列，直到批准、拒绝或取消后才释放后续消息。
-- [x] 完成 Desktop Rail、Workspace/Conversation 选择、创建/重命名、队列状态和审批基础交互。
-- [x] Application 提供 500 条日志 Ring Buffer、实时订阅和 JSONL 文件输出；Desktop 支持 Logs 页面。
-- [x] Desktop Logs 页面显示日志级别、组件和时间，并可打开日志文件位置。
-- [x] 日志区域支持 follow latest 开关；Run Inspector 展示当前 Run 生命周期事件。
-- [x] 模型上下文限制为最近 50 条 user/assistant 消息，并从 user 轮次边界截取。
-- [x] 临时 SQLite E2E 覆盖 Workspace/Conversation 创建、三轮连续对话、范围切换、重启恢复。
-- [x] Electron Desktop 启动 Main/Preload/Renderer，并由 Application 提供统一业务边界。
+### 3. 项目目录、Tailwind 与 Renderer 重组
+
+目标目录固定为：
+
+```text
+apps/fastmpa/
+├─ resources/                       # Windows 图标和打包静态资源
+├─ scripts/                         # 开发、打包和 smoke 脚本
+├─ src/
+│  ├─ application/                  # UI 无关的应用组合边界
+│  │  ├─ application.ts
+│  │  ├─ bootstrap.ts
+│  │  ├─ orchestrator.ts
+│  │  ├─ conversation-run-coordinator.ts
+│  │  └─ logging.ts
+│  ├─ main/                         # Electron Main 与 OS 能力
+│  │  ├─ main.ts
+│  │  ├─ ipc-handlers.ts
+│  │  ├─ event-batcher.ts
+│  │  ├─ navigation-policy.ts
+│  │  ├─ renderer-path.ts
+│  │  ├─ window-state.ts
+│  │  └─ migrations/                # Desktop 数据目录兼容迁移
+│  ├─ preload/
+│  │  └─ preload.ts                 # 唯一 contextBridge 入口
+│  ├─ shared/
+│  │  ├─ contracts/                 # Command、DTO、Event、Snapshot、错误
+│  │  ├─ ipc/                       # channel、校验和 response envelope
+│  │  └─ index.ts                   # Main/Preload/Renderer 公共导出
+│  └─ renderer/
+│     ├─ app/                       # DesktopShell、Providers、view navigation
+│     ├─ features/
+│     │  ├─ conversations/
+│     │  ├─ runs/
+│     │  ├─ approvals/
+│     │  ├─ schedules/
+│     │  ├─ agents/
+│     │  ├─ logs/
+│     │  └─ settings/
+│     ├─ components/ui/             # 应用内可复用基础组件
+│     ├─ stores/                    # 领域 Store 与稳定 selector
+│     ├─ styles/                    # Tailwind 入口和设计令牌
+│     ├─ index.html
+│     └─ main.tsx                   # 只负责 React 挂载
+├─ tests/
+│  ├─ application/                  # Application 与 SQLite E2E
+│  ├─ main/                         # IPC、窗口、迁移和生命周期
+│  ├─ renderer/                     # Store 与组件测试
+│  └─ architecture/                 # 跨层导入规则
+├─ package.json
+├─ tsconfig.json
+├─ vite.main.config.ts
+├─ vite.preload.config.ts
+└─ vite.renderer.config.ts
+```
+
+- [x] 删除无实际包入口职责的 `src/index.ts`；Application 只由 Main 装配，不将 Desktop 私有实现伪装成库导出。
+- [x] 将 `legacy-database.ts` 移入 `main/migrations` 并使用迁移语义命名；迁移只能由 Main 启动流程调用。
+- [x] 所有测试统一移动到顶层 `tests` 的对应分层目录，源码目录不再混放 `*.test.ts`。
+- [x] `tsconfig.json` 明确覆盖 `src`、`tests` 和三个 `vite.*.config.ts`；构建配置必须进入类型检查。
+- [x] 禁止新增 `utils`、`common`、`misc` 等无职责目录；共享代码必须归属 `shared/contracts`、`shared/ipc`、`components/ui` 或具体 feature。
+- [x] Feature 不得相互导入内部文件；跨 Feature 协作通过 app navigation、公共 Store action 或 shared contract。
+- [x] Main 不导入 Renderer，Renderer 不导入 Main/Application 实现，Preload 只依赖 shared contract 和 IPC channel。
+
+- [x] Renderer 接入 Tailwind CSS 4 和 Vite 插件；Main、Preload、Application 与核心包不得依赖 Tailwind。
+- [x] 建立 FastMPA 设计令牌，统一颜色、字体、间距、圆角、阴影、状态色、面板宽度和动画时长。
+- [x] 全局 Tailwind 入口只保留窗口拖动、滚动条、Markdown、文本选择、动画和设计令牌；组件规则移入 `styles/components.css`。
+- [x] 按目标目录渐进迁移：先建立 shared contract，再拆 Store 和 Shell，随后按 Feature 移动页面，最后删除旧 `page-view.tsx` 和集中式 `styles.css`。
+- [x] 可序列化 Command、Event、DTO 和 Snapshot 查询移动到 `shared/contracts`；Renderer 和 Preload 不再导入 Application 实现文件。
+- [x] Application 继续保留在 `apps/fastmpa`，不提前提取共享包。
+- [x] 暂不创建 Storybook package；基础组件先由 Desktop 应用内复用，出现第二个真实 UI 调用方后再评估提取。
+
+### 4. Snapshot、生命周期与测试
+
+- [x] 将完整 Snapshot 拆为 Shell、Conversation 和 Run 查询；实时 delta 不触发完整 Snapshot 广播。
+- [x] Snapshot 失效事件携带 Workspace、Conversation、Dispatch 或 Run 作用域，Renderer 只刷新受影响的数据。
+- [x] 命令更新只发布作用域失效；完整 Snapshot 仅在启动时广播，保持事件顺序和最终持久化消息一致。
+- [x] Application 统一处理关闭 deadline：停止接收命令、中断活动 Run、刷新投影，最后关闭 Store。
+- [x] Pino 日志在 Application、Runtime 和 Scheduler 边界携带 `workspaceId`、`conversationId`、`runId`、`command` 和 `component`（可用字段按事件范围出现）。
+- [x] 增加 Composer IME、批量事件、Conversation 并行、虚拟时间线、面板导航和日志过滤测试。
+- [x] 使用临时 SQLite 验证连续多轮对话、审批恢复、计划任务和重启恢复。
+- [x] 增加 Windows 打包产物的 Electron 交互冒烟测试和 Renderer 架构导入检查。
+
+## 完成标准
+
+每个批次先运行受影响 package 的测试，再执行 `just ci`。四批全部完成后，Desktop 应满足：连续对话稳定、中文输入正常、流式输出不卡住 Composer、Workspace 状态隔离、Run/审批可追踪、日志可调试、重启可恢复，并且源码、契约、测试与 Electron 进程边界符合上述目标目录。
+
+Skills、MCP 和真实平台适配器继续排在本轮 Desktop 整改之后；所有外部写操作仍必须经过 Runtime 的审批、幂等和审计边界。

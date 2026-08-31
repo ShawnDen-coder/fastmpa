@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --color-fmpa-ink: #182230;
+  --color-fmpa-muted: #718096;
+  --color-fmpa-surface: #ffffff;
+  --color-fmpa-canvas: #f4f7fb;
+  --color-fmpa-panel: #f8fafc;
+  --color-fmpa-border: #dfe6ef;
+  --color-fmpa-accent: #3276d8;
+  --color-fmpa-accent-soft: #dceafd;
+  --color-fmpa-success: #2f9e74;
+  --color-fmpa-warning: #c78932;
+  --color-fmpa-danger: #c85a5a;
+  --radius-fmpa-panel: 14px;
+  --radius-fmpa-control: 8px;
+  --shadow-fmpa-panel: 0 18px 50px rgb(24 34 48 / 10%);
+  --animate-fmpa-enter: fmpa-enter 160ms ease-out;
+}
+
+:root {
+  color: #182230;
+  background: #f4f7fb;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 960px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Window drag regions and browser primitives are intentionally global. */
+.title-bar {
+  -webkit-app-region: drag;
+}
+
+.title-bar button,
+.title-bar select,
+.title-bar input {
+  -webkit-app-region: no-drag;
+}
+
+/* Markdown, selection and scrollbar behavior are shared browser rules. */
+::selection {
+  color: #182230;
+  background: #dceafd;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #c8d2df;
+  background-clip: content-box;
+}
+
+@keyframes fmpa-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

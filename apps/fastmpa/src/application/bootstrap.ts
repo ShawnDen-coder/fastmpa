@@ -13,12 +13,19 @@ export function bootstrap(
     ...options,
     model:
       options.model ??
-      new OpenRouterModel({
-        apiKey: process.env.OPENROUTER_API_KEY ?? "",
-        model: process.env.OPENROUTER_MODEL ?? "",
-        baseUrl: process.env.OPENROUTER_BASE_URL,
-        httpReferer: process.env.OPENROUTER_HTTP_REFERER,
-        appTitle: process.env.OPENROUTER_APP_TITLE ?? "FastMPA",
-      }),
+      (process.env.FASTMPA_E2E === "1"
+        ? {
+            complete: async () => ({
+              type: "text" as const,
+              content: "E2E demo response",
+            }),
+          }
+        : new OpenRouterModel({
+            apiKey: process.env.OPENROUTER_API_KEY ?? "",
+            model: process.env.OPENROUTER_MODEL ?? "",
+            baseUrl: process.env.OPENROUTER_BASE_URL,
+            httpReferer: process.env.OPENROUTER_HTTP_REFERER,
+            appTitle: process.env.OPENROUTER_APP_TITLE ?? "FastMPA",
+          })),
   });
 }

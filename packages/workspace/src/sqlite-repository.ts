@@ -1,9 +1,21 @@
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import type { Board, Card, Column } from "./board.js";
-import type { Conversation, Message, ReadCursor } from "./conversation.js";
-import type { Participant } from "./participant.js";
+import {
+  type Conversation,
+  type Message,
+  normalizeConversation,
+  type ReadCursor,
+} from "./conversation.js";
+import type { ConversationDispatch } from "./dispatch.js";
+import {
+  type AgentInput,
+  type AgentPatch,
+  normalizeParticipantName,
+  type Participant,
+} from "./participant.js";
 import type { WorkspaceRepository } from "./repository.js";
 import type { Schedule } from "./schedule.js";
 import type { Workspace } from "./workspace.js";
@@ -12,6 +24,7 @@ type RecordKind =
   | "workspace"
   | "participant"
   | "conversation"
+  | "dispatch"
   | "message"
   | "board"
   | "column"
@@ -118,15 +131,110 @@ export class SqliteWorkspaceRepository implements WorkspaceRepository {
   listParticipants(workspaceId: string): readonly Participant[] {
     return this.list("participant", workspaceId);
   }
+  findAgentByName(workspaceId: string, name: string): Participant | undefined {
+    const normalized = normalizeParticipantName(name);
+    return this.listParticipants(workspaceId).find(
+      (participant) =>
+        participant.kind === "agent" &&
+        normalizeParticipantName(participant.name) === normalized,
+    );
+  }
+  createAgent(workspaceId: string, input: AgentInput): Participant {
+    if (this.findAgentByName(workspaceId, input.name))
+      throw new Error(`Agent name already exists: ${input.name.trim()}`);
+    const participant: Participant = {
+      id: input.id ?? randomUUID(),
+      workspaceId,
+      kind: "agent",
+      name: input.name.trim(),
+      status: "active",
+      agent: {
+        modelKey: input.modelKey,
+        persona: input.persona,
+        role: input.role,
+        capabilities: [...input.capabilities],
+        toolNames: [...input.toolNames],
+      },
+    };
+    this.saveParticipant(participant);
+    return participant;
+  }
+  updateAgent(
+    workspaceId: string,
+    agentId: string,
+    patch: AgentPatch,
+  ): Participant {
+    const current = requireAgent(this, workspaceId, agentId);
+    if (
+      patch.name &&
+      normalizeParticipantName(patch.name) !==
+        normalizeParticipantName(current.name) &&
+      this.findAgentByName(workspaceId, patch.name)
+    )
+      throw new Error(`Agent name already exists: ${patch.name.trim()}`);
+    const { name: _name, ...profilePatch } = patch;
+    const updated = {
+      ...current,
+      ...(patch.name === undefined ? {} : { name: patch.name.trim() }),
+      agent: { ...current.agent, ...profilePatch },
+    } as Participant;
+    this.saveParticipant(updated);
+    return updated;
+  }
+  setAgentStatus(
+    workspaceId: string,
+    agentId: string,
+    status: "active" | "inactive",
+  ): Participant {
+    const current = requireAgent(this, workspaceId, agentId);
+    const updated = { ...current, status };
+    this.saveParticipant(updated);
+    return updated;
+  }
 
   saveConversation(value: Conversation): void {
     this.save("conversation", value.workspaceId, value.id, value);
   }
   getConversation(workspaceId: string, id: string): Conversation | undefined {
-    return this.get("conversation", workspaceId, id);
+    const conversation = this.get<Conversation>(
+      "conversation",
+      workspaceId,
+      id,
+    );
+    return conversation ? normalizeConversation(conversation) : undefined;
   }
   listConversations(workspaceId: string): readonly Conversation[] {
-    return this.list("conversation", workspaceId);
+    return this.list<Conversation>("conversation", workspaceId).map(
+      normalizeConversation,
+    );
+  }
+  findDirectConversation(
+    workspaceId: string,
+    agentId: string,
+  ): Conversation | undefined {
+    return this.listConversations(workspaceId).find(
+      (conversation) =>
+        (conversation.kind ?? "group") === "direct" &&
+        conversation.participantIds.length === 2 &&
+        conversation.participantIds.includes(agentId) &&
+        conversation.participantIds.includes("human"),
+    );
+  }
+  saveDispatch(value: ConversationDispatch): void {
+    this.save("dispatch", value.workspaceId, value.id, value);
+  }
+  getDispatch(
+    workspaceId: string,
+    id: string,
+  ): ConversationDispatch | undefined {
+    return this.get("dispatch", workspaceId, id);
+  }
+  listDispatches(workspaceId?: string): readonly ConversationDispatch[] {
+    return this.listAll<ConversationDispatch>("dispatch", workspaceId).sort(
+      (left, right) =>
+        left.createdAt.localeCompare(right.createdAt) ||
+        left.id.localeCompare(right.id),
+    );
   }
 
   saveMessage(value: Message): void {
@@ -274,4 +382,17 @@ export class SqliteWorkspaceRepository implements WorkspaceRepository {
       (row) => JSON.parse(row.payloadJson) as T,
     );
   }
+}
+
+function requireAgent(
+  repository: SqliteWorkspaceRepository,
+  workspaceId: string,
+  agentId: string,
+): Participant {
+  const participant = repository.getParticipant(workspaceId, agentId);
+  if (participant?.kind !== "agent")
+    throw new Error(`Agent not found: ${agentId}`);
+  if (!participant.agent)
+    throw new Error(`Agent profile is missing: ${agentId}`);
+  return participant;
 }

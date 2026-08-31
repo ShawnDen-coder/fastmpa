@@ -4,6 +4,7 @@ export interface RunExecutionContext {
   readonly runId: string;
   readonly attempt: number;
   readonly agentId?: string;
+  readonly toolNames?: readonly string[];
   readonly workspaceId?: string;
   readonly toolsetKey: string;
 }

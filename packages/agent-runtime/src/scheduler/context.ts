@@ -17,6 +17,7 @@ export function assembleAgentContext(
   wake: WakeSignal,
   agent: {
     agent?: {
+      modelKey?: string;
       persona?: string;
       model?: string;
       toolNames?: readonly string[];
@@ -28,7 +29,7 @@ export function assembleAgentContext(
     workspaceId: attention.workspaceId,
     agentId: attention.agentId,
     persona: agent.agent?.persona,
-    model: agent.agent?.model,
+    model: agent.agent?.modelKey ?? agent.agent?.model,
     toolNames: agent.agent?.toolNames ?? [],
     attention,
     wake,

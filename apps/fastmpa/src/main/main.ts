@@ -5,8 +5,6 @@ import {
   app,
   BrowserWindow,
   dialog,
-  type IpcMainInvokeEvent,
-  ipcMain,
   net,
   protocol,
   screen,
@@ -14,15 +12,11 @@ import {
 } from "electron";
 import type { FastMpaApplication } from "../application/application.js";
 import { bootstrap } from "../application/bootstrap.js";
+import type { ApplicationLogEntry } from "../shared/contracts/application.js";
 import { desktopChannels } from "../shared/desktop-api.js";
-import {
-  type IpcResponse,
-  invalidPayload,
-  isApplicationCommand,
-  isSnapshotQuery,
-} from "../shared/ipc.js";
 import { EventBatcher } from "./event-batcher.js";
-import { importLegacyDatabase } from "./legacy-database.js";
+import { registerIpcHandlers } from "./ipc-handlers.js";
+import { importLegacyDatabase } from "./migrations/legacy-database-migration.js";
 import {
   isAllowedExternalUrl,
   isAllowedNavigation,
@@ -42,11 +36,22 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+if (process.env.FASTMPA_E2E_USER_DATA)
+  app.setPath("userData", process.env.FASTMPA_E2E_USER_DATA);
+if (process.env.FASTMPA_E2E === "1")
+  app.commandLine.appendSwitch(
+    "remote-debugging-port",
+    process.env.FASTMPA_E2E_PORT ?? "9229",
+  );
+
 let application: FastMpaApplication | undefined;
 let mainWindow: BrowserWindow | undefined;
 let isQuitting = false;
 const eventBatcher = new EventBatcher((events) => {
-  for (const event of events) broadcast(desktopChannels.event, event);
+  broadcast(desktopChannels.event, events);
+});
+const logBatcher = new EventBatcher<ApplicationLogEntry>((entries) => {
+  broadcast(desktopChannels.log, entries);
 });
 
 function windowStatePath(): string {
@@ -130,129 +135,12 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-function registerIpc(): void {
-  ipcMain.handle(desktopChannels.getSnapshot, (event, query) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    if (!isSnapshotQuery(query))
-      return Promise.resolve({
-        ok: false,
-        error: invalidPayload("Invalid snapshot query"),
-      });
-    return respond(() => requireApplication().getSnapshot(query));
-  });
-  ipcMain.handle(desktopChannels.dispatch, (event, command) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    if (!isApplicationCommand(command))
-      return Promise.resolve({
-        ok: false,
-        error: invalidPayload("Invalid application command"),
-      });
-    return respond(() => requireApplication().dispatch(command));
-  });
-  ipcMain.handle(desktopChannels.getRecentLogs, (event, limit: unknown) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    if (
-      limit !== undefined &&
-      (typeof limit !== "number" ||
-        !Number.isInteger(limit) ||
-        limit < 0 ||
-        limit > 500)
-    )
-      return Promise.resolve({
-        ok: false,
-        error: invalidPayload("Invalid log limit"),
-      });
-    return respond(() =>
-      Promise.resolve(
-        requireApplication().getRecentLogs(limit as number | undefined),
-      ),
-    );
-  });
-  ipcMain.handle(desktopChannels.getInfo, (event) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    return Promise.resolve({
-      ok: true,
-      value: {
-        version: app.getVersion(),
-        platform: process.platform,
-        arch: process.arch,
-        model: process.env.OPENROUTER_MODEL ?? "Default OpenRouter model",
-        databasePath: join(app.getPath("userData"), "fastmpa.sqlite"),
-        logPath: join(app.getPath("userData"), "fastmpa.log"),
-        dataDirectory: app.getPath("userData"),
-        logLevel: process.env.FASTMPA_LOG_LEVEL ?? "info",
-      },
-    });
-  });
-  ipcMain.handle(desktopChannels.openExternal, (event, url: unknown) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    if (typeof url !== "string" || !isAllowedExternalUrl(url))
-      return Promise.resolve({
-        ok: false,
-        error: invalidPayload("Only HTTPS URLs are allowed"),
-      });
-    return respond(() => shell.openExternal(url));
-  });
-  ipcMain.handle(desktopChannels.revealLogFile, (event) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    return respond(() => {
-      shell.showItemInFolder(requireApplication().getLogPath());
-    });
-  });
-  ipcMain.handle(desktopChannels.revealDataDirectory, (event) => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    return respond(async () => {
-      const error = await shell.openPath(app.getPath("userData"));
-      if (error) throw new Error(error);
-    });
-  });
-}
-
-function rejectUntrustedSender(
-  event: IpcMainInvokeEvent,
-): IpcResponse<never> | undefined {
-  return isAllowedNavigation(event.senderFrame?.url ?? "")
-    ? undefined
-    : {
-        ok: false,
-        error: invalidPayload("Untrusted renderer sender"),
-      };
-}
-
 function requireApplication(): FastMpaApplication {
   if (!application)
     throw Object.assign(new Error("Application is not ready"), {
       code: "NOT_READY",
     });
   return application;
-}
-
-async function respond<T>(
-  operation: () => Promise<T> | T,
-): Promise<IpcResponse<T>> {
-  try {
-    return { ok: true, value: await operation() };
-  } catch (error: unknown) {
-    const code =
-      error instanceof Error && "code" in error && error.code === "NOT_READY"
-        ? "NOT_READY"
-        : "APPLICATION_ERROR";
-    return {
-      ok: false,
-      error: {
-        code,
-        message:
-          error instanceof Error ? error.message : "Application request failed",
-      },
-    };
-  }
 }
 
 function broadcast(channel: string, value: unknown): void {
@@ -269,7 +157,15 @@ function registerAppProtocol(): void {
     );
     if (!filePath)
       return Promise.resolve(new Response("Not found", { status: 404 }));
-    return net.fetch(pathToFileURL(filePath).toString());
+    return net.fetch(pathToFileURL(filePath).toString()).then((response) => {
+      const headers = new Headers(response.headers);
+      headers.set("Access-Control-Allow-Origin", "*");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    });
   });
 }
 
@@ -290,12 +186,18 @@ async function start(): Promise<void> {
     databasePath,
     logPath: join(app.getPath("userData"), "fastmpa.log"),
   });
-  registerIpc();
+  registerIpcHandlers({
+    getApplication: requireApplication,
+    getLogPath: () => requireApplication().getLogPath(),
+  });
   application.subscribe((snapshot) =>
     broadcast(desktopChannels.snapshot, snapshot),
   );
   application.subscribeEvents((event) => eventBatcher.push(event));
-  application.subscribeLogs((entry) => broadcast(desktopChannels.log, entry));
+  application.subscribeSnapshotInvalidated((scope) =>
+    broadcast(desktopChannels.snapshotInvalidated, scope),
+  );
+  application.subscribeLogs((entry) => logBatcher.push(entry));
   await application.start();
   mainWindow = createWindow();
   app.on("activate", () => {
@@ -331,6 +233,7 @@ async function shutdown(): Promise<void> {
   if (isQuitting) return;
   isQuitting = true;
   eventBatcher.flush();
+  logBatcher.flush();
   broadcast(desktopChannels.closing, undefined);
   const currentApplication = application;
   application = undefined;
