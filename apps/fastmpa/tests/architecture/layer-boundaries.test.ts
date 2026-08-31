@@ -64,6 +64,22 @@ describe("Desktop layer boundaries", () => {
     expect(tailwind).toContain("-webkit-app-region");
   });
 
+  it("keeps Renderer styles split by ownership", async () => {
+    const styleFiles = (
+      await filesUnder(join(sourceRoot, "renderer", "styles"))
+    ).filter((path) => path.endsWith(".css"));
+    expect(styleFiles.some((path) => path.endsWith("components.css"))).toBe(
+      false,
+    );
+    expect(styleFiles.some((path) => path.endsWith("conversations.css"))).toBe(
+      true,
+    );
+    const sizes = await Promise.all(
+      styleFiles.map(async (path) => (await readFile(path, "utf8")).length),
+    );
+    expect(Math.max(...sizes)).toBeLessThan(10_000);
+  });
+
   it("keeps tests inside the Desktop workspace test tree", async () => {
     const repositoryRoot = join(sourceRoot, "..", "..", "..");
     const candidates = await Promise.all([
