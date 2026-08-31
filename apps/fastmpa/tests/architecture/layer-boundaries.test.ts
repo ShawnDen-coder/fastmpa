@@ -36,6 +36,7 @@ describe("Desktop layer boundaries", () => {
       contents.some((content) => content.includes("application/application")),
     ).toBe(false);
     const combined = contents.join("\n");
+    expect(combined).not.toMatch(/from\s+["']workspace["']/);
     expect(combined).not.toContain("ApplicationSnapshot");
     expect(combined).not.toMatch(/\bgetSnapshot\s*\(/);
     expect(combined).not.toMatch(/\bonSnapshot\s*\(/);

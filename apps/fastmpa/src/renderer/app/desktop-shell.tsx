@@ -142,7 +142,6 @@ export function DesktopShell(): React.JSX.Element {
 
   const refreshInvalidatedSnapshot = useCallback(
     async (scope: SnapshotInvalidation): Promise<void> => {
-      const selection = useSelectionStore.getState();
       if (scope.scope === "shell") {
         const next = await window.fastMpa.application.getShellSnapshot();
         setShellSnapshot(next);
@@ -150,11 +149,6 @@ export function DesktopShell(): React.JSX.Element {
         return;
       }
       if (scope.scope === "conversation") {
-        if (
-          scope.workspaceId !== selection.workspaceId ||
-          scope.conversationId !== selection.conversationId
-        )
-          return;
         const next = await window.fastMpa.application.getConversationSnapshot({
           workspaceId: scope.workspaceId,
           conversationId: scope.conversationId,
