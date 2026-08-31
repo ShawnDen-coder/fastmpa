@@ -1,4 +1,5 @@
 import type { ApplicationCommand } from "../contracts/application.js";
+import type { SettingsUpdate } from "../contracts/settings.js";
 
 export interface ApplicationErrorDto {
   readonly code:
@@ -6,6 +7,7 @@ export interface ApplicationErrorDto {
     | "APPLICATION_ERROR"
     | "APPLICATION_STOPPING"
     | "NOT_READY"
+    | "SETTINGS_VERSION_CONFLICT"
     | "INTERNAL_ERROR";
   readonly message: string;
 }
@@ -51,6 +53,42 @@ export function isConversationQuery(
     Object.keys(value).every(
       (key) => key === "workspaceId" || key === "conversationId",
     )
+  );
+}
+
+export function isSettingsUpdate(value: unknown): value is SettingsUpdate {
+  if (!isRecord(value) || !hasString(value, "workspaceId")) return false;
+  if (value.preferences !== undefined && !isRecord(value.preferences))
+    return false;
+  if (value.workspace === undefined) return true;
+  if (
+    !isRecord(value.workspace) ||
+    typeof value.workspace.version !== "number" ||
+    !Number.isInteger(value.workspace.version)
+  )
+    return false;
+  const allowed = [
+    "version",
+    "defaultModel",
+    "maxAgents",
+    "writeApproval",
+    "externalApproval",
+    "approvalTimeoutMinutes",
+  ];
+  if (Object.keys(value.workspace).some((key) => !allowed.includes(key)))
+    return false;
+  return (
+    (value.workspace.defaultModel === undefined ||
+      typeof value.workspace.defaultModel === "string") &&
+    (value.workspace.maxAgents === undefined ||
+      typeof value.workspace.maxAgents === "number") &&
+    (value.workspace.writeApproval === undefined ||
+      value.workspace.writeApproval === "always" ||
+      value.workspace.writeApproval === "external") &&
+    (value.workspace.externalApproval === undefined ||
+      typeof value.workspace.externalApproval === "boolean") &&
+    (value.workspace.approvalTimeoutMinutes === undefined ||
+      typeof value.workspace.approvalTimeoutMinutes === "number")
   );
 }
 

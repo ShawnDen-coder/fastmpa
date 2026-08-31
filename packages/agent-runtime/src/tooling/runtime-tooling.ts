@@ -10,7 +10,11 @@ export interface RuntimeTooling {
   resolveTools(context: RunExecutionContext): CoreToolRegistry;
   listToolNames?(): readonly string[];
   approve(approvalId: string, runId: string): Promise<ToolApprovalResult>;
-  reject(approvalId: string, runId: string): ToolApprovalResult;
+  reject(
+    approvalId: string,
+    runId: string,
+    reason?: string,
+  ): ToolApprovalResult;
 }
 
 export class DefaultRuntimeTooling implements RuntimeTooling {
@@ -32,6 +36,10 @@ export class DefaultRuntimeTooling implements RuntimeTooling {
       pipeline: this.pipeline,
       actorId: context.agentId ?? "system",
       idempotencyKeyPrefix: context.runId,
+      workspaceId: context.workspaceId,
+      writeApproval: context.writeApproval,
+      externalApproval: context.externalApproval,
+      approvalTimeoutMinutes: context.approvalTimeoutMinutes,
     });
   }
 
@@ -43,7 +51,7 @@ export class DefaultRuntimeTooling implements RuntimeTooling {
     return this.pipeline.approve(approvalId, runId);
   }
 
-  public reject(approvalId: string, runId: string) {
-    return this.pipeline.reject(approvalId, runId);
+  public reject(approvalId: string, runId: string, reason?: string) {
+    return this.pipeline.reject(approvalId, runId, reason);
   }
 }

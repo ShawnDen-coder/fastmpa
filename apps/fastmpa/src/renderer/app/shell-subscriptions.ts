@@ -85,6 +85,7 @@ export function useShellSubscriptions(
         return;
       }
       if (scope.scope === "workspace" || scope.scope === "dispatch") return;
+      if (scope.scope === "workspace-settings") return;
       setRunSnapshot(
         await window.fastMpa.application.getRunSnapshot(scope.runId),
         scope.runId,

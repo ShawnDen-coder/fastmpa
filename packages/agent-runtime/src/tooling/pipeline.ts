@@ -4,13 +4,21 @@ import {
   type ApprovalStore,
   InMemoryApprovalStore,
 } from "./approval-store.js";
-import { defaultToolPolicy, type ToolPolicy } from "./policy.js";
+import {
+  defaultToolPolicy,
+  type ToolPolicy,
+  type ToolPolicyContext,
+} from "./policy.js";
 import type { RegisteredTool, ToolRegistry } from "./registry.js";
 
 export interface ToolExecutionOptions {
   actorId: string;
   idempotencyKey: string;
   runId: string;
+  workspaceId?: string;
+  writeApproval?: "always" | "external";
+  externalApproval?: boolean;
+  approvalTimeoutMinutes?: number;
 }
 
 export interface ToolJournalEntry {
@@ -72,7 +80,14 @@ export class ToolPipeline {
         message,
       );
     }
-    const decision = this.policy.decide(tool, options.actorId);
+    const policyContext: ToolPolicyContext = {
+      actorId: options.actorId,
+      workspaceId: options.workspaceId,
+      runId: options.runId,
+      writeApproval: options.writeApproval,
+      externalApproval: options.externalApproval,
+    };
+    const decision = this.policy.decide(tool, policyContext);
     if (decision === "deny")
       return this.failure(
         call,
@@ -88,6 +103,11 @@ export class ToolPipeline {
         toolCall: call,
         actorId: options.actorId,
         idempotencyKey: options.idempotencyKey,
+        expiresAt: options.approvalTimeoutMinutes
+          ? new Date(
+              Date.now() + options.approvalTimeoutMinutes * 60_000,
+            ).toISOString()
+          : undefined,
       };
       this.approvalStore.save(approval);
       this.record(call, options, "approval_required");
@@ -122,7 +142,11 @@ export class ToolPipeline {
     );
   }
 
-  public reject(approvalId: string, runId: string): PipelineResult {
+  public reject(
+    approvalId: string,
+    runId: string,
+    reason = "Tool call rejected by user",
+  ): PipelineResult {
     const pending = this.approvalStore.get(approvalId);
     if (!pending) throw new Error(`Approval not found: ${approvalId}`);
     if (!runId || pending.runId !== runId)
@@ -134,10 +158,10 @@ export class ToolPipeline {
         ok: false,
         toolCallId: pending.toolCall.id,
         name: pending.toolCall.name,
-        content: "Tool call rejected by user",
+        content: reason,
         error: {
           code: "policy_denied",
-          message: "Tool call rejected by user",
+          message: reason,
           retryable: false,
         },
       },

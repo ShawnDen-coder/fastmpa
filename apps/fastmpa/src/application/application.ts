@@ -36,6 +36,10 @@ import {
 } from "workspace";
 import type { SnapshotInvalidation } from "../shared/contracts/invalidation.js";
 import type {
+  SettingsSnapshot,
+  SettingsUpdate,
+} from "../shared/contracts/settings.js";
+import type {
   ConversationQuery,
   ConversationSnapshot,
   RunSnapshot,
@@ -64,6 +68,7 @@ import { getConversationSnapshot as queryConversationSnapshot } from "./queries/
 import { getDispatchSnapshot as queryDispatchSnapshot } from "./queries/dispatch-query.js";
 import { getRunSnapshot as queryRunSnapshot } from "./queries/run-query.js";
 import { getShellSnapshot as queryShellSnapshot } from "./queries/shell-query.js";
+import { SqliteSettingsStore } from "./settings-store.js";
 
 export { selectConversationContext } from "./dispatch/context-builder.js";
 
@@ -153,6 +158,8 @@ export interface FastMpaApplication {
   start(): Promise<void>;
   stop(deadlineMs?: number): Promise<void>;
   getShellSnapshot(query?: ShellSnapshotQuery): Promise<ShellSnapshot>;
+  getSettingsSnapshot(workspaceId: string): SettingsSnapshot;
+  updateSettings(update: SettingsUpdate): SettingsSnapshot;
   getConversationSnapshot(
     query: ConversationQuery,
   ): Promise<ConversationSnapshot>;
@@ -206,6 +213,7 @@ export async function createApplication(
   });
   const repository: WorkspaceRepository =
     SqliteWorkspaceRepository.fromDatabase(database.client);
+  const settingsStore = new SqliteSettingsStore(database.client);
   const runStore = SqliteRunStore.fromDatabase(database);
   const projector = new CompletionProjector(repository);
   const model = options.model ?? {
@@ -338,6 +346,25 @@ export async function createApplication(
         },
         query,
       );
+    },
+    getSettingsSnapshot(workspaceId) {
+      return settingsStore.get(workspaceId);
+    },
+    updateSettings(update) {
+      if (
+        update.workspace?.defaultModel !== undefined &&
+        !configuredModelKeys.has(update.workspace.defaultModel)
+      )
+        throw new Error(
+          `Unknown or unconfigured model: ${update.workspace.defaultModel}`,
+        );
+      const snapshot = settingsStore.update(update);
+      for (const listener of invalidationListeners)
+        listener({
+          scope: "workspace-settings",
+          workspaceId: update.workspaceId,
+        });
+      return snapshot;
     },
     async getConversationSnapshot(query) {
       return queryConversationSnapshot({ repository, runStore }, query);
@@ -747,6 +774,7 @@ export async function createApplication(
         : []),
       ...contextMessages,
     ];
+    const workspaceSettings = settingsStore.get(message.workspaceId).workspace;
     const enqueued = await worker.enqueue({
       runId: assignment.runId,
       turn: { messages: turnMessages },
@@ -761,6 +789,9 @@ export async function createApplication(
         conversationId: message.conversationId,
         trigger: conversation.kind === "direct" ? "direct" : trigger,
         sourceRef: { type: "message", id: message.id },
+        writeApproval: workspaceSettings.writeApproval,
+        externalApproval: workspaceSettings.externalApproval,
+        approvalTimeoutMinutes: workspaceSettings.approvalTimeoutMinutes,
       },
     });
     if (!enqueued.created) return enqueued.run;

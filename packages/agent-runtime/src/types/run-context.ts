@@ -15,4 +15,7 @@ export interface RunContext {
     readonly type: "message" | "card" | "schedule";
     readonly id: string;
   };
+  readonly writeApproval?: "always" | "external";
+  readonly externalApproval?: boolean;
+  readonly approvalTimeoutMinutes?: number;
 }

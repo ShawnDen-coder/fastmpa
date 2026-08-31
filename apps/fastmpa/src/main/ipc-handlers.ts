@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { app, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import type { FastMpaApplication } from "../application/application.js";
 import type { ApplicationLogEntry } from "../shared/contracts/application.js";
+import type { SettingsUpdate } from "../shared/contracts/settings.js";
 import type { ShellSnapshotQuery } from "../shared/contracts/snapshot.js";
 import { desktopChannels } from "../shared/desktop-api.js";
 import {
@@ -9,6 +10,7 @@ import {
   invalidPayload,
   isApplicationCommand,
   isConversationQuery,
+  isSettingsUpdate,
 } from "../shared/ipc/index.js";
 import {
   isAllowedExternalUrl,
@@ -55,6 +57,31 @@ export function registerIpcHandlers({
         error: invalidPayload("Invalid conversation query"),
       });
     return respond(() => getApplication().getConversationSnapshot(query));
+  });
+  ipcMain.handle(
+    desktopChannels.getSettingsSnapshot,
+    (event, workspaceId: unknown) => {
+      const rejected = rejectUntrustedSender(event);
+      if (rejected) return rejected;
+      if (typeof workspaceId !== "string" || workspaceId === "")
+        return Promise.resolve({
+          ok: false,
+          error: invalidPayload("Invalid workspace ID"),
+        });
+      return respond(() => getApplication().getSettingsSnapshot(workspaceId));
+    },
+  );
+  ipcMain.handle(desktopChannels.updateSettings, (event, update: unknown) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    if (!isSettingsUpdate(update))
+      return Promise.resolve({
+        ok: false,
+        error: invalidPayload("Invalid settings update"),
+      });
+    return respond(() =>
+      getApplication().updateSettings(update as SettingsUpdate),
+    );
   });
   ipcMain.handle(
     desktopChannels.getDispatchSnapshot,
@@ -173,7 +200,9 @@ async function respond<T>(
     const code =
       error instanceof Error &&
       "code" in error &&
-      (error.code === "NOT_READY" || error.code === "APPLICATION_STOPPING")
+      (error.code === "NOT_READY" ||
+        error.code === "APPLICATION_STOPPING" ||
+        error.code === "SETTINGS_VERSION_CONFLICT")
         ? error.code
         : "APPLICATION_ERROR";
     return {

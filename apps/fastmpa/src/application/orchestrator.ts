@@ -57,6 +57,7 @@ export class CompletionProjector {
         mentions: [],
         sequence: ++sequence,
         createdAt: now,
+        runId: run.runId,
       };
       this.repository.saveMessage(value);
     }

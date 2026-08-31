@@ -76,6 +76,7 @@ export function useWorkspaceController(snapshot: ShellSnapshot | undefined): {
       setSelectedWorkspaceId(workspaceId);
       setSelectedConversationId(undefined);
       setAgentFilter("all");
+      setSearch("");
     },
     selectConversation: setSelectedConversationId,
   };

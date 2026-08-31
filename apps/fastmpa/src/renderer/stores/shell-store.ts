@@ -23,7 +23,7 @@ export const useShellStore = create<ShellState>((set) => ({
   page: "Conversations",
   inspectorRunId: undefined,
   conversationListWidth: 320,
-  setPage: (page) => set({ page }),
+  setPage: (page) => set({ page, inspectorRunId: undefined }),
   setInspectorRunId: (inspectorRunId) => set({ inspectorRunId }),
   setConversationListWidth: (width) =>
     set({ conversationListWidth: Math.min(520, Math.max(240, width)) }),

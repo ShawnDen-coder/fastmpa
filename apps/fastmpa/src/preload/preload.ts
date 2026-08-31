@@ -5,7 +5,10 @@ import type {
 } from "../shared/contracts/application.js";
 import type { SnapshotInvalidation } from "../shared/contracts/invalidation.js";
 import type { FastMpaDesktopApi } from "../shared/desktop-api.js";
-import { desktopChannels } from "../shared/desktop-api.js";
+import {
+  desktopChannels,
+  type NavigationIntent,
+} from "../shared/desktop-api.js";
 import type { ApplicationErrorDto, IpcResponse } from "../shared/ipc/index.js";
 
 type IpcListener = Parameters<typeof ipcRenderer.on>[1];
@@ -37,6 +40,9 @@ const api: FastMpaDesktopApi = {
   application: {
     getShellSnapshot: (query) =>
       invoke(desktopChannels.getShellSnapshot, query),
+    getSettingsSnapshot: (workspaceId) =>
+      invoke(desktopChannels.getSettingsSnapshot, workspaceId),
+    updateSettings: (update) => invoke(desktopChannels.updateSettings, update),
     getConversationSnapshot: (query) =>
       invoke(desktopChannels.getConversationSnapshot, query),
     getDispatchSnapshot: (dispatchId) =>
@@ -54,6 +60,11 @@ const api: FastMpaDesktopApi = {
     onLogs: (listener) =>
       subscribe<[readonly ApplicationLogEntry[]]>(
         desktopChannels.log,
+        listener,
+      ),
+    onNavigationRequested: (listener) =>
+      subscribe<[NavigationIntent]>(
+        desktopChannels.navigationRequested,
         listener,
       ),
   },

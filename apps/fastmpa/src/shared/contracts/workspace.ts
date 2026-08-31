@@ -66,6 +66,7 @@ export interface MessageDto {
   readonly mentions: readonly string[];
   readonly sequence: number;
   readonly createdAt: string;
+  readonly runId?: string;
 }
 
 export interface ScheduleDto {

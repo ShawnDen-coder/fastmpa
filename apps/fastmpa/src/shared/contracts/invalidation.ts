@@ -11,4 +11,5 @@ export type SnapshotInvalidation =
       readonly dispatchId: string;
       readonly workspaceId?: string;
     }
-  | { readonly scope: "run"; readonly runId: string };
+  | { readonly scope: "run"; readonly runId: string }
+  | { readonly scope: "workspace-settings"; readonly workspaceId: string };

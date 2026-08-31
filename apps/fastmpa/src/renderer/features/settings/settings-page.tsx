@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { SettingsSnapshot } from "../../../shared/contracts/settings.js";
 import type { DesktopInfo } from "../../../shared/desktop-api.js";
 import {
   SettingRow,
@@ -21,19 +22,58 @@ const initialDraft: SettingsDraft = {
 
 export function SettingsPage({
   desktopInfo,
+  workspaceId,
 }: {
   readonly desktopInfo?: DesktopInfo;
+  readonly workspaceId?: string;
 }): React.JSX.Element {
   const [section, setSection] = useState<SettingsSectionId>("preferences");
   const [draft, setDraft] = useState<SettingsDraft>(initialDraft);
   const [savedDraft, setSavedDraft] = useState<SettingsDraft>(initialDraft);
   const [notifications, setNotifications] = useState(true);
+  const [savedNotifications, setSavedNotifications] = useState(true);
   const [shortcut, setShortcut] = useState("enter");
+  const [savedShortcut, setSavedShortcut] = useState("enter");
+  const [workspaceVersion, setWorkspaceVersion] = useState(1);
   const [status, setStatus] = useState("设置已同步");
   const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(savedDraft),
-    [draft, savedDraft],
+    () =>
+      JSON.stringify({ draft, notifications, shortcut }) !==
+      JSON.stringify({
+        draft: savedDraft,
+        notifications: savedNotifications,
+        shortcut: savedShortcut,
+      }),
+    [
+      draft,
+      notifications,
+      savedDraft,
+      savedNotifications,
+      savedShortcut,
+      shortcut,
+    ],
   );
+  useEffect(() => {
+    if (!workspaceId) return;
+    void window.fastMpa.application
+      .getSettingsSnapshot(workspaceId)
+      .then((snapshot: SettingsSnapshot) => {
+        setNotifications(snapshot.preferences.notificationsEnabled);
+        setShortcut(snapshot.preferences.sendShortcut);
+        setSavedNotifications(snapshot.preferences.notificationsEnabled);
+        setSavedShortcut(snapshot.preferences.sendShortcut);
+        const next: SettingsDraft = {
+          defaultModel: snapshot.workspace.defaultModel,
+          maxAgents: snapshot.workspace.maxAgents,
+          writeApproval: snapshot.workspace.writeApproval,
+          externalApproval: snapshot.workspace.externalApproval,
+          approvalTimeoutMinutes: snapshot.workspace.approvalTimeoutMinutes,
+        };
+        setDraft(next);
+        setSavedDraft(next);
+        setWorkspaceVersion(snapshot.workspace.version);
+      });
+  }, [workspaceId]);
   useEffect(() => {
     if (!dirty) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
@@ -118,7 +158,7 @@ export function SettingsPage({
               <input
                 type="number"
                 min="1"
-                max="8"
+                max="5"
                 value={draft.maxAgents}
                 onChange={(event) =>
                   updateDraft("maxAgents", Number(event.target.value))
@@ -242,11 +282,36 @@ export function SettingsPage({
           status={status}
           onDiscard={() => {
             setDraft(savedDraft);
+            setNotifications(savedNotifications);
+            setShortcut(savedShortcut);
             setStatus("已放弃更改");
           }}
           onSave={() => {
-            setSavedDraft(draft);
-            setStatus("设置已保存");
+            if (!workspaceId) return;
+            void window.fastMpa.application
+              .updateSettings({
+                workspaceId,
+                preferences: {
+                  notificationsEnabled: notifications,
+                  sendShortcut: shortcut as "enter" | "ctrl-enter",
+                },
+                workspace: {
+                  ...draft,
+                  version: workspaceVersion,
+                },
+              })
+              .then(() => {
+                setSavedDraft(draft);
+                setSavedNotifications(notifications);
+                setSavedShortcut(shortcut);
+                setWorkspaceVersion((version) => version + 1);
+                setStatus("设置已保存");
+              })
+              .catch((error: unknown) => {
+                setStatus(
+                  error instanceof Error ? error.message : "设置保存失败",
+                );
+              });
           }}
         />
       </main>

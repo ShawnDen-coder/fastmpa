@@ -2,18 +2,6 @@ import type { ApplicationEvent } from "../../../shared/contracts/application.js"
 import type { RunSnapshot } from "../../../shared/contracts/snapshot.js";
 import { InfoCard } from "../../components/ui/info-card.js";
 
-function approvalId(run: NonNullable<RunSnapshot["run"]>): string | undefined {
-  const details = run.error?.details;
-  if (
-    typeof details !== "object" ||
-    details === null ||
-    !("approvalId" in details)
-  )
-    return undefined;
-  const value = details.approvalId;
-  return typeof value === "string" ? value : undefined;
-}
-
 function RunCard({
   run,
   onSelect,
@@ -21,8 +9,6 @@ function RunCard({
   readonly run: NonNullable<RunSnapshot["run"]>;
   readonly onSelect?: (runId: string) => void;
 }): React.JSX.Element {
-  const pendingApprovalId =
-    run.status === "waiting" ? approvalId(run) : undefined;
   const canCancel = ["queued", "running", "retrying", "waiting"].includes(
     run.status,
   );
@@ -34,46 +20,15 @@ function RunCard({
         className="run-select"
         onClick={() => onSelect?.(run.runId)}
       >
-        Inspect run
+        查看运行
       </button>
       <InfoCard
         label={run.phase}
         value={run.status}
         detail={`${run.runId.slice(0, 8)} · attempt ${run.attempt}`}
       />
-      {pendingApprovalId && (
-        <div className="approval-card">
-          <strong>Approval required</strong>
-          <small>{pendingApprovalId.slice(0, 8)}</small>
-          <div>
-            <button
-              type="button"
-              className="approve-button"
-              onClick={() =>
-                void window.fastMpa.application.dispatch({
-                  type: "approve",
-                  runId: run.runId,
-                  approvalId: pendingApprovalId,
-                })
-              }
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              className="reject-button"
-              onClick={() =>
-                void window.fastMpa.application.dispatch({
-                  type: "reject",
-                  runId: run.runId,
-                  approvalId: pendingApprovalId,
-                })
-              }
-            >
-              Reject
-            </button>
-          </div>
-        </div>
+      {run.status === "waiting" && (
+        <p className="approval-card">等待审批 · 请前往对应对话处理</p>
       )}
       <div className="run-actions">
         {canRetry && (
@@ -87,7 +42,7 @@ function RunCard({
               })
             }
           >
-            Retry
+            重试
           </button>
         )}
         {canCancel && (
@@ -101,7 +56,7 @@ function RunCard({
               })
             }
           >
-            Cancel
+            取消
           </button>
         )}
       </div>

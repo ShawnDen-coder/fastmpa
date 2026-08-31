@@ -32,11 +32,11 @@ export function RunInspector({
     (event) => event.type === "tool.started" || event.type === "tool.completed",
   );
   return (
-    <aside className="inspector-pane" aria-label="Run inspector">
+    <aside className="inspector-pane" aria-label="运行检查器">
       <div className="pane-heading">
         <div>
-          <p className="eyebrow">Inspector</p>
-          <h2>Run details</h2>
+          <p className="eyebrow">运行检查器</p>
+          <h2>运行详情</h2>
         </div>
         <button
           type="button"
@@ -48,7 +48,7 @@ export function RunInspector({
         </button>
       </div>
       {!run ? (
-        <p className="empty-state">Run unavailable.</p>
+        <p className="empty-state">运行不可用。</p>
       ) : (
         <div className="inspector-content">
           <div className="inspector-status">
@@ -67,7 +67,7 @@ export function RunInspector({
                   })
                 }
               >
-                Retry
+                重试
               </button>
             )}
             {["queued", "running", "retrying", "waiting"].includes(
@@ -83,26 +83,26 @@ export function RunInspector({
                   })
                 }
               >
-                Cancel
+                取消
               </button>
             )}
           </div>
           <dl>
-            <dt>Run ID</dt>
+            <dt>运行 ID</dt>
             <dd>{run.runId}</dd>
-            <dt>Attempt</dt>
+            <dt>尝试次数</dt>
             <dd>{run.attempt}</dd>
-            <dt>Duration</dt>
+            <dt>耗时</dt>
             <dd>{runDuration(run)}</dd>
             <dt>Agent</dt>
             <dd>{run.context?.agentId ?? "—"}</dd>
-            <dt>Workspace</dt>
+            <dt>工作区</dt>
             <dd>{run.context?.workspaceId ?? "—"}</dd>
-            <dt>Conversation</dt>
+            <dt>对话</dt>
             <dd>{run.context?.conversationId ?? "—"}</dd>
-            <dt>Trigger</dt>
+            <dt>触发方式</dt>
             <dd>{run.context?.trigger ?? "—"}</dd>
-            <dt>Source</dt>
+            <dt>来源</dt>
             <dd>
               {run.context?.sourceRef
                 ? `${run.context.sourceRef.type}:${run.context.sourceRef.id}`
@@ -120,7 +120,7 @@ export function RunInspector({
           )}
           {toolEvents.length > 0 && (
             <>
-              <h3>Tool calls</h3>
+              <h3>工具调用</h3>
               <div className="inspector-tools">
                 {toolEvents.map((event) => (
                   <ToolEventCard
@@ -135,7 +135,7 @@ export function RunInspector({
               </div>
             </>
           )}
-          <h3>Lifecycle events</h3>
+          <h3>生命周期事件</h3>
           <div className="inspector-events">
             {persistedEvents.map((event) => (
               <div key={`${event.runId}-${event.sequence}`}>

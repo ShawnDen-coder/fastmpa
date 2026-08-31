@@ -6,10 +6,12 @@ import {
 import type { ToolPipeline } from "./pipeline.js";
 
 export type ToolEffect = "read" | "write";
+export type ToolScope = "local" | "external";
 
 export interface RegisteredTool {
   definition: ToolDefinition;
   effect: ToolEffect;
+  scope?: ToolScope;
   execute(
     arguments_: Readonly<Record<string, unknown>>,
   ): unknown | Promise<unknown>;
@@ -44,6 +46,10 @@ export function toCoreToolRegistry(
     readonly pipeline?: ToolPipeline;
     readonly actorId?: string;
     readonly idempotencyKeyPrefix?: string;
+    readonly workspaceId?: string;
+    readonly writeApproval?: "always" | "external";
+    readonly externalApproval?: boolean;
+    readonly approvalTimeoutMinutes?: number;
   } = {},
 ): CoreToolRegistry {
   const registry = new CoreToolRegistry();
@@ -76,6 +82,10 @@ export function toCoreToolRegistry(
           actorId: options.actorId,
           idempotencyKey: `${options.idempotencyKeyPrefix ?? "core"}:${tool.definition.name}:${JSON.stringify(record)}`,
           runId: options.idempotencyKeyPrefix ?? "core",
+          workspaceId: options.workspaceId,
+          writeApproval: options.writeApproval,
+          externalApproval: options.externalApproval,
+          approvalTimeoutMinutes: options.approvalTimeoutMinutes,
         });
         if (result.status === "approval_required")
           throw new ToolExecutionError(

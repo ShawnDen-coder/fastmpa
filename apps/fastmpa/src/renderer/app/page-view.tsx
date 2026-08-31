@@ -50,5 +50,5 @@ export function PageView({
       />
     );
   if (page === "Logs") return <LogsPage />;
-  return <SettingsPage desktopInfo={desktopInfo} />;
+  return <SettingsPage desktopInfo={desktopInfo} workspaceId={workspaceId} />;
 }

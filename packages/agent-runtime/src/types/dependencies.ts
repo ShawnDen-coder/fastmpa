@@ -7,6 +7,9 @@ export interface RunExecutionContext {
   readonly toolNames?: readonly string[];
   readonly workspaceId?: string;
   readonly toolsetKey: string;
+  readonly writeApproval?: "always" | "external";
+  readonly externalApproval?: boolean;
+  readonly approvalTimeoutMinutes?: number;
 }
 
 /** 可持久化的执行依赖标识；值由宿主应用解释，不包含密钥或实例。 */

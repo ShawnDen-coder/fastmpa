@@ -163,6 +163,7 @@ export function DesktopShell(): React.JSX.Element {
   const waitingRunCount = Object.values(runSnapshots).filter(
     (snapshot) => snapshot.run?.status === "waiting",
   ).length;
+  const isConversationPage = page === "Conversations";
 
   return (
     <main className="app-shell">
@@ -211,12 +212,12 @@ export function DesktopShell(): React.JSX.Element {
           Rename
         </button>
         <span className="title-model-status" role="status">
-          {desktopInfo?.model ?? "Model not configured"}
+          {desktopInfo?.model ?? "模型未配置"}
         </span>
         <input
           className="title-search"
-          aria-label="Search conversations"
-          placeholder="Search"
+          aria-label="搜索对话"
+          placeholder="搜索对话"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -289,36 +290,48 @@ export function DesktopShell(): React.JSX.Element {
         />
       )}
       <div
-        className="desktop-layout"
-        style={{
-          gridTemplateColumns: inspectorRunId
-            ? `72px ${conversationListWidth}px 5px minmax(0, 1fr) 420px`
-            : `72px ${conversationListWidth}px 5px minmax(0, 1fr)`,
-        }}
+        className={
+          isConversationPage
+            ? "desktop-layout"
+            : "desktop-layout feature-layout"
+        }
+        style={
+          isConversationPage
+            ? {
+                gridTemplateColumns: inspectorRunId
+                  ? `56px minmax(240px, ${conversationListWidth}px) 5px minmax(0, 1fr) 360px`
+                  : `56px minmax(240px, ${conversationListWidth}px) 5px minmax(0, 1fr)`,
+              }
+            : { gridTemplateColumns: "56px minmax(0, 1fr)" }
+        }
       >
         <NavigationRail
           activePage={page}
           attentionCount={waitingRunCount}
           onPageChange={setPage}
         />
-        <ConversationList
-          workspace={workspace}
-          conversations={shellSnapshot?.conversations ?? []}
-          participants={shellSnapshot?.participants ?? []}
-          selectedConversationId={conversationId}
-          search={search}
-          agentFilter={agentFilter}
-          onSearchChange={setSearch}
-          onAgentFilterChange={setAgentFilter}
-          onConversationSelect={setSelectedConversationId}
-          onCreateConversation={() => setConversationDialogOpen(true)}
-        />
-        <button
-          type="button"
-          className="pane-resizer"
-          aria-label="Resize conversation list"
-          onPointerDown={resizeConversationList}
-        />
+        {isConversationPage && (
+          <ConversationList
+            workspace={workspace}
+            conversations={shellSnapshot?.conversations ?? []}
+            participants={shellSnapshot?.participants ?? []}
+            selectedConversationId={conversationId}
+            search={search}
+            agentFilter={agentFilter}
+            onSearchChange={setSearch}
+            onAgentFilterChange={setAgentFilter}
+            onConversationSelect={setSelectedConversationId}
+            onCreateConversation={() => setConversationDialogOpen(true)}
+          />
+        )}
+        {isConversationPage && (
+          <button
+            type="button"
+            className="pane-resizer"
+            aria-label="Resize conversation list"
+            onPointerDown={resizeConversationList}
+          />
+        )}
         <section className="chat-pane">
           {page === "Conversations" ? (
             <ConversationHeader
@@ -401,14 +414,16 @@ export function DesktopShell(): React.JSX.Element {
             />
           )}
         </section>
-        {inspectorRunId && runSnapshots[inspectorRunId] && (
-          <RunInspector
-            snapshot={runSnapshots[inspectorRunId]}
-            events={events}
-            runId={inspectorRunId}
-            onClose={() => setInspectorRunId(undefined)}
-          />
-        )}
+        {isConversationPage &&
+          inspectorRunId &&
+          runSnapshots[inspectorRunId] && (
+            <RunInspector
+              snapshot={runSnapshots[inspectorRunId]}
+              events={events}
+              runId={inspectorRunId}
+              onClose={() => setInspectorRunId(undefined)}
+            />
+          )}
       </div>
       {closing && (
         <div className="shutdown-overlay" role="status" aria-live="polite">

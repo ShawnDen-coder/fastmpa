@@ -39,6 +39,7 @@ export interface Message {
   mentions: readonly string[];
   sequence: number;
   createdAt: string;
+  runId?: string;
 }
 
 export interface ReadCursor {

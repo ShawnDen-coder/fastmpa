@@ -10,12 +10,14 @@ export interface ApprovalRequest {
   toolCall: ToolCall;
   actorId: string;
   idempotencyKey: string;
+  expiresAt?: string;
 }
 
 export interface ApprovalStore {
   save(approval: ApprovalRequest): void;
   get(approvalId: string): ApprovalRequest | undefined;
   remove(approvalId: string): void;
+  list?(): readonly ApprovalRequest[];
   getResult?(idempotencyKey: string): ToolResult | undefined;
   saveResult?(idempotencyKey: string, result: ToolResult): void;
   appendJournal?(entry: ToolJournalEntry): void;
@@ -35,6 +37,10 @@ export class InMemoryApprovalStore implements ApprovalStore {
 
   remove(approvalId: string): void {
     this.approvals.delete(approvalId);
+  }
+
+  list(): readonly ApprovalRequest[] {
+    return [...this.approvals.values()];
   }
 }
 
@@ -98,6 +104,13 @@ export class SqliteApprovalStore implements ApprovalStore {
     this.database
       .prepare("DELETE FROM tool_approvals WHERE approval_id = ?")
       .run(approvalId);
+  }
+
+  list(): readonly ApprovalRequest[] {
+    const rows = this.database
+      .prepare("SELECT payload_json AS payloadJson FROM tool_approvals")
+      .all() as { payloadJson: string }[];
+    return rows.map((row) => JSON.parse(row.payloadJson) as ApprovalRequest);
   }
 
   getResult(idempotencyKey: string): ToolResult | undefined {

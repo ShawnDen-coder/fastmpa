@@ -5,6 +5,7 @@ import type {
   CommandResult,
 } from "./contracts/application.js";
 import type { SnapshotInvalidation } from "./contracts/invalidation.js";
+import type { SettingsSnapshot, SettingsUpdate } from "./contracts/settings.js";
 import type {
   ConversationQuery,
   ConversationSnapshot,
@@ -14,9 +15,18 @@ import type {
 } from "./contracts/snapshot.js";
 import type { ConversationDispatchDto } from "./contracts/workspace.js";
 
+export interface NavigationIntent {
+  readonly workspaceId: string;
+  readonly conversationId: string;
+  readonly runId?: string;
+  readonly approvalId?: string;
+}
+
 export const desktopChannels = {
   getDispatchSnapshot: "application:get-dispatch-snapshot",
   getShellSnapshot: "application:get-shell-snapshot",
+  getSettingsSnapshot: "application:get-settings-snapshot",
+  updateSettings: "application:update-settings",
   getConversationSnapshot: "application:get-conversation-snapshot",
   getRunSnapshot: "application:get-run-snapshot",
   dispatch: "application:dispatch",
@@ -24,6 +34,7 @@ export const desktopChannels = {
   event: "application:event",
   snapshotInvalidated: "application:snapshot-invalidated",
   log: "application:log",
+  navigationRequested: "desktop:navigation-requested",
   closing: "desktop:closing",
   getInfo: "desktop:get-info",
   revealLogFile: "desktop:reveal-log-file",
@@ -45,6 +56,8 @@ export interface DesktopInfo {
 export type FastMpaDesktopApi = {
   readonly application: {
     getShellSnapshot(query?: ShellSnapshotQuery): Promise<ShellSnapshot>;
+    getSettingsSnapshot(workspaceId: string): Promise<SettingsSnapshot>;
+    updateSettings(update: SettingsUpdate): Promise<SettingsSnapshot>;
     getConversationSnapshot(
       query: ConversationQuery,
     ): Promise<ConversationSnapshot>;
@@ -60,6 +73,9 @@ export type FastMpaDesktopApi = {
     ): () => void;
     onLogs(
       listener: (entries: readonly ApplicationLogEntry[]) => void,
+    ): () => void;
+    onNavigationRequested(
+      listener: (intent: NavigationIntent) => void,
     ): () => void;
   };
   readonly desktop: {
