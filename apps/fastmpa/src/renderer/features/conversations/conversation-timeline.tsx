@@ -22,6 +22,9 @@ type TimelineItem =
 
 export function ConversationTimeline({
   messages,
+  runs = [],
+  dispatches = [],
+  highlightedRunId,
   messageListRef,
   messagesAtLatest,
   onMessagesAtLatestChange,
@@ -36,6 +39,9 @@ export function ConversationTimeline({
   participants,
 }: {
   readonly messages: ConversationSnapshot["messages"];
+  readonly runs?: ConversationSnapshot["runs"];
+  readonly dispatches?: ConversationSnapshot["dispatches"];
+  readonly highlightedRunId?: string;
   readonly messageListRef: React.RefObject<VirtuosoHandle | null>;
   readonly messagesAtLatest: boolean;
   readonly onMessagesAtLatestChange: (atLatest: boolean) => void;
@@ -53,8 +59,8 @@ export function ConversationTimeline({
     {
       conversation: undefined,
       messages,
-      runs: [],
-      dispatches: [],
+      runs,
+      dispatches,
       events: persistedEvents,
     },
     toolEvents,
@@ -104,7 +110,11 @@ export function ConversationTimeline({
               return (
                 <button
                   type="button"
-                  className="tool-card persisted-event"
+                  className={
+                    highlightedRunId === item.value.runId
+                      ? "tool-card persisted-event highlighted"
+                      : "tool-card persisted-event"
+                  }
                   onClick={() => onRunSelect(item.value.runId)}
                 >
                   <span>运行摘要</span>

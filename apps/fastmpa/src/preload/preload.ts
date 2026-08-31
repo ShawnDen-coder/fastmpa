@@ -62,11 +62,6 @@ const api: FastMpaDesktopApi = {
         desktopChannels.log,
         listener,
       ),
-    onNavigationRequested: (listener) =>
-      subscribe<[NavigationIntent]>(
-        desktopChannels.navigationRequested,
-        listener,
-      ),
   },
   desktop: {
     getInfo: () => invoke(desktopChannels.getInfo),
@@ -74,6 +69,11 @@ const api: FastMpaDesktopApi = {
     revealDataDirectory: () => invoke(desktopChannels.revealDataDirectory),
     openExternal: (url) => invoke(desktopChannels.openExternal, url),
     onClosing: (listener) => subscribe(desktopChannels.closing, listener),
+    onNavigationRequested: (listener) =>
+      subscribe<[NavigationIntent]>(
+        desktopChannels.navigationRequested,
+        listener,
+      ),
   },
 };
 

@@ -9,9 +9,11 @@ export interface ShellState {
   readonly closing: boolean;
   readonly page: WorkbenchPage;
   readonly inspectorRunId?: string;
+  readonly highlightedRunId?: string;
   readonly conversationListWidth: number;
   readonly setPage: (page: WorkbenchPage) => void;
   readonly setInspectorRunId: (runId?: string) => void;
+  readonly setHighlightedRunId: (runId?: string) => void;
   readonly setConversationListWidth: (width: number) => void;
   readonly setSnapshot: (snapshot: ShellSnapshot) => void;
   readonly setDesktopInfo: (desktopInfo: DesktopInfo) => void;
@@ -22,9 +24,11 @@ export const useShellStore = create<ShellState>((set) => ({
   closing: false,
   page: "Conversations",
   inspectorRunId: undefined,
+  highlightedRunId: undefined,
   conversationListWidth: 320,
   setPage: (page) => set({ page, inspectorRunId: undefined }),
   setInspectorRunId: (inspectorRunId) => set({ inspectorRunId }),
+  setHighlightedRunId: (highlightedRunId) => set({ highlightedRunId }),
   setConversationListWidth: (width) =>
     set({ conversationListWidth: Math.min(520, Math.max(240, width)) }),
   setSnapshot: (snapshot) => set({ snapshot }),

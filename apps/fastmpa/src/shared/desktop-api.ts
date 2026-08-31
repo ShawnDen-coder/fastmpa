@@ -74,9 +74,6 @@ export type FastMpaDesktopApi = {
     onLogs(
       listener: (entries: readonly ApplicationLogEntry[]) => void,
     ): () => void;
-    onNavigationRequested(
-      listener: (intent: NavigationIntent) => void,
-    ): () => void;
   };
   readonly desktop: {
     getInfo(): Promise<DesktopInfo>;
@@ -84,6 +81,9 @@ export type FastMpaDesktopApi = {
     revealDataDirectory(): Promise<void>;
     openExternal(url: string): Promise<void>;
     onClosing(listener: () => void): () => void;
+    onNavigationRequested(
+      listener: (intent: NavigationIntent) => void,
+    ): () => void;
   };
 };
 

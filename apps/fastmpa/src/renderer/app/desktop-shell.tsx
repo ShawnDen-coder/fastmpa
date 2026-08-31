@@ -81,6 +81,10 @@ export function DesktopShell(): React.JSX.Element {
   const shellSnapshot = useShellStore((state) => state.snapshot);
   const desktopInfo = useShellStore((state) => state.desktopInfo);
   const closing = useShellStore((state) => state.closing);
+  const highlightedRunId = useShellStore((state) => state.highlightedRunId);
+  const setHighlightedRunId = useShellStore(
+    (state) => state.setHighlightedRunId,
+  );
   const setConversationSnapshot = useConversationStore(
     (state) => state.setSnapshot,
   );
@@ -118,6 +122,20 @@ export function DesktopShell(): React.JSX.Element {
   const [messagesAtLatest, setMessagesAtLatest] = useState(true);
 
   useShellSubscriptions(selectedWorkspaceId);
+
+  useEffect(() => {
+    return window.fastMpa.desktop.onNavigationRequested((intent) => {
+      selectWorkspace(intent.workspaceId);
+      setSelectedConversationId(intent.conversationId);
+      setPage("Conversations");
+      setHighlightedRunId(intent.runId);
+    });
+  }, [
+    selectWorkspace,
+    setHighlightedRunId,
+    setPage,
+    setSelectedConversationId,
+  ]);
 
   const conversationKey =
     workspace && conversationId
@@ -363,6 +381,9 @@ export function DesktopShell(): React.JSX.Element {
           {page === "Conversations" ? (
             <LiveConversationTimeline
               messages={messages}
+              runs={conversationSnapshot?.runs}
+              dispatches={conversationSnapshot?.dispatches}
+              highlightedRunId={highlightedRunId}
               conversationKey={conversationKey}
               messageListRef={messageListRef}
               messagesAtLatest={messagesAtLatest}
