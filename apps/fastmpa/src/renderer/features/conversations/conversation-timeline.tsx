@@ -7,14 +7,13 @@ import type {
 import type { ParticipantDto } from "../../../shared/contracts/workspace.js";
 import { ToolEventCard } from "../../components/ui/tool-event-card.js";
 import { MessageRow } from "../../components/workbench/message-row.js";
+import {
+  type ConversationActivity,
+  projectConversationActivity,
+} from "./activity-projector.js";
 
 type TimelineItem =
-  | {
-      readonly kind: "message";
-      readonly value: ConversationSnapshot["messages"][number];
-    }
-  | { readonly kind: "tool"; readonly value: ApplicationEvent }
-  | { readonly kind: "persisted"; readonly value: PersistedRuntimeEvent }
+  | ConversationActivity
   | { readonly kind: "streaming"; readonly value: string }
   | {
       readonly kind: "failed";
@@ -50,10 +49,18 @@ export function ConversationTimeline({
   readonly onRetry: (runId: string, approvalId: string) => void;
   readonly participants: readonly ParticipantDto[];
 }): React.JSX.Element {
+  const projected = projectConversationActivity(
+    {
+      conversation: undefined,
+      messages,
+      runs: [],
+      dispatches: [],
+      events: persistedEvents,
+    },
+    toolEvents,
+  );
   const items: readonly TimelineItem[] = [
-    ...messages.map((value) => ({ kind: "message" as const, value })),
-    ...toolEvents.slice(-8).map((value) => ({ kind: "tool" as const, value })),
-    ...persistedEvents.map((value) => ({ kind: "persisted" as const, value })),
+    ...projected,
     ...(streamingText
       ? [{ kind: "streaming" as const, value: streamingText }]
       : []),
@@ -85,24 +92,49 @@ export function ConversationTimeline({
                   )}
                 />
               );
-            if (item.kind === "tool")
-              return (
-                <ToolEventCard
-                  event={item.value}
-                  onDetails={onRunSelect}
-                  onApprove={onApprove}
-                  onReject={onReject}
-                  onRetry={onRetry}
-                />
-              );
-            if (item.kind === "persisted")
+            if (item.kind === "route")
               return (
                 <div className="tool-card persisted-event">
-                  <span>History</span>
-                  <strong>{item.value.type}</strong>
-                  <small>{item.value.occurredAt}</small>
+                  <span>路由结果</span>
+                  <strong>{item.value.status}</strong>
+                  <small>{item.value.assignments.length} 个 Agent</small>
                 </div>
               );
+            if (item.kind === "run")
+              return (
+                <button
+                  type="button"
+                  className="tool-card persisted-event"
+                  onClick={() => onRunSelect(item.value.runId)}
+                >
+                  <span>运行摘要</span>
+                  <strong>{item.value.status}</strong>
+                  <small>{item.value.runId.slice(0, 8)}</small>
+                </button>
+              );
+            if (item.kind === "event") {
+              if (!("sequence" in item.value))
+                return (
+                  <ToolEventCard
+                    event={item.value}
+                    onDetails={onRunSelect}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    onRetry={(runId) => onRetry(runId, "")}
+                  />
+                );
+              return (
+                <div className="tool-card persisted-event">
+                  <span>活动</span>
+                  <strong>{item.value.type}</strong>
+                  <small>
+                    {"occurredAt" in item.value
+                      ? item.value.occurredAt
+                      : "实时"}
+                  </small>
+                </div>
+              );
+            }
             if (item.kind === "streaming")
               return (
                 <article className="message streaming">
