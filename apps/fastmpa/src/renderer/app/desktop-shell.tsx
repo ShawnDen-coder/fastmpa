@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import type { ApplicationEvent } from "../../shared/contracts/application.js";
-import { NavigationRail } from "../components/workbench/index.js";
+import { ConversationHeader, NavigationRail } from "../components/workbench/index.js";
 import { Composer } from "../features/conversations/composer.js";
 import { ConversationCreateDialog } from "../features/conversations/conversation-create-dialog.js";
 import { ConversationList } from "../features/conversations/conversation-list.js";
@@ -91,7 +91,6 @@ export function DesktopShell(): React.JSX.Element {
   } = useNavigationController();
   const {
     workspace,
-    conversations,
     agents,
     selectedConversation,
     conversationId,
@@ -318,47 +317,24 @@ export function DesktopShell(): React.JSX.Element {
           onPointerDown={resizeConversationList}
         />
         <section className="chat-pane">
-          <div className="chat-header">
-            <div>
-              <p className="eyebrow">{page}</p>
-              <h2>
-                {conversations.find(
-                  (conversation) => conversation.id === conversationId,
-                )?.title ?? "Select a conversation"}
-              </h2>
-            </div>
-            {selectedConversation && (
-              <span className="status-pill">
-                <span />
-                {selectedConversation.activeRunStatus ??
-                  (selectedConversation.unread ? "Waiting" : "Idle")}
-              </span>
-            )}
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
+          {page === "Conversations" ? (
+            <ConversationHeader
+              conversation={selectedConversation}
+              participantCount={selectedConversation?.participantIds.length ?? 0}
+              inspectorOpen={Boolean(inspectorRunId)}
+              canOpenInspector={Object.values(runSnapshots).some((item) => Boolean(item.run))}
+              onToggleInspector={() =>
                 setInspectorRunId(
                   inspectorRunId
                     ? undefined
                     : Object.values(runSnapshots)[0]?.run?.runId,
                 )
               }
-              disabled={Object.values(runSnapshots).every((item) => !item.run)}
-            >
-              {inspectorRunId ? "Hide inspector" : "Show inspector"}
-            </button>
-            {page === "Conversations" &&
-              selectedConversation?.kind === "group" && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setMembersDialogOpen(true)}
-                >
-                  Members
-                </button>
-              )}
-          </div>
+              onOpenMembers={() => setMembersDialogOpen(true)}
+            />
+          ) : (
+            <div className="chat-header"><div><p className="eyebrow">FastMPA</p><h2>{page}</h2></div></div>
+          )}
           {page === "Conversations" ? (
             <LiveConversationTimeline
               messages={messages}

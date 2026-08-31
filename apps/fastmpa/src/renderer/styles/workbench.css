@@ -21,6 +21,10 @@
   place-items: center;
 }
 
+.workbench-conversation-header small { color: #718096; }
+
+.conversation-header-actions { display: flex; align-items: center; gap: 8px; }
+
 .presence-dot {
   width: 7px;
   height: 7px;
